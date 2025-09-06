@@ -7,8 +7,15 @@ import { NEWS_DATA, FAQ_DATA } from '../constants';
 
 // Removed overlay popover; we'll render a fixed inline panel instead.
 
+type OcrStats = {
+  totalRuns: number;
+  lastKind: 'image' | 'pdf' | 'docx' | 'other';
+  lastDateISO: string;
+  lastChars: number;
+};
+
 // OCR tool extracted into a component to use inside popover
-const OcrTool: React.FC = () => {
+const OcrTool: React.FC<{ onStatsChanged?: () => void }> = ({ onStatsChanged }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [ocrResult, setOcrResult] = useState<string>('');
   const [progress, setProgress] = useState<number>(0);
@@ -50,6 +57,17 @@ const OcrTool: React.FC = () => {
         setOcrResult(text || '');
         setStatus('تم استخراج النص من ملف الوورد.');
         setProgress(100);
+        try {
+          const prev = JSON.parse(localStorage.getItem('ocrStats') || '{"totalRuns":0}') as Partial<OcrStats>;
+          const next: OcrStats = {
+            totalRuns: (prev.totalRuns || 0) + 1,
+            lastKind: 'docx',
+            lastDateISO: new Date().toISOString(),
+            lastChars: (text || '').length,
+          };
+          localStorage.setItem('ocrStats', JSON.stringify(next));
+          onStatsChanged?.();
+        } catch { /* ignore */ }
       } catch (error) {
         console.error(error);
         setStatus('تعذر قراءة ملف الوورد.');
@@ -85,6 +103,19 @@ const OcrTool: React.FC = () => {
       setOcrResult(text);
       setStatus('اكتملت القراءة بنجاح!');
       setProgress(100);
+      try {
+        const prev = JSON.parse(localStorage.getItem('ocrStats') || '{"totalRuns":0}') as Partial<OcrStats>;
+        const mime = selectedFile.type;
+        const kind: OcrStats['lastKind'] = mime.startsWith('image/') ? 'image' : mime === 'application/pdf' ? 'pdf' : 'other';
+        const next: OcrStats = {
+          totalRuns: (prev.totalRuns || 0) + 1,
+          lastKind: kind,
+          lastDateISO: new Date().toISOString(),
+          lastChars: (text || '').length,
+        };
+        localStorage.setItem('ocrStats', JSON.stringify(next));
+        onStatsChanged?.();
+      } catch { /* ignore */ }
     } catch (error) {
       console.error(error);
       setStatus('حدث خطأ أثناء قراءة الملف.');
@@ -205,7 +236,7 @@ const OcrTool: React.FC = () => {
   );
 };
 
-const NewsEditor: React.FC = () => {
+const NewsEditor: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [draft, setDraft] = useState<NewsItem>({ title: '', date: new Date().toLocaleDateString('ar-SY'), content: '' });
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -223,6 +254,7 @@ const NewsEditor: React.FC = () => {
   const persist = (list: NewsItem[]) => {
     setItems(list);
     localStorage.setItem('newsItems', JSON.stringify(list));
+  onChanged?.();
   };
 
   const resetDraft = () => setDraft({ title: '', date: new Date().toLocaleDateString('ar-SY'), content: '' });
@@ -306,7 +338,7 @@ const NewsEditor: React.FC = () => {
   );
 };
 
-const FaqEditor: React.FC = () => {
+const FaqEditor: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
   const [items, setItems] = useState<FaqItem[]>([]);
   const [draft, setDraft] = useState<FaqItem>({ question: '', answer: '' });
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -324,6 +356,7 @@ const FaqEditor: React.FC = () => {
   const persist = (list: FaqItem[]) => {
     setItems(list);
     localStorage.setItem('faqItems', JSON.stringify(list));
+  onChanged?.();
   };
 
   const resetDraft = () => setDraft({ question: '', answer: '' });
@@ -403,12 +436,37 @@ const FaqEditor: React.FC = () => {
 
 const ToolsPage: React.FC = () => {
   const [active, setActive] = useState<null | 'ocr' | 'news' | 'faq'>(null);
+  const [newsCount, setNewsCount] = useState<number>(0);
+  const [faqCount, setFaqCount] = useState<number>(0);
+  const [ocrStats, setOcrStats] = useState<OcrStats | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setActive(null); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, []);
+
+  const refreshStats = useCallback(() => {
+    try {
+      const savedNews = localStorage.getItem('newsItems');
+      if (savedNews) setNewsCount(JSON.parse(savedNews).length);
+      else setNewsCount(NEWS_DATA.length);
+    } catch { setNewsCount(NEWS_DATA.length); }
+
+    try {
+      const savedFaq = localStorage.getItem('faqItems');
+      if (savedFaq) setFaqCount(JSON.parse(savedFaq).length);
+      else setFaqCount(FAQ_DATA.length);
+    } catch { setFaqCount(FAQ_DATA.length); }
+
+    try {
+      const savedOcr = localStorage.getItem('ocrStats');
+      if (savedOcr) setOcrStats(JSON.parse(savedOcr));
+      else setOcrStats(null);
+    } catch { setOcrStats(null); }
+  }, []);
+
+  useEffect(() => { refreshStats(); }, [refreshStats]);
 
   return (
     <div className="rounded-2xl p-8 animate-fade-in-up transition-all duration-300 border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-900/60 backdrop-blur shadow-lg">
@@ -426,6 +484,15 @@ const ToolsPage: React.FC = () => {
             >
               <h3 className="text-xl font-semibold mb-1">التعرف الضوئي (OCR)</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">قراءة نصوص الصور وملفات PDF وDOCX.</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">العمليات {ocrStats?.totalRuns || 0}</span>
+                {ocrStats?.lastKind && (
+                  <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-800 dark:bg-gray-700/40 dark:text-gray-200">آخر نوع {ocrStats.lastKind === 'image' ? 'صور' : ocrStats.lastKind === 'pdf' ? 'PDF' : ocrStats.lastKind === 'docx' ? 'Word' : 'أخرى'}</span>
+                )}
+                {ocrStats?.lastDateISO && (
+                  <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">آخر مرة {new Date(ocrStats.lastDateISO).toLocaleString('ar-SY')}</span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -439,6 +506,9 @@ const ToolsPage: React.FC = () => {
             >
               <h3 className="text-xl font-semibold mb-1">الأخبار والإعلانات</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">إضافة وتعديل محتوى صفحة الأخبار.</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">عدد الأخبار {newsCount}</span>
+              </div>
             </div>
           </div>
 
@@ -452,6 +522,9 @@ const ToolsPage: React.FC = () => {
             >
               <h3 className="text-xl font-semibold mb-1">الأسئلة الشائعة</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">تحرير قاعدة المعرفة والأسئلة المتكررة.</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">عدد الأسئلة {faqCount}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -467,9 +540,9 @@ const ToolsPage: React.FC = () => {
               <button onClick={() => setActive(null)} aria-label="إغلاق" className="w-8 h-8 rounded hover:bg-black/5 dark:hover:bg-white/10">✕</button>
             </div>
             <div className="p-4 max-h-[70vh] overflow-auto">
-              {active === 'ocr' && <OcrTool />}
-              {active === 'news' && <NewsEditor />}
-              {active === 'faq' && <FaqEditor />}
+              {active === 'ocr' && <OcrTool onStatsChanged={refreshStats} />}
+              {active === 'news' && <NewsEditor onChanged={refreshStats} />}
+              {active === 'faq' && <FaqEditor onChanged={refreshStats} />}
             </div>
           </div>
         )}
