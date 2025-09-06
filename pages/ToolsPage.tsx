@@ -236,10 +236,59 @@ const OcrTool: React.FC<{ onStatsChanged?: () => void }> = ({ onStatsChanged }) 
   );
 };
 
-const NewsEditor: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
-  const [items, setItems] = useState<NewsItem[]>([]);
+// نموذج إضافة خبر فقط
+const NewsAddForm: React.FC<{ onAdded?: () => void; onSwitchToManage?: () => void }> = ({ onAdded, onSwitchToManage }) => {
   const [draft, setDraft] = useState<NewsItem>({ title: '', date: new Date().toLocaleDateString('ar-SY'), content: '' });
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const add = () => {
+    if (!draft.title.trim() || !draft.content.trim() || !draft.date.trim()) return;
+    try {
+      setSaving(true);
+      const saved = localStorage.getItem('newsItems');
+      const list: NewsItem[] = saved ? JSON.parse(saved) : NEWS_DATA.slice();
+      list.unshift({ ...draft });
+      localStorage.setItem('newsItems', JSON.stringify(list));
+      setMessage('تمت إضافة الخبر بنجاح.');
+      setDraft({ title: '', date: new Date().toLocaleDateString('ar-SY'), content: '' });
+      onAdded?.();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="mt-6">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">إضافة خبر جديد</h2>
+      <p className="text-gray-600 dark:text-gray-300 mb-4 text-sm">سيظهر الخبر فوراً في صفحة الأخبار، ويتم الحفظ محلياً.</p>
+      <div className="grid md:grid-cols-3 gap-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+        <label className="text-sm md:col-span-1">العنوان
+          <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+        </label>
+        <label className="text-sm md:col-span-1">التاريخ
+          <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} placeholder="مثال: 15 أغسطس 2025" />
+        </label>
+        <label className="text-sm md:col-span-3">النص
+          <textarea className="mt-1 w-full min-h-[120px] p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={draft.content} onChange={(e) => setDraft({ ...draft, content: e.target.value })} />
+        </label>
+        <div className="md:col-span-3 flex gap-2 justify-end">
+          {onSwitchToManage && (
+            <button onClick={onSwitchToManage} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">إدارة الأخبار</button>
+          )}
+          <button onClick={add} disabled={saving} className="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-60">إضافة</button>
+        </div>
+        {message && <div className="md:col-span-3 text-sm text-green-700 dark:text-green-400">{message}</div>}
+      </div>
+    </section>
+  );
+};
+
+// إدارة الأخبار (تعديل/حذف) بدون إضافة
+const NewsManager: React.FC<{ onChanged?: () => void; onSwitchToAdd?: () => void }> = ({ onChanged, onSwitchToAdd }) => {
+  const [items, setItems] = useState<NewsItem[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [draft, setDraft] = useState<NewsItem>({ title: '', date: new Date().toLocaleDateString('ar-SY'), content: '' });
 
   useEffect(() => {
     try {
@@ -254,58 +303,46 @@ const NewsEditor: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
   const persist = (list: NewsItem[]) => {
     setItems(list);
     localStorage.setItem('newsItems', JSON.stringify(list));
-  onChanged?.();
+    onChanged?.();
   };
 
-  const resetDraft = () => setDraft({ title: '', date: new Date().toLocaleDateString('ar-SY'), content: '' });
-
-  const addOrUpdate = () => {
-    if (!draft.title.trim() || !draft.content.trim() || !draft.date.trim()) return;
-    if (editingIndex !== null) {
-      const next = items.slice();
-      next[editingIndex] = { ...draft };
-      persist(next);
-      setEditingIndex(null);
-      resetDraft();
-    } else {
-      persist([{ ...draft }, ...items]);
-      resetDraft();
-    }
-  };
-
-  const edit = (index: number) => {
-    setEditingIndex(index);
-    setDraft(items[index]);
-  };
-
-  const remove = (index: number) => {
-    const next = items.filter((_, i) => i !== index);
+  const startEdit = (i: number) => { setEditingIndex(i); setDraft(items[i]); };
+  const cancel = () => { setEditingIndex(null); };
+  const save = () => {
+    if (editingIndex === null) return;
+    const next = items.slice();
+    next[editingIndex] = { ...draft };
     persist(next);
-    if (editingIndex === index) { setEditingIndex(null); resetDraft(); }
+    setEditingIndex(null);
   };
+  const remove = (i: number) => { const next = items.filter((_, idx) => idx !== i); persist(next); if (editingIndex === i) setEditingIndex(null); };
 
   return (
-    <section className="mt-12">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">تحرير الأخبار والإعلانات</h2>
-      <p className="text-gray-600 dark:text-gray-300 mb-4 text-sm">تُحفظ التغييرات محلياً في المتصفح وتظهر في صفحة الأخبار.</p>
-      <div className="grid md:grid-cols-3 gap-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
-        <label className="text-sm md:col-span-1">العنوان
-          <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
-        </label>
-        <label className="text-sm md:col-span-1">التاريخ
-          <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} placeholder="مثال: 15 أغسطس 2025" />
-        </label>
-        <label className="text-sm md:col-span-3">النص
-          <textarea className="mt-1 w-full min-h-[100px] p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={draft.content} onChange={(e) => setDraft({ ...draft, content: e.target.value })} />
-        </label>
-        <div className="md:col-span-3 flex gap-2 justify-end">
-          {editingIndex !== null && (
-            <button onClick={() => { setEditingIndex(null); resetDraft(); }} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">إلغاء</button>
-          )}
-          <button onClick={addOrUpdate} className="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">{editingIndex !== null ? 'حفظ التعديل' : 'إضافة'}</button>
-        </div>
+    <section className="mt-6">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">إدارة الأخبار</h2>
+        {onSwitchToAdd && (
+          <button onClick={onSwitchToAdd} className="px-3 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">إضافة خبر</button>
+        )}
       </div>
-      <div className="mt-5 border rounded-xl overflow-hidden border-gray-200 dark:border-gray-700">
+      {editingIndex !== null && (
+        <div className="mb-4 grid md:grid-cols-3 gap-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <label className="text-sm md:col-span-1">العنوان
+            <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+          </label>
+          <label className="text-sm md:col-span-1">التاريخ
+            <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} />
+          </label>
+          <label className="text-sm md:col-span-3">النص
+            <textarea className="mt-1 w-full min-h-[100px] p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={draft.content} onChange={(e) => setDraft({ ...draft, content: e.target.value })} />
+          </label>
+          <div className="md:col-span-3 flex gap-2 justify-end">
+            <button onClick={cancel} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">إلغاء</button>
+            <button onClick={save} className="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">حفظ التعديل</button>
+          </div>
+        </div>
+      )}
+      <div className="border rounded-xl overflow-hidden border-gray-200 dark:border-gray-700">
         {items.length === 0 ? (
           <div className="p-4 text-sm text-gray-600 dark:text-gray-300">لا توجد أخبار بعد.</div>
         ) : (
@@ -324,7 +361,7 @@ const NewsEditor: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
                   <td className="p-3 text-gray-600 dark:text-gray-300">{n.date}</td>
                   <td className="p-3">
                     <div className="flex gap-2">
-                      <button onClick={() => edit(i)} className="text-blue-600 dark:text-blue-400 hover:underline">تعديل</button>
+                      <button onClick={() => startEdit(i)} className="text-blue-600 dark:text-blue-400 hover:underline">تعديل</button>
                       <button onClick={() => remove(i)} className="text-red-600 dark:text-red-400 hover:underline">حذف</button>
                     </div>
                   </td>
@@ -435,7 +472,7 @@ const FaqEditor: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
 };
 
 const ToolsPage: React.FC = () => {
-  const [active, setActive] = useState<null | 'ocr' | 'news' | 'faq'>(null);
+  const [active, setActive] = useState<null | 'ocr' | 'newsAdd' | 'newsManage' | 'faq'>(null);
   const [newsCount, setNewsCount] = useState<number>(0);
   const [faqCount, setFaqCount] = useState<number>(0);
   const [ocrStats, setOcrStats] = useState<OcrStats | null>(null);
@@ -496,16 +533,32 @@ const ToolsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* News Card */}
+          {/* News Add Card */}
           <div className="relative">
             <div
               role="button" tabIndex={0}
-              onClick={() => setActive(active === 'news' ? null : 'news')}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'news' ? null : 'news'); } }}
+              onClick={() => setActive(active === 'newsAdd' ? null : 'newsAdd')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'newsAdd' ? null : 'newsAdd'); } }}
               className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
-              <h3 className="text-xl font-semibold mb-1">الأخبار والإعلانات</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">إضافة وتعديل محتوى صفحة الأخبار.</p>
+              <h3 className="text-xl font-semibold mb-1">إضافة خبر</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">إدراج خبر جديد يظهر في صفحة الأخبار.</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">عدد الأخبار {newsCount}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* News Manage Card */}
+          <div className="relative">
+            <div
+              role="button" tabIndex={0}
+              onClick={() => setActive(active === 'newsManage' ? null : 'newsManage')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'newsManage' ? null : 'newsManage'); } }}
+              className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <h3 className="text-xl font-semibold mb-1">تحرير الأخبار</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">تعديل أو حذف الأخبار المنشورة.</p>
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">عدد الأخبار {newsCount}</span>
               </div>
@@ -534,14 +587,16 @@ const ToolsPage: React.FC = () => {
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
                 {active === 'ocr' && 'أداة التعرف الضوئي على الحروف (OCR)'}
-                {active === 'news' && 'تحرير الأخبار والإعلانات'}
+                {active === 'newsAdd' && 'إضافة خبر جديد'}
+                {active === 'newsManage' && 'إدارة الأخبار'}
                 {active === 'faq' && 'تحرير الأسئلة الشائعة'}
               </h3>
               <button onClick={() => setActive(null)} aria-label="إغلاق" className="w-8 h-8 rounded hover:bg-black/5 dark:hover:bg-white/10">✕</button>
             </div>
             <div className="p-4 max-h-[70vh] overflow-auto">
               {active === 'ocr' && <OcrTool onStatsChanged={refreshStats} />}
-              {active === 'news' && <NewsEditor onChanged={refreshStats} />}
+              {active === 'newsAdd' && <NewsAddForm onAdded={refreshStats} onSwitchToManage={() => setActive('newsManage')} />}
+              {active === 'newsManage' && <NewsManager onChanged={refreshStats} onSwitchToAdd={() => setActive('newsAdd')} />}
               {active === 'faq' && <FaqEditor onChanged={refreshStats} />}
             </div>
           </div>
