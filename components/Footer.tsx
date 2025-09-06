@@ -24,6 +24,7 @@ const Footer: React.FC = () => {
             <ul className="space-y-3">
               <li><a href="#/news" className="hover:text-black dark:hover:text-white transition-colors">الأخبار</a></li>
               <li><a href="#/faq" className="hover:text-black dark:hover:text-white transition-colors">الأسئلة الشائعة</a></li>
+              <li><a href="#/departments" className="hover:text-black dark:hover:text-white transition-colors">الهيكل الإداري</a></li>
               <li><a href="#/privacy" className="hover:text-black dark:hover:text-white transition-colors">سياسة الخصوصية</a></li>
               <li><a href="#/terms" className="hover:text-black dark:hover:text-white transition-colors">الشروط والأحكام</a></li>
             </ul>

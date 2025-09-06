@@ -47,7 +47,8 @@ const Header: React.FC = () => {
   };
 
   const NavLink: React.FC<{ href: string; children: React.ReactNode; onClick?: () => void; isMobile?: boolean; }> = ({ href, children, onClick, isMobile = false }) => {
-    const isActive = currentPath === href || (href === '#/' && (currentPath === '#/' || currentPath === ''));
+    const currentBase = (currentPath || '#/').split('?')[0];
+    const isActive = currentBase === href || (href === '#/' && (currentBase === '#/' || currentBase === ''));
     
     const desktopClasses = `
       relative text-gray-600 dark:text-gray-300 font-medium transition-all duration-300 transform hover:-translate-y-0.5 hover:scale-105
@@ -98,6 +99,7 @@ const Header: React.FC = () => {
         { href: '#/track', label: 'متابعة طلب' },
         { href: '#/faq', label: 'الأسئلة الشائعة' },
         { href: '#/news', label: 'الأخبار والإعلانات' },
+  { href: '#/departments', label: 'الهيكل الإداري' },
     { href: '#/contact', label: 'تواصل معنا' },
     ];
     
@@ -169,6 +171,7 @@ const Header: React.FC = () => {
               <NavLink href="#/track">متابعة طلب</NavLink>
               <NavLink href="#/faq">الأسئلة الشائعة</NavLink>
               <NavLink href="#/news">الأخبار والإعلانات</NavLink>
+              <NavLink href="#/departments">الهيكل الإداري</NavLink>
               <NavLink href="#/contact">تواصل معنا</NavLink>
               {appContext?.isEmployeeLoggedIn && <NavLink href="#/dashboard">لوحة التحكم</NavLink>}
               {appContext?.isEmployeeLoggedIn && appContext?.currentEmployee?.role === 'مدير' && (

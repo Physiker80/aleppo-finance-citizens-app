@@ -494,8 +494,8 @@ ${trackUrl}
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => { window.location.hash = '#/departments'; }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/departments'; } }}
+                onClick={() => { window.location.hash = '#/departments?manage=1'; }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/departments?manage=1'; } }}
                 className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
                 <div className="flex items-start justify-between">

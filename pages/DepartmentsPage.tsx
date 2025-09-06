@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FaCrown, FaUpload, FaTrash, FaDownload, FaChevronRight, FaChevronDown, FaBuilding } from 'react-icons/fa';
+import { FaCrown, FaUpload, FaTrash, FaDownload, FaChevronRight, FaChevronDown, FaChevronUp, FaBuilding, FaSearch, FaSearchPlus, FaSearchMinus, FaSync, FaAngleDoubleDown, FaAngleDoubleUp } from 'react-icons/fa';
 
 type DepartmentInfo = {
   id: string;
@@ -13,37 +13,202 @@ type DepartmentInfo = {
 
 const DEFAULT_DEPARTMENTS: DepartmentInfo[] = [
   {
-    id: 'gen-admin',
-    name: 'الإدارة العامة',
+    id: 'general-admin',
+    name: 'قسم الإدارة العامة',
     head: 'مدير المديرية',
-    description: 'الإشراف العام على أعمال المديرية وتنسيق العمل بين الأقسام.'
-  },
-  {
-    id: 'diwan',
-    name: 'الديوان العام',
-    head: 'رئيس الديوان',
-    description: 'استلام وتصدير البريد الرسمي، وترقيم وأرشفة الكتب والتعاميم.'
+    description: 'الإشراف العام على المديرية والدعم الإداري والتنفيذي.' ,
+    subunits: [
+      'دائرة خدمة الجمهور والنافذة الواحدة: شعبة النافذة الواحدة',
+      'دائرة خدمة الجمهور والنافذة الواحدة: شعبة التسجيل والبيانات',
+      'دائرة خدمة الجمهور والنافذة الواحدة: شعبة المستوى والجودة',
+      'دائرة خدمة الجمهور والنافذة الواحدة: شعبة الدعم الإلكتروني والتحويلات',
+      'دائرة مكتب المدير: شعبة الشؤون الإدارية والقانونية',
+      'دائرة مكتب المدير: شعبة التخطيط والمتابعة',
+      'دائرة مكتب المدير: شعبة العلاقات العامة والاتصال',
+      'دائرة مكتب المدير: شعبة الشؤون المالية للمكتب',
+      'دائرة مكتب المدير: شعبة التقنية والمعلومات'
+    ]
   },
   {
     id: 'income',
     name: 'قسم الدخل',
-    description: 'متابعة معاملات الدخل، التحصيل، والتدقيق.'
+    description: 'إدارة وتحصيل الضرائب والرسوم وفق القوانين النافذة.',
+    subunits: [
+      'دائرة الضرائب على الأرباح الحقيقية: شعبة المراقبة والتحقق',
+      'دائرة الضرائب على الأرباح الحقيقية: شعبة التكاليف الضريبية',
+      'دائرة الضرائب على الأرباح الحقيقية: شعبة الطعون والاعتراضات',
+      'دائرة الضرائب على الأرباح الحقيقية: شعبة التسجيل والمحفوظات',
+      'دائرة الضرائب على الدخل المتطوع: شعبة التسجيل والتصنيف',
+      'دائرة الضرائب على الدخل المتطوع: شعبة التحقق والمتابعة',
+      'دائرة الضرائب على الدخل المتطوع: شعبة الطعن والتقاص',
+      'دائرة الضرائب على الدخل المتطوع: شعبة الإبلاغ والتبليغ',
+      'دائرة رسوم التركات والهبات والوصايا: شعبة التحقق والتقييم',
+      'دائرة رسوم التركات والهبات والوصايا: شعبة التسجيل والمحفوظات',
+      'دائرة رسوم التركات والهبات والوصايا: شعبة الاستعلام والتوثيق',
+      'دائرة رسوم التركات والهبات والوصايا: شعبة التحصيل والمتابعة',
+      'دائرة الرواتب والأجور وضرائب رأس المال: شعبة الرواتب والأجور',
+      'دائرة الرواتب والأجور وضرائب رأس المال: شعبة رؤوس الأموال المتداولة',
+      'دائرة الرواتب والأجور وضرائب رأس المال: شعبة التحقق الميداني',
+      'دائرة الرواتب والأجور وضرائب رأس المال: شعبة المطابقة والتدقيق',
+      'دائرة التدقيق واللجان: شعبة التدقيق الداخلي',
+      'دائرة التدقيق واللجان: شعبة اللجان الضريبية',
+      'دائرة التدقيق واللجان: شعبة التبليغ والإعلام',
+      'دائرة التدقيق واللجان: شعبة المراجعة القانونية',
+      'دائرة التحول الرقمي والبيانات: شعبة الأنظمة الإلكترونية',
+      'دائرة التحول الرقمي والبيانات: شعبة قواعد البيانات',
+      'دائرة التحول الرقمي والبيانات: شعبة التحليل الإحصائي',
+      'دائرة التحول الرقمي والبيانات: شعبة الدعم الفني',
+      'دائرة الشكاوى وخدمة المكلفين: شعبة استقبال الشكاوى',
+      'دائرة الشكاوى وخدمة المكلفين: شعبة التظلمات والاعتراضات',
+      'دائرة الشكاوى وخدمة المكلفين: شعبة التوعية الضريبية',
+      'دائرة الشكاوى وخدمة المكلفين: شعبة خدمة المكلفين'
+    ]
   },
   {
-    id: 'companies',
-    name: 'قسم الشركات',
-    description: 'شؤون الشركات والتراخيص والسجلات.'
+    id: 'large-taxpayers',
+    name: 'قسم كبار ومتوسطي المكلفين',
+    description: 'إدارة العلاقة مع كبار ومتوسطي المكلفين والتحصيل والتقييم.',
+    subunits: [
+      'شعبة إدارة علاقات المكلفين',
+      'شعبة التحصيل والمتابعة',
+      'شعبة التحليل والتقييم',
+      'شعبة الدعم الفني والإلكتروني'
+    ]
   },
   {
-    id: 'realestate',
-    name: 'قسم العقارات',
-    description: 'ضريبة العقارات والمعاملات المرتبطة بنقل الملكية.'
+    id: 'debt-collection',
+    name: 'قسم المتابعة وإدارة الديون',
+    description: 'متابعة وتحصيل الديون المستحقة واتخاذ الإجراءات القانونية.',
+    subunits: [
+      'دائرة حسابات الجهة والمعاملات: شعبة تحقيق المعاملات وتنظيم الوثائق',
+      'دائرة حسابات الجهة والمعاملات: شعبة حسابات الجهة',
+      'دائرة حسابات الجهة والمعاملات: شعبة الوثائق والصندوق',
+      'دائرة حسابات الجهة والمعاملات: شعبة تقليل الإصدارات',
+      'دائرة الإجراءات والتقنية: شعبة الإجراءات',
+      'دائرة الإجراءات والتقنية: شعبة إعداد المعالجات والطبع القانونية',
+      'دائرة الإجراءات والتقنية: شعبة تحصيل أموال الزراعي والإدارات والهيئات العامة',
+      'دائرة الإجراءات والتقنية: شعبة التحصيل الاجتماعي',
+      'دائرة الإجراءات والتقنية: شعبة تحقق الذمم الشخصية',
+      'دائرة تحصيل الأموال العامة: شعبة تحصيل التكاليف',
+      'دائرة تحصيل الأموال العامة: شعبة تحصيل الأموال العامة'
+    ]
   },
   {
-    id: 'stamps',
-    name: 'قسم الطوابع',
-    description: 'إدارة الطوابع والتحصيل المرتبط بها.'
+    id: 'imports',
+    name: 'قسم الواردات',
+    description: 'تحصيل الرسوم والضرائب على الواردات والتدقيق المرتبط بها.',
+    subunits: [
+      'شعبة الرسم على الاستهلاك والإنتاج',
+      'شعبة الرسوم الجمركية المباشرة',
+      'شعبة الرسوم غير المباشرة والرسوم الملحقة',
+      'شعبة رسم الطابع والرسوم الملحقة',
+      'شعبة المراقبة والتدقيق',
+      'شعبة الحاسب الآلي والمعالجة الإلكترونية',
+      'شعبة الإرشاد والاستشارات'
+    ]
   },
+  {
+    id: 'internal-audit',
+    name: 'قسم الرقابة الداخلية',
+    description: 'الامتثال والمراجعة الداخلية وتقييم المخاطر.',
+    subunits: [
+      'شعبة المتابعة والتدقيق',
+      'شعبة الرقابة والتحقيق',
+      'شعبة المراجعة الداخلية',
+      'شعبة تقييم المخاطر والامتثال'
+    ]
+  },
+  {
+    id: 'informatics',
+    name: 'قسم المعلوماتية',
+    description: 'تطوير الأنظمة الإلكترونية والدعم الفني والبيانات.',
+    subunits: [
+      'شعبة التحليل والتصميم',
+      'شعبة التطوير والبرمجة',
+      'شعبة الأنظمة والشبكات',
+      'شعبة الدعم الفني والصيانة',
+      'شعبة البيانات والتقارير'
+    ]
+  },
+  {
+    id: 'admin-development',
+    name: 'قسم التنمية الإدارية',
+    description: 'تطوير الهياكل والإجراءات والموارد البشرية والتحول الرقمي.',
+    subunits: [
+      'دائرة التنمية الإدارية: شعبة تطوير الهياكل التنظيمية',
+      'دائرة التنمية الإدارية: شعبة تحسين العمليات الإدارية',
+      'دائرة التنمية الإدارية: شعبة الجودة والتميز المؤسسي',
+      'دائرة التنمية الإدارية: شعبة الابتكار والإبداع الإداري',
+      'دائرة الموارد البشرية: شعبة التوظيف والاختيار',
+      'دائرة الموارد البشرية: شعبة التدريب والتطوير',
+      'دائرة الموارد البشرية: شعبة الرواتب والمكافآت',
+      'دائرة الموارد البشرية: شعبة التقييم والأداء',
+      'دائرة الشؤون المالية والإدارية: شعبة الموازنة والاعتمادات',
+      'دائرة الشؤون المالية والإدارية: شعبة النفقات والتصفية',
+      'دائرة الشؤون المالية والإدارية: شعبة المشتريات والمستودعات',
+      'دائرة الشؤون المالية والإدارية: شعبة المراجعة الداخلية',
+      'دائرة نظم المعلومات والإدارة الإلكترونية: شعبة التحول الرقمي',
+      'دائرة نظم المعلومات والإدارة الإلكترونية: شعبة قواعد البيانات',
+      'دائرة نظم المعلومات والإدارة الإلكترونية: شعبة الدعم الفني',
+      'دائرة نظم المعلومات والإدارة الإلكترونية: شعبة الأتمتة الإدارية',
+      'دائرة الشؤون القانونية: شعبة التوثيق والمحفوظات',
+      'دائرة الشؤون القانونية: شعبة الصياغة والتشريعات',
+      'دائرة الشؤون القانونية: شعبة المنازعات والمطالبات',
+      'دائرة الشؤون القانونية: شعبة الامتثال والالتزام',
+      'دائرة خدمة الجمهور والعلاقات: شعبة استقبال المراجعين',
+      'دائرة خدمة الجمهور والعلاقات: شعبة الشكاوى والمقترحات',
+      'دائرة خدمة الجمهور والعلاقات: شعبة التواصل المؤسسي',
+      'دائرة خدمة الجمهور والعلاقات: شعبة التظلمات والشكاوى'
+    ]
+  },
+  {
+    id: 'inquiry',
+    name: 'قسم الاستعلام',
+    description: 'توفير المعلومات والبيانات المالية وخدمة الجمهور إلكترونياً.',
+    subunits: [
+      'دائرة الخدمات الإلكترونية: شعبة البوابة الإلكترونية والمنصات الرقمية',
+      'دائرة الخدمات الإلكترونية: شعبة تطبيقات الهاتف المحمول',
+      'دائرة الخدمات الإلكترونية: شعبة وسائل التواصل الاجتماعي',
+      'دائرة خدمة الجمهور: شعبة الاستعلامات المباشرة',
+      'دائرة خدمة الجمهور: شعبة الشكاوى والمقترحات',
+      'دائرة خدمة الجمهور: شعبة المركز الواحد',
+      'دائرة المعلومات والبيانات المالية: شعبة قواعد البيانات المالية',
+      'دائرة المعلومات والبيانات المالية: شعبة الإحصاء والتقارير',
+      'دائرة المعلومات والبيانات المالية: شعبة النشر والشفافية',
+      'دائرة الدعم الفني والتدريب: شعبة الدعم الفني للمواطنين',
+      'دائرة الدعم الفني والتدريب: شعبة التدريب والتأهيل',
+      'دائرة الدعم الفني والتدريب: شعبة الجودة والرضا',
+      'دائرة الشؤون القانونية والإجراءات: شعبة التوثيق القانوني',
+      'دائرة الشؤون القانونية والإجراءات: شعبة الإجراءات والأنظمة',
+      'دائرة الشؤون القانونية والإجراءات: شعبة حماية البيانات'
+    ]
+  },
+  {
+    id: 'treasury',
+    name: 'قسم الخزينة',
+    description: 'إدارة الخزينة المركزية والحسابات والمشاريع والأنظمة المالية.',
+    subunits: [
+      'مكتب الشؤون الإدارية',
+      'دائرة الحسابات العامة والموازنة: شعبة حسابات الموازنة العامة',
+      'دائرة الحسابات العامة والموازنة: شعبة الواردات والنفقات',
+      'دائرة الحسابات العامة والموازنة: شعبة التوثيق والمصادقة',
+      'دائرة الحسابات العامة والموازنة: شعبة المراجعة الداخلية',
+      'دائرة الخزينة المركزية: شعبة الصندوق والنقدية',
+      'دائرة الخزينة المركزية: شعبة الحسابات المصرفية',
+      'دائرة الخزينة المركزية: شعبة حركة النقد',
+      'دائرة الخزينة المركزية: شعبة الأوراق المالية والطوابع',
+      'دائرة السلف والأمانات: شعبة السلف الدائمة والمؤقتة',
+      'دائرة السلف والأمانات: شعبة الأمانات النقدية',
+      'دائرة السلف والأمانات: شعبة الضمانات والكفالات',
+      'دائرة السلف والأمانات: شعبة متابعة التسديد',
+      'دائرة المشاريع والتمويل: شعبة تمويل المشاريع',
+      'دائرة المشاريع والتمويل: شعبة متابعة الصرف',
+      'دائرة المشاريع والتمويل: شعبة التسويات',
+      'دائرة الأنظمة المالية الإلكترونية: شعبة الدفع الإلكتروني',
+      'دائرة الأنظمة المالية الإلكترونية: شعبة الحوكمة الإلكترونية',
+      'دائرة الأنظمة المالية الإلكترونية: شعبة دعم الأنظمة'
+    ]
+  }
 ];
 
 const DepartmentsPage: React.FC = () => {
@@ -52,12 +217,13 @@ const DepartmentsPage: React.FC = () => {
   const departments = depItems;
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<'overview' | 'list' | 'chart'>('overview');
-  const [viewMode, setViewMode] = useState<'tree' | 'org' | 'hier'>('tree');
+  const [viewMode, setViewMode] = useState<'tree' | 'org' | 'interactive'>('tree');
   const [manageOpen, setManageOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [bulkMode, setBulkMode] = useState<'replace' | 'append'>('replace');
   const bulkPdfRef = React.useRef<HTMLInputElement | null>(null);
+  const [detailsDept, setDetailsDept] = useState<DepartmentInfo | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draft, setDraft] = useState<DepartmentInfo>({ id: '', name: '', head: '', description: '', phone: '', email: '', subunits: [] });
   const fileRef = React.useRef<HTMLInputElement | null>(null);
@@ -69,13 +235,20 @@ const DepartmentsPage: React.FC = () => {
       return p?.role === 'مدير';
     } catch { return false; }
   }, []);
+  // Allow manage UI only when manager and explicitly launched with manage=1 (from dashboard)
+  const allowManage = useMemo(() => {
+    const hash = window.location.hash || '';
+    const qs = hash.split('?')[1] || '';
+    const params = new URLSearchParams(qs);
+    return isManager && params.get('manage') === '1';
+  }, [isManager]);
 
   // Defaults for overview content
   const [leaderName, setLeaderName] = useState('السيد أحمد محمد الأحمد');
   const [leaderTitle, setLeaderTitle] = useState('المسؤول الأول عن إدارة الشؤون المالية للمحافظة');
   const DEFAULT_ABOUT = 'تعتبر مديرية مالية محافظة حلب إحدى المؤسسات الحكومية الرائدة في الجمهورية العربية السورية والتي تُعنى بإدارة الشؤون المالية والمحاسبية للمحافظة. تأسست المديرية عام 1949 وتضم ما يقارب 280 موظفاً وموظفة يعملون في 8 أقسام رئيسية متخصصة في مختلف جوانب العمل المالي والإداري.';
   const [aboutText, setAboutText] = useState(DEFAULT_ABOUT);
-  const [stats, setStats] = useState({ totalEmployees: 280, mainDepartments: 8, subUnits: 15, yearsOfService: 75 });
+  const [stats, setStats] = useState({ totalEmployees: 280, mainDepartments: 10, subUnits: 126, yearsOfService: 75 });
   const [editingAbout, setEditingAbout] = useState(false);
   const [aboutDraft, setAboutDraft] = useState('');
 
@@ -392,6 +565,13 @@ const DepartmentsPage: React.FC = () => {
     } catch { /* noop */ }
   };
 
+  // Close details with Esc
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDetailsDept(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const filtered = useMemo(() => {
     const q = query.trim();
     if (!q) return departments;
@@ -462,7 +642,7 @@ const DepartmentsPage: React.FC = () => {
             <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">نبذة عن المديرية</h3>
-                {isManager && !editingAbout && (
+                {allowManage && !editingAbout && (
                   <button onClick={() => { setAboutDraft(aboutText); setEditingAbout(true); }} className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 bg-white/70 dark:bg-gray-800/70">تحرير</button>
                 )}
               </div>
@@ -496,7 +676,7 @@ const DepartmentsPage: React.FC = () => {
                   className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
-              {isManager && (
+              {allowManage && (
                 <div className="flex items-center gap-2">
                   <button onClick={() => setManageOpen((v) => !v)} className="px-4 py-2 rounded-lg text-sm border border-gray-300 dark:border-gray-600 bg-white/70 dark:bg-gray-800/70">
                     {manageOpen ? 'إخفاء الإدارة' : 'إدارة الأقسام'}
@@ -507,7 +687,7 @@ const DepartmentsPage: React.FC = () => {
               )}
             </div>
 
-            {isManager && bulkOpen && (
+            {allowManage && bulkOpen && (
               <div className="mb-5 rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">إدخال مجمّع للدوائر والشعب</h3>
@@ -549,7 +729,7 @@ const DepartmentsPage: React.FC = () => {
               </div>
             )}
 
-            {isManager && manageOpen && (
+            {allowManage && manageOpen && (
               <div className="mb-5 rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-4 shadow-sm">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{editingIndex === null ? 'إضافة قسم' : 'تعديل قسم'}</h3>
                 <div className="grid md:grid-cols-2 gap-4">
@@ -613,27 +793,97 @@ const DepartmentsPage: React.FC = () => {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-              {filtered.map((d) => (
-                <section key={d.id} className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-5 shadow-sm">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">{d.name}</h2>
-                  {d.head && <p className="text-sm text-gray-700 dark:text-gray-300">المسؤول: <span className="font-medium">{d.head}</span></p>}
-                  {d.phone && <p className="text-sm text-gray-700 dark:text-gray-300">الهاتف: {d.phone}</p>}
-                  {d.email && <p className="text-sm text-gray-700 dark:text-gray-300">البريد: <a className="text-blue-600 dark:text-blue-400 hover:underline" href={`mailto:${d.email}`}>{d.email}</a></p>}
-                  {d.description && <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{d.description}</p>}
-                  {!!(d.subunits && d.subunits.length) && (
-                    <div className="mt-3">
-                      <div className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">الشعب التابعة:</div>
-                      <ul className="list-disc pr-5 text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                        {d.subunits!.map((s, i) => (<li key={i}>{s}</li>))}
-                      </ul>
+              {filtered.map((d) => {
+                const subCount = d.subunits?.length || 0;
+                const groups = new Set<string>();
+                (d.subunits || []).forEach((s) => { const p = s.split(':'); if (p.length > 1) groups.add(p[0].trim()); });
+                const grpCount = groups.size;
+                const hasContact = !!(d.phone || d.email);
+                return (
+                  <section key={d.id} className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-5 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">{d.name}</h2>
+                        {d.head && <p className="text-sm text-gray-700 dark:text-gray-300">المسؤول: <span className="font-medium">{d.head}</span></p>}
+                        {d.description && <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{d.description}</p>}
+                      </div>
+                      <div className="shrink-0">
+                        <button onClick={() => setDetailsDept(d)} className="px-3 py-1.5 rounded-lg text-sm bg-blue-600 text-white hover:bg-blue-700">تفاصيل</button>
+                      </div>
                     </div>
-                  )}
-                </section>
-              ))}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-700">{subCount} شعب</span>
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-700">{grpCount} دوائر</span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs border ${hasContact ? 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-200 dark:border-indigo-700' : 'bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-800/40 dark:text-gray-300 dark:border-gray-700'}`}>{hasContact ? 'معلومات اتصال' : 'بدون اتصال'}</span>
+                    </div>
+                  </section>
+                );
+              })}
               {filtered.length === 0 && (
                 <div className="col-span-full text-center text-sm text-gray-600 dark:text-gray-300">لا توجد نتائج مطابقة لبحثك.</div>
               )}
             </div>
+
+            {/* Details panel */}
+            {detailsDept && (
+              <div className="fixed inset-0 z-40">
+                <div className="absolute inset-0 bg-black/30" onClick={() => setDetailsDept(null)} />
+                <div className="absolute right-0 top-0 h-full w-full md:w-[520px] bg-white/90 dark:bg-gray-900/90 backdrop-blur border-l border-white/20 dark:border-white/10 shadow-xl animate-fade-in-up p-5 overflow-y-auto" dir="rtl">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">تفاصيل القسم</h3>
+                    <button onClick={() => setDetailsDept(null)} className="px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 text-sm">إغلاق</button>
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-xl font-semibold text-gray-900 dark:text-white">{detailsDept.name}</div>
+                    {detailsDept.head && <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">المسؤول: {detailsDept.head}</div>}
+                    {(detailsDept.phone || detailsDept.email) && (
+                      <div className="mt-1 text-sm text-gray-700 dark:text-gray-300 flex flex-col gap-1">
+                        {detailsDept.phone && <div>الهاتف: {detailsDept.phone}</div>}
+                        {detailsDept.email && <div>البريد: <a className="text-blue-600 dark:text-blue-400 hover:underline" href={`mailto:${detailsDept.email}`}>{detailsDept.email}</a></div>}
+                      </div>
+                    )}
+                    {detailsDept.description && <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{detailsDept.description}</p>}
+
+                    {/* Grouped subunits */}
+                    {!!(detailsDept.subunits && detailsDept.subunits.length) && (
+                      <div className="mt-4">
+                        <div className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">الوحدات التابعة</div>
+                        {(() => {
+                          const grouped: Record<string, string[]> = {};
+                          (detailsDept.subunits || []).forEach((s) => {
+                            const parts = s.split(':');
+                            if (parts.length >= 2) {
+                              const grp = parts[0].trim();
+                              const leaf = parts.slice(1).join(':').trim();
+                              grouped[grp] = grouped[grp] || [];
+                              grouped[grp].push(leaf);
+                            } else {
+                              grouped['__flat__'] = grouped['__flat__'] || [];
+                              grouped['__flat__'].push(s.trim());
+                            }
+                          });
+                          const keys = Object.keys(grouped);
+                          return (
+                            <div className="space-y-3">
+                              {keys.map((k) => (
+                                <div key={k} className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                                  {k !== '__flat__' && (
+                                    <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 text-sm font-medium">{k}</div>
+                                  )}
+                                  <ul className="px-4 py-2 list-disc pr-5 text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                                    {grouped[k].map((leaf, i) => (<li key={i}>{leaf}</li>))}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="mt-6 text-xs text-gray-500 dark:text-gray-400 text-center">يمكن تحديث قائمة الأقسام داخلياً لاحقاً عبر أدوات الإدارة.</div>
           </div>
@@ -645,23 +895,25 @@ const DepartmentsPage: React.FC = () => {
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <button onClick={() => setViewMode('tree')} className={`px-3 py-2 rounded-lg text-sm border ${viewMode==='tree' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white/70 dark:bg-gray-800/70 border-gray-300 dark:border-gray-600'}`}>عرض شجري</button>
               <button onClick={() => setViewMode('org')} className={`px-3 py-2 rounded-lg text-sm border ${viewMode==='org' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white/70 dark:bg-gray-800/70 border-gray-300 dark:border-gray-600'}`}>مخطط تنظيمي</button>
-              <button onClick={() => setViewMode('hier')} className={`px-3 py-2 rounded-lg text-sm border ${viewMode==='hier' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white/70 dark:bg-gray-800/70 border-gray-300 dark:border-gray-600'}`}>مخطط هرمي</button>
-              {viewMode !== 'tree' && (
+                  <button onClick={() => setViewMode('interactive')} className={`px-3 py-2 rounded-lg text-sm border ${viewMode==='interactive' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white/70 dark:bg-gray-800/70 border-gray-300 dark:border-gray-600'}`}>مخطط تفاعلي</button>
+              {viewMode === 'org' && (
                 <div className="ms-auto flex items-center gap-2">
-                  <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer text-sm bg-white/70 dark:bg-gray-800/70">
-                    <FaUpload size={16} />
-                    <span>رفع ملف</span>
-                    <input type="file" accept="application/pdf,image/*" className="hidden" onChange={onOrgChartSelect} />
-                  </label>
+                  {allowManage && (
+                    <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer text-sm bg-white/70 dark:bg-gray-800/70">
+                      <FaUpload size={16} />
+                      <span>إضافة</span>
+                      <input type="file" accept="application/pdf,image/*" className="hidden" onChange={onOrgChartSelect} />
+                    </label>
+                  )}
                   {orgChart && (
-                    <>
-                      <button onClick={downloadOrgChart} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white/70 dark:bg-gray-800/70">
-                        <FaDownload size={16} /> تنزيل
-                      </button>
-                      <button onClick={clearOrgChart} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 dark:border-rose-700 dark:text-rose-200 dark:bg-rose-900/30 text-sm">
-                        <FaTrash size={16} /> إزالة
-                      </button>
-                    </>
+                    <button onClick={downloadOrgChart} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white/70 dark:bg-gray-800/70">
+                      <FaDownload size={16} /> تنزيل
+                    </button>
+                  )}
+                  {allowManage && orgChart && (
+                    <button onClick={clearOrgChart} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 dark:border-rose-700 dark:text-rose-200 dark:bg-rose-900/30 text-sm">
+                      <FaTrash size={16} /> إزالة
+                    </button>
                   )}
                 </div>
               )}
@@ -672,7 +924,7 @@ const DepartmentsPage: React.FC = () => {
                 departments={departments}
               />
             )}
-            {viewMode === 'org' && (
+    {viewMode === 'org' && (
               orgChart ? (
                 <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-3 shadow-sm">
                   {orgChart.kind === 'pdf' ? (
@@ -685,14 +937,12 @@ const DepartmentsPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 bg-white/40 dark:bg-gray-800/40 backdrop-blur p-8 text-center text-sm text-gray-600 dark:text-gray-300">
-                  لا يوجد مخطط مرفوع حالياً. استخدم زر "رفع ملف" لإضافة ملف PDF أو صورة للمخطط التنظيمي.
+      لا يوجد مخطط مرفوع حالياً.
                 </div>
               )
             )}
-            {viewMode === 'hier' && (
-              <div className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 bg-white/40 dark:bg-gray-800/40 backdrop-blur p-8 text-center text-sm text-gray-600 dark:text-gray-300">
-                عرض هرمي تفاعلي — سيتم تطويره لاحقاً.
-              </div>
+            {viewMode === 'interactive' && (
+              <InteractiveOrgChart departments={departments} />
             )}
           </div>
         )}
@@ -793,3 +1043,198 @@ const ChartTree: React.FC<{ departments: DepartmentInfo[] }> = ({ departments })
 };
 
 export default DepartmentsPage;
+
+// =========================
+// Interactive Org Chart (collapsible tree with search and zoom)
+// =========================
+
+type NodeType = 'root' | 'قسم' | 'دائرة' | 'شعبة' | 'جهة';
+type OrgNode = { name: string; type: NodeType; children?: OrgNode[] };
+
+const toOrgTree = (departments: DepartmentInfo[]): OrgNode => {
+  // Group subunits under groups split by ':' as دوائر; ungrouped as شعب
+  const deptNodes: OrgNode[] = departments.map((dep) => {
+    const grouped: Record<string, string[]> = {};
+    (dep.subunits || []).forEach((s) => {
+      const parts = s.split(':');
+      if (parts.length >= 2) {
+        const grp = parts[0].trim();
+        const leaf = parts.slice(1).join(':').trim();
+        if (!grouped[grp]) grouped[grp] = [];
+        grouped[grp].push(leaf);
+      } else {
+        if (!grouped['__flat__']) grouped['__flat__'] = [];
+        grouped['__flat__'].push(s.trim());
+      }
+    });
+    const children: OrgNode[] = [];
+    Object.keys(grouped).forEach((k) => {
+      if (k === '__flat__') {
+        grouped[k].forEach((leaf) => children.push({ name: leaf, type: 'شعبة' }));
+      } else {
+        const grpType: NodeType = /\bدائرة\b/u.test(k) ? 'دائرة' : 'جهة';
+        children.push({
+          name: k,
+          type: grpType,
+          children: grouped[k].map((leaf) => ({ name: leaf, type: 'شعبة' })),
+        });
+      }
+    });
+    return { name: dep.name, type: 'قسم', children };
+  });
+  return { name: 'مديرية مالية محافظة حلب', type: 'root', children: deptNodes };
+};
+
+const InteractiveOrgChart: React.FC<{ departments: DepartmentInfo[] }> = ({ departments }) => {
+  const [query, setQuery] = useState('');
+  const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
+  const [scale, setScale] = useState<number>(1);
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+
+  const orgData = useMemo(() => toOrgTree(departments), [departments]);
+
+  // collect all path keys
+  const getAllKeys = (node: OrgNode, acc: string[] = [], path: string[] = []) => {
+    const key = [...path, node.name].join('/');
+    acc.push(key);
+    (node.children || []).forEach((c) => getAllKeys(c, acc, [...path, node.name]));
+    return acc;
+  };
+
+  useEffect(() => {
+    const all = getAllKeys(orgData);
+    // open only root initially
+    setOpenKeys(new Set([all[0]]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgData.name]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim();
+    if (!q) return orgData;
+    const pred = (name: string) => name.toLowerCase().includes(q.toLowerCase());
+    const filterTree = (node: OrgNode): OrgNode | null => {
+      const match = pred(node.name);
+      const kids = (node.children || []).map(filterTree).filter(Boolean) as OrgNode[];
+      if (match || kids.length) return { ...node, children: kids };
+      return null;
+    };
+    return filterTree(orgData) || { ...orgData, children: [] };
+  }, [orgData, query]);
+
+  const expandAll = () => { setOpenKeys(new Set(getAllKeys(orgData))); };
+  const collapseAll = () => { setOpenKeys(new Set([orgData.name])); };
+  const toggleKey = (key: string) => {
+    setOpenKeys((prev) => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; });
+  };
+  const handleWheelZoom = (e: React.WheelEvent) => {
+    if (e.ctrlKey) {
+      e.preventDefault();
+      setScale((s) => Math.min(2, Math.max(0.5, s - Math.sign(e.deltaY) * 0.05)));
+    }
+  };
+
+  return (
+    <div dir="rtl" className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-3 shadow-sm">
+      {/* Toolbar */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-3">
+        <div className="text-base font-semibold text-gray-900 dark:text-gray-100">الفلوشارت التفاعلي — الهيكل الإداري والتنظيمي</div>
+        <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center w-full md:w-auto">
+          <div className="relative w-full sm:w-72">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"><FaSearch size={14} /></span>
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ابحث عن قسم/دائرة/شعبة..." className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70 text-sm" />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={expandAll} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70"><FaAngleDoubleDown /> فتح الكل</button>
+            <button onClick={collapseAll} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70"><FaAngleDoubleUp /> طيّ الكل</button>
+          </div>
+          <div className="flex items-center gap-2">
+            <FaSearchMinus />
+            <input type="range" min={0.5} max={2} step={0.01} value={scale} onChange={(e) => setScale(parseFloat(e.target.value))} className="w-40" />
+            <FaSearchPlus />
+            <button onClick={() => setScale(1)} className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70" title="إعادة الضبط"><FaSync /></button>
+          </div>
+        </div>
+      </div>
+
+      {/* Chart container */}
+      <div ref={containerRef} onWheel={handleWheelZoom} className="overflow-auto border rounded-2xl p-6 bg-white/90 dark:bg-gray-900/60 shadow-sm" style={{ direction: 'rtl' }}>
+        <div style={{ transform: `scale(${scale})`, transformOrigin: 'top right' }}>
+          <InteractiveTree node={filtered} openKeys={openKeys} toggleKey={toggleKey} path={[]} query={query} />
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">تلميح: استخدم Ctrl + عجلة الفأرة للتكبير/التصغير.</p>
+      </div>
+    </div>
+  );
+};
+
+type ITreeProps = { node: OrgNode; openKeys: Set<string>; toggleKey: (k: string) => void; path: string[]; query: string };
+
+const InteractiveTree: React.FC<ITreeProps> = ({ node, openKeys, toggleKey, path, query }) => {
+  const key = [...path, node.name].join('/');
+  const isOpen = openKeys.has(key);
+  const hasChildren = !!(node.children && node.children.length);
+  const highlighted = useMemo(() => highlight(node.name, query), [node.name, query]);
+
+  return (
+    <div className="relative flex flex-col items-center">
+      <InteractiveTreeNode name={node.name} type={node.type} hasChildren={hasChildren} isOpen={isOpen} onToggle={() => toggleKey(key)} highlightedName={highlighted} />
+      {hasChildren && isOpen && (
+        <div className="flex flex-col items-stretch">
+          <div className="h-6 w-px bg-gray-300 mx-auto" />
+          <div className="relative">
+            <div className="absolute top-0 left-0 right-0 mx-6 h-px bg-gray-300" />
+            <div className="flex flex-wrap items-start justify-center gap-6 pt-3">
+              {node.children!.map((child, i) => (
+                <div key={i} className="relative flex flex-col items-center">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 h-3 w-px bg-gray-300" />
+                  <InteractiveTree node={child} openKeys={openKeys} toggleKey={toggleKey} path={[...path, node.name]} query={query} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const InteractiveTreeNode: React.FC<{ name: string; type: NodeType; hasChildren: boolean; isOpen: boolean; onToggle: () => void; highlightedName: React.ReactNode }> = ({ name, type, hasChildren, isOpen, onToggle, highlightedName }) => {
+  const badgeStyles: Record<NodeType, string> = {
+    root: 'bg-blue-600 text-white',
+    'قسم': 'bg-emerald-600 text-white',
+    'دائرة': 'bg-amber-500 text-black',
+    'شعبة': 'bg-gray-200 text-gray-800',
+    'جهة': 'bg-indigo-100 text-indigo-800',
+  };
+  return (
+    <div className="inline-flex items-center gap-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 shadow-sm hover:shadow transition-shadow">
+      {hasChildren ? (
+        <button onClick={onToggle} aria-label={isOpen ? 'طي الفرع' : 'فتح الفرع'} className="w-8 h-8 inline-flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+          {isOpen ? <FaChevronUp /> : <FaChevronDown />}
+        </button>
+      ) : (
+        <span className="inline-flex w-8" />
+      )}
+      <div className="flex items-center gap-2">
+        <span className={`inline-flex items-center rounded-xl px-2 py-0.5 text-[0.7rem] ${badgeStyles[type]}`}>{type}</span>
+        <span className="font-medium leading-relaxed">{highlightedName}</span>
+      </div>
+    </div>
+  );
+};
+
+function highlight(text: string, q: string) {
+  if (!q) return text;
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if (idx === -1) return text;
+  const before = text.slice(0, idx);
+  const match = text.slice(idx, idx + q.length);
+  const after = text.slice(idx + q.length);
+  return (
+    <span>
+      {before}
+      <mark className="bg-yellow-200 rounded px-0.5">{match}</mark>
+      {after}
+    </span>
+  );
+}

@@ -112,7 +112,8 @@ const App: React.FC = () => {
   };
 
   const handleHashChange = useCallback(() => {
-    const newRoute = window.location.hash || '#/';
+    const raw = window.location.hash || '#/'
+    const newRoute = raw.split('?')[0];
     if (newRoute === '#/dashboard' && !isEmployeeLoggedIn) {
         window.location.hash = '#/login';
         setRoute('#/login');
