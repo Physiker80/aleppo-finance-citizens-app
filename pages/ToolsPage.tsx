@@ -425,6 +425,7 @@ const FaqManager: React.FC<{ onChanged?: () => void; onSwitchToAdd?: () => void 
   const [items, setItems] = useState<FaqItem[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draft, setDraft] = useState<FaqItem>({ question: '', answer: '' });
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     try {
@@ -453,13 +454,59 @@ const FaqManager: React.FC<{ onChanged?: () => void; onSwitchToAdd?: () => void 
   };
   const remove = (i: number) => { const next = items.filter((_, idx) => idx !== i); persist(next); if (editingIndex === i) setEditingIndex(null); };
 
+  const exportJson = () => {
+    try {
+      const data = JSON.stringify(items, null, 2);
+      const blob = new Blob([data], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ts = new Date().toISOString().slice(0, 19).replace(/[.:T]/g, '-');
+      a.download = `faq-export-${ts}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('تعذر تصدير البيانات.');
+    }
+  };
+
+  const onImportFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!Array.isArray(data)) throw new Error('bad');
+      const list: FaqItem[] = data
+        .map((x: any) => ({ question: String(x?.question ?? ''), answer: String(x?.answer ?? '') }))
+        .filter((x: FaqItem) => x.question.trim() && x.answer.trim());
+      persist(list);
+    } catch {
+      alert('فشل استيراد الملف. تأكد من صحة تنسيق JSON.');
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const resetDefaults = () => {
+    if (!confirm('هل تريد استعادة الأسئلة الافتراضية؟ ستفقد التغييرات الحالية.')) return;
+    const list = FAQ_DATA.slice();
+    persist(list);
+  };
+
   return (
     <section className="mt-6">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 gap-3">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">إدارة الأسئلة الشائعة</h2>
-        {onSwitchToAdd && (
-          <button onClick={onSwitchToAdd} className="px-3 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">إضافة سؤال</button>
-        )}
+        <div className="flex items-center gap-2">
+          <button onClick={exportJson} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-50 dark:hover:bg-gray-800">تصدير JSON</button>
+          <button onClick={() => fileInputRef.current?.click()} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-50 dark:hover:bg-gray-800">استيراد JSON</button>
+          <button onClick={resetDefaults} className="px-3 py-2 rounded border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:bg-amber-900/30 text-sm">استعادة الافتراضي</button>
+          {onSwitchToAdd && (
+            <button onClick={onSwitchToAdd} className="px-3 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">إضافة سؤال</button>
+          )}
+          <input ref={fileInputRef} type="file" accept="application/json" onChange={onImportFile} hidden />
+        </div>
       </div>
       {editingIndex !== null && (
         <div className="mb-4 grid md:grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
