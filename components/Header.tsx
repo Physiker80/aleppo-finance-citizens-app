@@ -155,7 +155,7 @@ const Header: React.FC = () => {
                 className="h-14" 
               />
               <div className="flex flex-col">
-                <span className="text-xl font-extrabold text-[#0f3c35] dark:text-emerald-500">مديرية مالية حلب</span>
+                <span className="text-xl font-extrabold text-[#0f3c35] dark:text-emerald-500 font-heading">مديرية مالية حلب</span>
                 <span className="text-sm text-gray-600 dark:text-gray-400">نظام الاستعلامات والشكاوى</span>
               </div>
             </a>

@@ -1,68 +1,59 @@
 import React from 'react';
+import { FaFacebookF, FaTelegramPlane, FaInstagram } from 'react-icons/fa';
+import { MdOutlineEmail } from 'react-icons/md';
 
 const Footer: React.FC = () => {
-  const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
-  };
+  // Using the official Syrian government identity logo
+  const ministryLogo = 'https://syrian.zone/syid/materials/logo.ai.svg'; 
 
   return (
-    <footer 
-      className="relative bg-[#0f3c35] text-white overflow-hidden"
-    >
-      {/* Background Pattern Overlay */}
-      <div 
-        className="absolute inset-0 opacity-10"
-        style={{
-          backgroundImage: "url('https://syrian.zone/syid/materials/pattern.svg')",
-          backgroundPosition: 'center',
-        }}
-      ></div>
-
-      {/* Footer Content */}
-      <div className="relative z-10 container mx-auto px-4 py-6">
-        <div className="flex flex-col md:flex-row justify-between items-center text-center md:text-right space-y-6 md:space-y-0">
+    <footer className="bg-white dark:bg-transparent text-gray-800 dark:text-white font-heading mt-auto border-t border-gray-200 dark:border-gray-500/30">
+      <div className="container mx-auto px-6 py-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           
-          {/* Left Section (on desktop): Go to Top */}
-          <div className="w-full md:w-1/3 flex justify-center md:justify-start">
-            <button 
-              onClick={scrollToTop} 
-              className="flex items-center space-x-2 rtl:space-x-reverse text-gray-300 hover:text-white transition-colors"
-              aria-label="Go to top"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5m-7 7l7-7 7 7" />
-              </svg>
-              <span>اذهب للأعلى</span>
-            </button>
+          {/* Ministry Logo Column */}
+          <div className="flex flex-col items-center md:items-start text-center md:text-right">
+            <img src={ministryLogo} alt="شعار وزارة المالية" className="h-24 w-24 object-contain mb-4" />
+            <h3 className="text-2xl font-bold font-heading">وزارة المالية</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ministry of Finance</p>
           </div>
-          
-          {/* Center Section: Logo and Copyright */}
-          <div className="w-full md:w-1/3 flex flex-col items-center order-first md:order-none">
-            <img 
-              src="https://syrian.zone/syid/materials/logo.ai.svg" 
-              alt="شعار الجمهورية العربية السورية" 
-              className="h-12 mb-2" 
-            />
-            <div className="text-sm text-gray-400 text-center">
-              <p>&copy; {new Date().getFullYear()} الجمهورية العربية السورية</p>
-              <p>مديرية مالية حلب</p>
-              <p>تم تطوير هذا الموقع لتسهيل التواصل وزيادة الشفافية.</p>
+
+          {/* Important Links Column */}
+          <div>
+            <h4 className="text-lg font-bold mb-4 border-b-2 border-emerald-600 dark:border-green-500 pb-2 inline-block">روابط مهمة</h4>
+            <ul className="space-y-3">
+              <li><a href="#/news" className="hover:text-emerald-700 dark:hover:text-green-400 transition-colors">الأخبار</a></li>
+              <li><a href="#/faq" className="hover:text-emerald-700 dark:hover:text-green-400 transition-colors">الأسئلة الشائعة</a></li>
+              <li><a href="#/privacy" className="hover:text-emerald-700 dark:hover:text-green-400 transition-colors">سياسة الخصوصية</a></li>
+              <li><a href="#/terms" className="hover:text-emerald-700 dark:hover:text-green-400 transition-colors">الشروط والأحكام</a></li>
+            </ul>
+          </div>
+
+          {/* Citizen Services Column */}
+          <div>
+            <h4 className="text-lg font-bold mb-4 border-b-2 border-emerald-600 dark:border-green-500 pb-2 inline-block">خدمات المواطنين</h4>
+            <ul className="space-y-3">
+              <li><a href="#/services" className="hover:text-emerald-700 dark:hover:text-green-400 transition-colors">الخدمات</a></li>
+              <li><a href="#/contact" className="hover:text-emerald-700 dark:hover:text-green-400 transition-colors">تواصل معنا</a></li>
+            </ul>
+          </div>
+
+          {/* Follow Us Column */}
+          <div>
+            <h4 className="text-lg font-bold mb-4 border-b-2 border-emerald-600 dark:border-green-500 pb-2 inline-block">تابعنا على</h4>
+            <div className="flex space-x-4 rtl:space-x-reverse mt-4">
+              <a href="mailto:info@syrian-finance.gov.sy" className="text-2xl hover:text-emerald-700 dark:hover:text-green-400 transition-colors"><MdOutlineEmail /></a>
+              <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer" className="text-2xl hover:text-emerald-700 dark:hover:text-green-400 transition-colors"><FaInstagram /></a>
+              <a href="https://t.me" target="_blank" rel="noopener noreferrer" className="text-2xl hover:text-emerald-700 dark:hover:text-green-400 transition-colors"><FaTelegramPlane /></a>
+              <a href="https://www.facebook.com" target="_blank" rel="noopener noreferrer" className="text-2xl hover:text-emerald-700 dark:hover:text-green-400 transition-colors"><FaFacebookF /></a>
             </div>
           </div>
 
-          {/* Right Section (on desktop): Follow Us */}
-          <div className="w-full md:w-1/3 flex justify-center md:justify-end">
-            <button className="flex items-center space-x-2 rtl:space-x-reverse text-gray-300 hover:text-white transition-colors">
-              <span>تابعنا</span>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-              </svg>
-            </button>
-          </div>
-
+        </div>
+      </div>
+      <div className="bg-gray-100 dark:bg-black/20 py-4">
+        <div className="container mx-auto text-center text-sm text-gray-600 dark:text-gray-400">
+          <p>وزارة المالية - الجمهورية العربية السورية | جميع الحقوق محفوظة © {new Date().getFullYear()}</p>
         </div>
       </div>
     </footer>

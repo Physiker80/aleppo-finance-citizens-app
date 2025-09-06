@@ -218,21 +218,20 @@ const App: React.FC = () => {
       theme, 
       toggleTheme 
     }}>
-      <div className="flex flex-col min-h-screen text-gray-800 dark:text-gray-200">
-        <Header />
-        <div 
-          className="flex-grow relative"
-          style={{
-            backgroundImage: "url('https://syrian.zone/syid/materials/pattern.svg')",
-            backgroundAttachment: 'fixed',
-          }}
-        >
-          <div className="absolute inset-0 bg-white/95 dark:bg-gray-900/95"></div>
-          <main className="relative container mx-auto px-4 py-8">
-            {renderPage()}
+      <div 
+        className="flex flex-col min-h-screen text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-900"
+        style={{
+          backgroundImage: "url('https://syrian.zone/syid/materials/pattern.svg')",
+          backgroundAttachment: 'fixed',
+        }}
+      >
+        <div className="flex flex-col min-h-screen bg-white/95 dark:bg-gray-900/95">
+          <Header />
+          <main className="flex-grow relative container mx-auto px-4 py-8">
+              {renderPage()}
           </main>
+          <Footer />
         </div>
-        <Footer />
       </div>
     </AppContext.Provider>
   );

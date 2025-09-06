@@ -1,15 +1,13 @@
-/* Base styles for the application */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 body {
-  font-family: 'Cairo', sans-serif;
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: 'Amiri', serif;
+}
+
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: 'Fustat', sans-serif;
 }
 
 #root {
