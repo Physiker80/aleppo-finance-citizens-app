@@ -1,6 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 const PrivacyPage: React.FC = () => {
+  const [customHtml, setCustomHtml] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('privacyHtml');
+      setCustomHtml(saved && saved.trim() ? saved : null);
+    } catch { setCustomHtml(null); }
+  }, []);
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="rounded-2xl p-8 transition-all duration-300 border border-white/20 dark:border-white/10 bg-white/80 dark:bg-gray-900/70 backdrop-blur shadow">
@@ -9,6 +18,9 @@ const PrivacyPage: React.FC = () => {
           <p className="text-sm text-gray-600 dark:text-gray-300">سياسة الخصوصية لموقع مديرية المالية في محافظة حلب — الجمهورية العربية السورية</p>
         </header>
 
+        {customHtml ? (
+          <div dir="rtl" className="prose prose-lg max-w-none text-right leading-8 dark:prose-invert" dangerouslySetInnerHTML={{ __html: customHtml }} />
+        ) : (
         <div dir="rtl" className="prose prose-lg max-w-none text-right leading-8 dark:prose-invert">
           <p>
             يرجى قراءة هذه السياسة بعناية لفهم كيفية جمع المعلومات واستخدامها وحمايتها عند تصفحك واستخدامك للموقع الإلكتروني لمديرية المالية في محافظة حلب (يُشار إليه فيما يلي بـ «الموقع»).
@@ -88,6 +100,7 @@ const PrivacyPage: React.FC = () => {
 
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-6">آخر تحديث: {new Date().toLocaleDateString('ar-SY')}</p>
         </div>
+        )}
       </div>
     </div>
   );

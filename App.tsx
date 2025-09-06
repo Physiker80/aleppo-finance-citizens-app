@@ -26,6 +26,7 @@ import ReportsPage from './pages/hrms/ReportsPage';
 import RequestsPage from './pages/RequestsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
+import DepartmentsPage from './pages/DepartmentsPage';
 import { Ticket, Employee, ContactMessage, ContactMessageStatus, ContactMessageType } from './types';
 import { RequestStatus } from './types';
 
@@ -279,6 +280,8 @@ const App: React.FC = () => {
         return <PrivacyPage />;
       case '#/terms':
         return <TermsPage />;
+      case '#/departments':
+        return <DepartmentsPage />;
       case '#/confirmation':
         return <ConfirmationPage />;
       default:

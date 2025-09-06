@@ -1,6 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 const TermsPage: React.FC = () => {
+  const [customHtml, setCustomHtml] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('termsHtml');
+      setCustomHtml(saved && saved.trim() ? saved : null);
+    } catch { setCustomHtml(null); }
+  }, []);
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="rounded-2xl p-8 transition-all duration-300 border border-white/20 dark:border-white/10 bg-white/80 dark:bg-gray-900/70 backdrop-blur shadow">
@@ -8,7 +17,9 @@ const TermsPage: React.FC = () => {
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-1">الشروط والأحكام</h1>
           <p className="text-sm text-gray-600 dark:text-gray-300">الشروط والأحكام الخاصة بموقع مديرية المالية في محافظة حلب</p>
         </header>
-
+        {customHtml ? (
+          <div dir="rtl" className="prose prose-lg max-w-none text-right leading-8 dark:prose-invert" dangerouslySetInnerHTML={{ __html: customHtml }} />
+        ) : (
         <div dir="rtl" className="prose prose-lg max-w-none text-right leading-8 dark:prose-invert">
           <p>
             باستخدامك لهذا الموقع، فإنك توافق على الالتزام بالشروط والأحكام التالية. يُرجى قراءة هذه الشروط بعناية قبل استخدام الموقع أو أي من خدماته.
@@ -76,6 +87,7 @@ const TermsPage: React.FC = () => {
 
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-6">آخر تحديث: {new Date().toLocaleDateString('ar-SY')}</p>
         </div>
+        )}
       </div>
     </div>
   );

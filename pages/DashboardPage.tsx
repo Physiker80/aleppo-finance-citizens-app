@@ -494,14 +494,14 @@ ${trackUrl}
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => { window.location.hash = '#/dashboard'; }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/dashboard'; } }}
+                onClick={() => { window.location.hash = '#/departments'; }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/departments'; } }}
                 className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="text-xl font-semibold">الهيكل الإداري</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">عرض التوزيع الإحصائي للطلبات ونشاط المراسلات الداخلية بين الأقسام.</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">صفحة أقسام المديرية ومهام كل قسم.</p>
                     <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">{`عدد الأقسام: 5`}</div>
                   </div>
                 </div>

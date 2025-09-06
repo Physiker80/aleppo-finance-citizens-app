@@ -236,6 +236,104 @@ const OcrTool: React.FC<{ onStatsChanged?: () => void }> = ({ onStatsChanged }) 
   );
 };
 
+// محرر المحتوى القانوني العام (سياسة/شروط)
+const LegalEditor: React.FC<{
+  storageKey: 'privacyHtml' | 'termsHtml';
+  title: string;
+  onChanged?: () => void;
+}> = ({ storageKey, title, onChanged }) => {
+  const [html, setHtml] = useState<string>('');
+  const [msg, setMsg] = useState<string | null>(null);
+  const fileRef = React.useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      setHtml(saved || '');
+    } catch { /* noop */ }
+  }, [storageKey]);
+
+  const save = () => {
+    try {
+      const val = html.trim();
+      if (val) localStorage.setItem(storageKey, val);
+      else localStorage.removeItem(storageKey);
+      setMsg('تم الحفظ.');
+      onChanged?.();
+      setTimeout(() => setMsg(null), 1500);
+    } catch { setMsg('فشل الحفظ.'); }
+  };
+
+  const exportHtml = () => {
+    try {
+      const text = html;
+      const blob = new Blob([text], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ts = new Date().toISOString().slice(0, 19).replace(/[.:T]/g, '-');
+      a.download = `${storageKey}-export-${ts}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { alert('تعذر تصدير الملف.'); }
+  };
+
+  const onImport: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      const text = await f.text();
+      setHtml(text);
+      setMsg('تم تحميل الملف، لا تنس الحفظ.');
+    } catch {
+      alert('فشل استيراد الملف.');
+    } finally { e.target.value = ''; }
+  };
+
+  const resetDefault = () => {
+    if (!confirm('سيتم حذف المحتوى المخصص والعودة إلى المحتوى الافتراضي في الصفحة العامة. متابعة؟')) return;
+    try {
+      localStorage.removeItem(storageKey);
+      setHtml('');
+      onChanged?.();
+      setMsg('تمت الاستعادة إلى الافتراضي.');
+      setTimeout(() => setMsg(null), 1500);
+    } catch { setMsg('تعذر إتمام العملية.'); }
+  };
+
+  return (
+    <section className="mt-4">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{title}</h2>
+      <p className="text-gray-600 dark:text-gray-300 mb-3 text-sm">يمكنك لصق HTML من محرر خارجي. اتركه فارغاً للعودة إلى المحتوى الافتراضي.</p>
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="md:col-span-1">
+          <label className="text-sm">المحتوى (HTML)
+            <textarea
+              dir="rtl"
+              className="mt-1 w-full min-h-[260px] p-3 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+              value={html}
+              onChange={(e) => setHtml(e.target.value)}
+              placeholder="<h1>عنوان</h1><p>نص ...</p>"
+            />
+          </label>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button onClick={save} className="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">حفظ</button>
+            <button onClick={exportHtml} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">تصدير HTML</button>
+            <button onClick={() => fileRef.current?.click()} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">استيراد HTML</button>
+            <button onClick={resetDefault} className="px-4 py-2 rounded border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:bg-amber-900/30 text-sm">استعادة الافتراضي</button>
+            <input ref={fileRef} type="file" accept="text/html,.html" onChange={onImport} hidden />
+          </div>
+          {msg && <div className="mt-2 text-sm text-green-700 dark:text-green-400">{msg}</div>}
+        </div>
+        <div className="md:col-span-1">
+          <div className="text-sm font-semibold mb-1 text-gray-800 dark:text-gray-200">معاينة</div>
+          <div className="prose prose-sm dark:prose-invert max-w-none border border-gray-200 dark:border-gray-700 rounded p-3 bg-white dark:bg-gray-900 min-h-[260px] overflow-auto" dir="rtl" dangerouslySetInnerHTML={{ __html: html || '<p class="text-gray-500">(ستظهر المعاينة هنا)</p>' }} />
+        </div>
+      </div>
+    </section>
+  );
+};
+
 // نموذج إضافة خبر فقط
 const NewsAddForm: React.FC<{ onAdded?: () => void; onSwitchToManage?: () => void }> = ({ onAdded, onSwitchToManage }) => {
   const [draft, setDraft] = useState<NewsItem>({ title: '', date: new Date().toLocaleDateString('ar-SY'), content: '' });
@@ -608,10 +706,12 @@ const FaqManager: React.FC<{ onChanged?: () => void; onSwitchToAdd?: () => void 
 };
 
 const ToolsPage: React.FC = () => {
-  const [active, setActive] = useState<null | 'ocr' | 'newsAdd' | 'newsManage' | 'faqAdd' | 'faqManage'>(null);
+  const [active, setActive] = useState<null | 'ocr' | 'newsAdd' | 'newsManage' | 'faqAdd' | 'faqManage' | 'privacyEdit' | 'termsEdit'>(null);
   const [newsCount, setNewsCount] = useState<number>(0);
   const [faqCount, setFaqCount] = useState<number>(0);
   const [ocrStats, setOcrStats] = useState<OcrStats | null>(null);
+  const [privacyCustom, setPrivacyCustom] = useState<boolean>(false);
+  const [termsCustom, setTermsCustom] = useState<boolean>(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setActive(null); };
@@ -637,6 +737,15 @@ const ToolsPage: React.FC = () => {
       if (savedOcr) setOcrStats(JSON.parse(savedOcr));
       else setOcrStats(null);
     } catch { setOcrStats(null); }
+
+    try {
+      const p = localStorage.getItem('privacyHtml');
+      setPrivacyCustom(!!(p && p.trim()));
+    } catch { setPrivacyCustom(false); }
+    try {
+      const t = localStorage.getItem('termsHtml');
+      setTermsCustom(!!(t && t.trim()));
+    } catch { setTermsCustom(false); }
   }, []);
 
   useEffect(() => { refreshStats(); }, [refreshStats]);
@@ -646,7 +755,7 @@ const ToolsPage: React.FC = () => {
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">قسم المعلوماتية</h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* OCR Card */}
           <div className="relative">
             <div
@@ -732,6 +841,42 @@ const ToolsPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Privacy Editor Card */}
+          <div className="relative">
+            <div
+              role="button" tabIndex={0}
+              onClick={() => setActive(active === 'privacyEdit' ? null : 'privacyEdit')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'privacyEdit' ? null : 'privacyEdit'); } }}
+              className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <h3 className="text-xl font-semibold mb-1">تحرير سياسة الخصوصية</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">تحديث نص صفحة سياسة الخصوصية العامة.</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className={`px-2 py-0.5 rounded ${privacyCustom ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700/40 dark:text-gray-200'}`}>
+                  الحالة: {privacyCustom ? 'مخصص' : 'افتراضي'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Terms Editor Card */}
+          <div className="relative">
+            <div
+              role="button" tabIndex={0}
+              onClick={() => setActive(active === 'termsEdit' ? null : 'termsEdit')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'termsEdit' ? null : 'termsEdit'); } }}
+              className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <h3 className="text-xl font-semibold mb-1">تحرير الشروط والأحكام</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">تحديث نص صفحة الشروط والأحكام العامة.</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className={`px-2 py-0.5 rounded ${termsCustom ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700/40 dark:text-gray-200'}`}>
+                  الحالة: {termsCustom ? 'مخصص' : 'افتراضي'}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {active && (
@@ -743,6 +888,8 @@ const ToolsPage: React.FC = () => {
                 {active === 'newsManage' && 'إدارة الأخبار'}
                 {active === 'faqAdd' && 'إضافة سؤال شائع'}
                 {active === 'faqManage' && 'إدارة الأسئلة الشائعة'}
+                {active === 'privacyEdit' && 'تحرير سياسة الخصوصية'}
+                {active === 'termsEdit' && 'تحرير الشروط والأحكام'}
               </h3>
               <button onClick={() => setActive(null)} aria-label="إغلاق" className="w-8 h-8 rounded hover:bg-black/5 dark:hover:bg-white/10">✕</button>
             </div>
@@ -752,6 +899,8 @@ const ToolsPage: React.FC = () => {
               {active === 'newsManage' && <NewsManager onChanged={refreshStats} onSwitchToAdd={() => setActive('newsAdd')} />}
               {active === 'faqAdd' && <FaqAddForm onAdded={refreshStats} onSwitchToManage={() => setActive('faqManage')} />}
               {active === 'faqManage' && <FaqManager onChanged={refreshStats} onSwitchToAdd={() => setActive('faqAdd')} />}
+              {active === 'privacyEdit' && <LegalEditor storageKey="privacyHtml" title="تحرير سياسة الخصوصية" onChanged={refreshStats} />}
+              {active === 'termsEdit' && <LegalEditor storageKey="termsHtml" title="تحرير الشروط والأحكام" onChanged={refreshStats} />}
             </div>
           </div>
         )}
