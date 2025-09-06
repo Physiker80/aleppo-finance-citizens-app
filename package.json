@@ -10,6 +10,9 @@
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
+    "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3",
+    "jsqr": "^1.4.0",
     "mammoth": "^1.10.0",
     "pdfjs-dist": "^5.4.149",
     "react": "^19.1.1",

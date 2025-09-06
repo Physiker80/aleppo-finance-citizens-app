@@ -3,19 +3,27 @@ import React from 'react';
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
   id: string;
+  endAdornment?: React.ReactNode;
 }
 
-const Input: React.FC<InputProps> = ({ label, id, className, ...props }) => {
+const Input: React.FC<InputProps> = ({ label, id, className, endAdornment, ...props }) => {
   return (
     <div>
       <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
         {label}
       </label>
-      <input
-        id={id}
-        className={`w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-400 dark:focus:ring-blue-400 dark:focus:border-blue-400 ${className}`}
-        {...props}
-      />
+      <div className="relative">
+        <input
+          id={id}
+          className={`w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-400 dark:focus:ring-blue-400 dark:focus:border-blue-400 ${className}`}
+          {...props}
+        />
+        {endAdornment && (
+          <div className="absolute inset-y-0 rtl:left-2 ltr:right-2 flex items-center gap-1">
+            {endAdornment}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
