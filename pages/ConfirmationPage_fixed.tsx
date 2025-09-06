@@ -7,6 +7,7 @@ import Button from '../components/ui/Button';
 declare const jspdf: any;
 declare const html2canvas: any;
 declare const JsBarcode: any;
+declare const QRCode: any;
 
 const ConfirmationPage: React.FC = () => {
   const appContext = useContext(AppContext);
@@ -47,6 +48,26 @@ const ConfirmationPage: React.FC = () => {
         console.error('Error generating barcode:', error);
       }
     }
+        // Generate on-screen QR
+        if (ticket?.id && typeof QRCode !== 'undefined') {
+            try {
+                const qrContainer = document.getElementById('main-qr');
+                if (qrContainer) {
+                    qrContainer.innerHTML = '';
+                    const trackingUrl = `${window.location.origin}/#/track?id=${ticket.id}`;
+                    new QRCode(qrContainer, {
+                        text: trackingUrl,
+                        width: 140,
+                        height: 140,
+                        colorDark: '#000000',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.M,
+                    });
+                }
+            } catch (error) {
+                console.error('Error generating QR:', error);
+            }
+        }
   }, [ticket?.id]);
 
   const handleDownloadPdf = async () => {
@@ -59,7 +80,7 @@ const ConfirmationPage: React.FC = () => {
     try {
       // Ensure barcode is generated for PDF before capturing
       const pdfBarcodeCanvas = document.getElementById('pdf-barcode') as HTMLCanvasElement;
-      if (pdfBarcodeCanvas && ticket?.id) {
+    if (pdfBarcodeCanvas && ticket?.id) {
         // Generate barcode directly on the canvas
         JsBarcode(pdfBarcodeCanvas, ticket.id, {
           format: "CODE128",
@@ -71,11 +92,80 @@ const ConfirmationPage: React.FC = () => {
           margin: 10,
           background: "#ffffff"
         });
-        
-        // Wait for barcode to render
-        await new Promise(resolve => setTimeout(resolve, 500));
-        console.log('PDF Barcode generated successfully for:', ticket.id);
+                console.log('PDF Barcode generated successfully for:', ticket.id);
       }
+
+            // Generate QR for PDF
+                            if (ticket?.id && (typeof QRCode !== 'undefined' || typeof window !== 'undefined')) {
+                        const pdfQrContainer = document.getElementById('pdf-qr');
+                        if (pdfQrContainer) {
+                            pdfQrContainer.innerHTML = '';
+                            const trackingUrl = `${window.location.origin}/#/track?id=${ticket.id}`;
+                                    let appended = false;
+                                                try {
+                                                    if (typeof QRCode !== 'undefined') {
+                                                        const tmpDiv = document.createElement('div');
+                                                        new QRCode(tmpDiv, {
+                                                            text: trackingUrl,
+                                                            width: 160,
+                                                            height: 160,
+                                                            colorDark: '#000000',
+                                                            colorLight: '#ffffff',
+                                                            correctLevel: QRCode.CorrectLevel.M,
+                                                        });
+                                                        const qrCanvas = tmpDiv.querySelector('canvas') as HTMLCanvasElement | null;
+                                                        const qrImgTag = tmpDiv.querySelector('img') as HTMLImageElement | null;
+                                                        const qrTable = tmpDiv.querySelector('table') as HTMLTableElement | null;
+                                                        if (qrCanvas) {
+                                                            const img = document.createElement('img');
+                                                            img.src = qrCanvas.toDataURL('image/png');
+                                                            img.width = 160;
+                                                            img.height = 160;
+                                                            img.style.display = 'block';
+                                                            pdfQrContainer.appendChild(img);
+                                                            appended = true;
+                                                        } else if (qrImgTag) {
+                                                            qrImgTag.width = 160;
+                                                            qrImgTag.height = 160;
+                                                            qrImgTag.style.display = 'block';
+                                                            pdfQrContainer.appendChild(qrImgTag);
+                                                            appended = true;
+                                                        } else if (qrTable) {
+                                                            pdfQrContainer.appendChild(qrTable);
+                                                            appended = true;
+                                                        }
+                                                    }
+                                                } catch {}
+                                    if (!appended) {
+                                        try {
+                                            const qrcodeFactory = (window as any).qrcode;
+                                            if (qrcodeFactory) {
+                                                const qr = qrcodeFactory(4, 'M');
+                                                qr.addData(trackingUrl);
+                                                qr.make();
+                                                const dataUrl = qr.createDataURL(8, 0);
+                                                const img = document.createElement('img');
+                                                img.src = dataUrl;
+                                                img.width = 160;
+                                                img.height = 160;
+                                                pdfQrContainer.appendChild(img);
+                                                appended = true;
+                                            }
+                                        } catch {}
+                                    }
+                        }
+                    }
+
+                    // Wait for QR image (if present) to load fully
+                    const qrImg = document.querySelector('#pdf-qr img') as HTMLImageElement | null;
+                    if (qrImg && !qrImg.complete) {
+                        await new Promise<void>((resolve) => {
+                            qrImg.onload = () => resolve();
+                            qrImg.onerror = () => resolve();
+                        });
+                    }
+                    // Small delay to ensure barcode/QR are rendered
+                    await new Promise(resolve => setTimeout(resolve, 200));
 
       // Capture content with html2canvas
       const canvas = await html2canvas(content, { 
@@ -159,7 +249,7 @@ const ConfirmationPage: React.FC = () => {
         
         <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 my-4 inline-block">
             {/* Real Barcode Section */}
-            <div className="text-center mb-4">
+                        <div className="text-center mb-4">
                 {/* Real scannable barcode */}
                 <div className="mb-4">
                     <div className="w-[350px] bg-white border-2 border-gray-300 rounded-lg flex flex-col items-center justify-center mx-auto shadow-lg p-4">
@@ -171,6 +261,10 @@ const ConfirmationPage: React.FC = () => {
                         <p className="text-xs text-gray-600 mt-2 font-medium">باركود قابل للمسح والتتبع</p>
                     </div>
                 </div>
+                                <div className="mt-4 w-[160px] bg-white border border-gray-300 rounded-lg mx-auto shadow p-2">
+                                    <div id="main-qr" className="flex items-center justify-center"></div>
+                                    <p className="text-xs text-gray-600 mt-1 text-center">رمز QR لفتح صفحة المتابعة</p>
+                                </div>
             </div>
             
             {/* Tracking Number Display */}
@@ -298,25 +392,29 @@ const ConfirmationPage: React.FC = () => {
             <div style={{ marginTop: '50px', textAlign: 'center', backgroundColor: '#f8f9fa', padding: '30px', borderRadius: '12px', border: '2px solid #0f3c35' }}>
                 <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#0f3c35', marginBottom: '25px' }}>معلومات متابعة الطلب</h3>
                 
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '30px', marginBottom: '20px' }}>
-                    {/* Real barcode for PDF */}
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', border: '2px solid #0f3c35', borderRadius: '8px', padding: '15px', margin: '0 auto', minHeight: '120px', minWidth: '300px' }}>
-                            {/* Canvas for PDF barcode */}
-                            <canvas 
-                                id="pdf-barcode"
-                                style={{ maxWidth: '300px', maxHeight: '120px', display: 'block' }}
-                            ></canvas>
-                        </div>
-                        <p style={{ fontSize: '12px', color: '#0f3c35', margin: '8px 0 0 0', fontWeight: 'bold' }}>باركود قابل للمسح والتتبع</p>
-                    </div>
+                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: '30px', marginBottom: '20px' }}>
+                                    {/* Barcode and QR stacked */}
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', border: '2px solid #0f3c35', borderRadius: '8px', padding: '15px', margin: '0 auto', minHeight: '120px', minWidth: '300px' }}>
+                                            {/* Canvas for PDF barcode */}
+                                            <canvas 
+                                                id="pdf-barcode"
+                                                style={{ maxWidth: '300px', maxHeight: '120px', display: 'block' }}
+                                            ></canvas>
+                                        </div>
+                                        <p style={{ fontSize: '12px', color: '#0f3c35', margin: '8px 0 0 0', fontWeight: 'bold' }}>باركود قابل للمسح والتتبع</p>
+                                        <div style={{ backgroundColor: '#ffffff', border: '2px dashed #0f3c35', borderRadius: '8px', padding: '10px', marginTop: '12px', display: 'inline-block' }}>
+                                          <div id="pdf-qr" style={{ width: '160px', height: '160px' }}></div>
+                                        </div>
+                                        <p style={{ fontSize: '12px', color: '#0f3c35', margin: '8px 0 0 0', fontWeight: 'bold' }}>رمز QR لفتح صفحة المتابعة</p>
+                                    </div>
                     
-                    {/* Tracking Number Display */}
-                    <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '8px', border: '2px dashed #0f3c35', minWidth: '300px' }}>
-                        <p style={{ fontSize: '16px', color: '#0f3c35', margin: '0 0 10px 0', fontWeight: 'bold' }}>رقم التتبع الخاص بك:</p>
-                        <p style={{ fontSize: '28px', fontFamily: 'monospace', color: '#d63384', fontWeight: 'bold', letterSpacing: '2px', margin: '10px 0', textAlign: 'center' }}>{ticket?.id || 'خطأ في توليد الرقم'}</p>
-                    </div>
-                </div>
+                                    {/* Tracking Number Display */}
+                                    <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '8px', border: '2px dashed #0f3c35', minWidth: '300px' }}>
+                                        <p style={{ fontSize: '16px', color: '#0f3c35', margin: '0 0 10px 0', fontWeight: 'bold' }}>رقم التتبع الخاص بك:</p>
+                                        <p style={{ fontSize: '28px', fontFamily: 'monospace', color: '#d63384', fontWeight: 'bold', letterSpacing: '2px', margin: '10px 0', textAlign: 'center' }}>{ticket?.id || 'خطأ في توليد الرقم'}</p>
+                                    </div>
+                                </div>
                 
                 {/* Instructions */}
                 <div style={{ backgroundColor: '#e8f5e8', padding: '20px', borderRadius: '8px', textAlign: 'right' }}>

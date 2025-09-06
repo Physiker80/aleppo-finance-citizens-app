@@ -3,18 +3,21 @@ import React, { useState, useRef } from 'react';
 interface FileInputProps {
   label: string;
   id: string;
-  onFileChange: (file: File | undefined) => void;
+  onFileChange: (files: File[] | undefined) => void;
   accept?: string;
+  multiple?: boolean;
+  maxFiles?: number; // default 5
 }
 
-const FileInput: React.FC<FileInputProps> = ({ label, id, onFileChange, accept }) => {
-  const [fileName, setFileName] = useState<string | null>(null);
+const FileInput: React.FC<FileInputProps> = ({ label, id, onFileChange, accept, multiple = false, maxFiles = 5 }) => {
+  const [fileNames, setFileNames] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    setFileName(file ? file.name : null);
-    onFileChange(file);
+  const filesList: File[] = event.target.files ? Array.from(event.target.files) : [];
+  const limited: File[] = multiple ? filesList.slice(0, maxFiles) : filesList.slice(0, 1);
+  setFileNames(limited.map((f: File) => f.name));
+  onFileChange(limited.length ? limited : undefined);
   };
 
   const handleButtonClick = () => {
@@ -36,14 +39,20 @@ const FileInput: React.FC<FileInputProps> = ({ label, id, onFileChange, accept }
                 className="relative cursor-pointer bg-transparent dark:bg-transparent rounded-md font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
             >
                 <span>ارفع ملفاً</span>
-                <input ref={fileInputRef} id={id} name={id} type="file" className="sr-only" onChange={handleFileChange} accept={accept} />
+                <input ref={fileInputRef} id={id} name={id} type="file" className="sr-only" onChange={handleFileChange} accept={accept} multiple={multiple} />
             </button>
             <p className="pr-1">أو اسحبه وأفلته هنا</p>
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-500">
-            PDF, PNG, JPG, DOCX حتى 10MB
+            PDF, PNG, JPG, DOCX حتى 100MB — بحد أقصى {multiple ? maxFiles : 1} ملف
           </p>
-          {fileName && <p className="text-sm text-green-600 dark:text-green-400 mt-2">{fileName}</p>}
+          {fileNames.length > 0 && (
+            <ul className="text-sm text-green-600 dark:text-green-400 mt-2 space-y-1 text-right">
+              {fileNames.map((n, idx) => (
+                <li key={idx}>• {n}</li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

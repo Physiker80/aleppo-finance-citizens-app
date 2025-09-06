@@ -10,6 +10,7 @@ import DashboardPage from './pages/DashboardPage';
 import ConfirmationPage from './pages/ConfirmationPage';
 import LoginPage from './pages/LoginPage';
 import EmployeeManagementPage from './pages/EmployeeManagementPage';
+import ToolsPage from './pages/ToolsPage';
 import { Ticket, Employee } from './types';
 import { RequestStatus } from './types';
 
@@ -196,7 +197,9 @@ const App: React.FC = () => {
       case '#/dashboard':
         return isEmployeeLoggedIn ? <DashboardPage /> : <LoginPage />;
       case '#/employees':
-        return isEmployeeLoggedIn ? <EmployeeManagementPage /> : <LoginPage />;
+        return isEmployeeLoggedIn && currentEmployee?.role === 'مدير' ? <EmployeeManagementPage /> : <LoginPage />;
+      case '#/tools':
+        return isEmployeeLoggedIn && currentEmployee?.role === 'مدير' ? <ToolsPage /> : <LoginPage />;
       case '#/confirmation':
         return <ConfirmationPage />;
       default:
@@ -228,7 +231,7 @@ const App: React.FC = () => {
         <div className="flex flex-col min-h-screen bg-white/95 dark:bg-gray-900/95">
           <Header />
           <main className="flex-grow relative container mx-auto px-4 py-8">
-              {renderPage()}
+            {renderPage()}
           </main>
           <Footer />
         </div>

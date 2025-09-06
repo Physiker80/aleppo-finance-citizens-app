@@ -28,7 +28,7 @@ export interface Ticket {
   requestType: RequestType;
   department: Department;
   details: string;
-  attachment?: File;
+  attachments?: File[];
   status: RequestStatus;
   submissionDate: Date;
 }

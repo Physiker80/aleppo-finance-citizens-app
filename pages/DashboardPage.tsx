@@ -1,8 +1,13 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { AppContext } from '../App';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { RequestStatus, Ticket } from '../types';
+import { Document, Page, pdfjs } from 'react-pdf';
+// Use a Vite-friendly worker import so the PDF.js worker is bundled & served correctly
+// @ts-expect-error Vite will resolve this to a URL string
+import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+pdfjs.GlobalWorkerOptions.workerSrc = workerSrc as unknown as string;
 
 const statusColors: { [key in RequestStatus]: string } = {
   [RequestStatus.New]: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
@@ -17,11 +22,248 @@ const StatusBadge: React.FC<{ status: RequestStatus }> = ({ status }) => (
   </span>
 );
 
+const readableSize = (size: number) => {
+  if (size >= 1024 * 1024) return `${Math.ceil(size / (1024 * 1024))}MB`;
+  if (size >= 1024) return `${Math.ceil(size / 1024)}KB`;
+  return `${size}B`;
+};
+
+const DocxPreview: React.FC<{ file: File; onStart?: () => void; onFinish?: () => void; canceled?: boolean }> = ({ file, onStart, onFinish, canceled }) => {
+  const [html, setHtml] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let localCancelled = false;
+    setHtml(null);
+    setError(null);
+
+    if (canceled) {
+      // If canceled, don't even start
+      return;
+    }
+
+    onStart?.();
+    (async () => {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        if (localCancelled) return;
+        // @ts-ignore - dynamic import browser build
+        const mammothMod = await import('mammoth/mammoth.browser');
+        if (localCancelled) return;
+        const mammothLib: any = mammothMod.default || mammothMod;
+        const { value } = await mammothLib.convertToHtml({ arrayBuffer });
+        if (!localCancelled) setHtml(value);
+      } catch (e) {
+        if (!localCancelled) setError('تعذر عرض ملف الوورد');
+      } finally {
+        if (!localCancelled) onFinish?.();
+      }
+    })();
+    return () => { localCancelled = true; };
+  }, [file, canceled]);
+
+  if (canceled) return <div className="text-center py-10 text-white/90">تم إلغاء التحميل</div>;
+  if (error) return <div className="text-center py-10 text-white/90">{error}</div>;
+  if (!html) return <div className="text-center py-10 text-white/90">جارٍ تجهيز معاينة الوورد…</div>;
+  return (
+    <div className="prose max-w-none dark:prose-invert bg-white/90 dark:bg-gray-900/90 p-6 rounded border border-white/20 max-h-full overflow-auto" dangerouslySetInnerHTML={{ __html: html }} />
+  );
+};
+
+const AttachmentGalleryModal: React.FC<{ files: File[]; startIndex?: number; onClose: () => void }> = ({ files, startIndex = 0, onClose }) => {
+  const [index, setIndex] = useState<number>(startIndex);
+  const file = files[index];
+  const [numPages, setNumPages] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [canceled, setCanceled] = useState<boolean>(false);
+  const [imgUrl, setImgUrl] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    // Reset states when file changes
+    setNumPages(null);
+    setCanceled(false);
+    setIsLoading(true);
+    // Prepare image URL if needed
+    if (file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setImgUrl(url);
+      return () => {
+        URL.revokeObjectURL(url);
+        setImgUrl(null);
+      };
+    } else {
+      setImgUrl(null);
+    }
+  }, [index]);
+
+  function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
+    setNumPages(numPages);
+    setIsLoading(false);
+  }
+
+  const onDocumentLoadError = (err: any) => {
+    console.error('Error while loading PDF:', err);
+    setIsLoading(false);
+  };
+
+  const openInNewTab = () => {
+    const url = URL.createObjectURL(file);
+    const win = window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    if (!win) alert('تعذر فتح الملف في تبويب جديد');
+  };
+
+  const downloadFile = () => {
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  const cancelLoading = () => {
+    if (isLoading && !canceled) {
+      setCanceled(true);
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80" onClick={onClose}>
+      <div className="relative w-screen h-screen" onClick={(e) => e.stopPropagation()}>
+        {/* Top info bar - transparent */}
+        <div className="absolute top-0 left-0 right-0 p-3 flex items-center justify-between text-white bg-transparent">
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold truncate" title={file.name}>{file.name}</h3>
+            <p className="text-xs opacity-80">ملف {index + 1} من {files.length} • {readableSize(file.size)}{file.type === 'application/pdf' && numPages ? ` • ${numPages} صفحة` : ''}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={openInNewTab} className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-white text-xs">فتح</button>
+            <button onClick={downloadFile} className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-white text-xs">تنزيل</button>
+            <button
+              onClick={cancelLoading}
+              title="إلغاء التحميل"
+              aria-label="إلغاء التحميل"
+              className={`w-8 h-8 rounded-full ${isLoading && !canceled ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 opacity-50 cursor-not-allowed'} text-white`}
+              disabled={!isLoading || canceled}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Side navigation arrows */}
+        {files.length > 1 && (
+          <>
+            <button
+              aria-label="السابق"
+              disabled={index === 0}
+              onClick={() => setIndex((i) => Math.max(0, i - 1))}
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-40"
+            >
+              ‹
+            </button>
+            <button
+              aria-label="التالي"
+              disabled={index === files.length - 1}
+              onClick={() => setIndex((i) => Math.min(files.length - 1, i + 1))}
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-40"
+            >
+              ›
+            </button>
+          </>
+        )}
+
+        {/* Content area */}
+        <div className="h-full w-full flex items-center justify-center px-6 pt-16 pb-24">
+          {canceled ? (
+            <div className="text-center py-10 text-white/90">
+              <p>تم إلغاء التحميل.</p>
+              <p className="text-xs opacity-80 mt-2">يمكنك اختيار ملف آخر أو الانتقال بين الملفات من الأسهم.</p>
+            </div>
+          ) : file.type.startsWith('image/') ? (
+            <div className="relative w-full h-full">
+              {imgUrl ? (
+                <img
+                  src={imgUrl}
+                  alt="معاينة"
+                  className="absolute inset-0 w-full h-full object-contain"
+                  onLoad={() => setIsLoading(false)}
+                  onError={() => setIsLoading(false)}
+                />
+              ) : null}
+              <div className="absolute bottom-0 left-0 right-0 p-3 bg-black/40 text-white backdrop-blur-sm text-xs flex items-center justify-between">
+                <span className="truncate" title={file.name}>{file.name}</span>
+                <span className="opacity-90">صورة • {readableSize(file.size)}</span>
+              </div>
+            </div>
+          ) : file.type === 'application/pdf' ? (
+            <div className="relative flex justify-center items-center max-h-full overflow-auto w-full">
+              <Document
+                file={file}
+                onLoadSuccess={onDocumentLoadSuccess}
+                onLoadError={onDocumentLoadError}
+                loading="جاري تحميل المعاينة..."
+                className="flex justify-center"
+              >
+                {!canceled && <Page pageNumber={1} renderTextLayer={false} renderAnnotationLayer={false} />}
+              </Document>
+              <div className="absolute bottom-0 left-0 right-0 p-3 bg-black/40 text-white backdrop-blur-sm text-xs flex items-center justify-between">
+                <span className="truncate" title={file.name}>{file.name}</span>
+                <span className="opacity-90">PDF{numPages ? ` • ${numPages} صفحة` : ''} • {readableSize(file.size)}</span>
+              </div>
+            </div>
+          ) : (file.type.includes('wordprocessingml.document') || file.name.toLowerCase().endsWith('.docx')) ? (
+            <div className="relative w-full h-full overflow-auto">
+              <DocxPreview file={file} onStart={() => setIsLoading(true)} onFinish={() => setIsLoading(false)} canceled={canceled} />
+              <div className="absolute bottom-0 left-0 right-0 p-3 bg-black/40 text-white backdrop-blur-sm text-xs flex items-center justify-between">
+                <span className="truncate" title={file.name}>{file.name}</span>
+                <span className="opacity-90">Word • {readableSize(file.size)}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-10 text-white/90">
+              <p>لا يمكن معاينة هذا النوع من الملفات.</p>
+              <button onClick={downloadFile} className="mt-4 inline-block px-3 py-1.5 rounded bg-white/10 hover:bg-white/20">تنزيل الملف</button>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom options bar - transparent */}
+        {files.length > 1 && (
+          <div className="absolute bottom-0 left-0 right-0 p-2 overflow-x-auto bg-transparent">
+            <div className="flex gap-2 px-2">
+              {files.map((f, i) => (
+                <button
+                  key={i}
+                  onClick={() => setIndex(i)}
+                  title={f.name}
+                  className={`px-2 py-1 rounded text-xs whitespace-nowrap border ${i === index ? 'bg-white/20 text-white border-white/50' : 'bg-transparent text-white/90 border-white/20 hover:bg-white/10'}`}
+                >
+                  {f.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
 const DashboardPage: React.FC = () => {
   const appContext = useContext(AppContext);
   const tickets = appContext?.tickets || [];
   const updateTicketStatus = appContext?.updateTicketStatus;
   const currentEmployee = appContext?.currentEmployee;
+  const [galleryFiles, setGalleryFiles] = useState<File[] | null>(null);
+  const [galleryStartIndex, setGalleryStartIndex] = useState<number>(0);
+  const openGallery = (files: File[], startIndex = 0) => { setGalleryFiles(files); setGalleryStartIndex(startIndex); };
+  const closeGallery = () => setGalleryFiles(null);
 
   const handleStatusChange = (ticket: Ticket, newStatus: string) => {
     if (updateTicketStatus) {
@@ -156,7 +398,7 @@ ${trackUrl}
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">مقدم الطلب</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">القسم</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الحالة</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">تغيير الحالة</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الإجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -170,17 +412,22 @@ ${trackUrl}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{ticket.department}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm"><StatusBadge status={ticket.status} /></td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 rtl:space-x-reverse">
                     <select
                       value={ticket.status}
                       onChange={(e) => handleStatusChange(ticket, e.target.value)}
-                      className="w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                      className="w-auto p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                       aria-label={`Change status for ticket ${ticket.id}`}
                     >
                       {Object.values(RequestStatus).map(status => (
                         <option key={status} value={status}>{status}</option>
                       ))}
                     </select>
+                    {ticket.attachments && ticket.attachments.length > 0 && (
+                      <Button onClick={() => openGallery(ticket.attachments!, 0)} variant="secondary" size="sm">
+                        المرفقات ({ticket.attachments.length})
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -188,6 +435,7 @@ ${trackUrl}
           </table>
         </div>
       )}
+  {galleryFiles && <AttachmentGalleryModal files={galleryFiles} startIndex={galleryStartIndex} onClose={closeGallery} />}
     </Card>
   );
 };

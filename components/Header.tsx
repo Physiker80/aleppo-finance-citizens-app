@@ -104,6 +104,7 @@ const Header: React.FC = () => {
         navItems.push({ href: '#/dashboard', label: 'لوحة التحكم' });
         if (appContext?.currentEmployee?.role === 'مدير') {
             navItems.push({ href: '#/employees', label: 'إدارة الموظفين' });
+            navItems.push({ href: '#/tools', label: 'أدوات' });
         }
     }
 
@@ -167,7 +168,12 @@ const Header: React.FC = () => {
               <NavLink href="#/faq">الأسئلة الشائعة</NavLink>
               <NavLink href="#/news">الأخبار والإعلانات</NavLink>
               {appContext?.isEmployeeLoggedIn && <NavLink href="#/dashboard">لوحة التحكم</NavLink>}
-              {appContext?.isEmployeeLoggedIn && appContext?.currentEmployee?.role === 'مدير' && <NavLink href="#/employees">إدارة الموظفين</NavLink>}
+              {appContext?.isEmployeeLoggedIn && appContext?.currentEmployee?.role === 'مدير' && (
+                <>
+                  <NavLink href="#/employees">إدارة الموظفين</NavLink>
+                  <NavLink href="#/tools">أدوات</NavLink>
+                </>
+              )}
             </nav>
             
             <div className="hidden md:flex items-center space-x-4 rtl:space-x-reverse">
