@@ -375,10 +375,56 @@ const NewsManager: React.FC<{ onChanged?: () => void; onSwitchToAdd?: () => void
   );
 };
 
-const FaqEditor: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
-  const [items, setItems] = useState<FaqItem[]>([]);
+// نموذج إضافة سؤال فقط
+const FaqAddForm: React.FC<{ onAdded?: () => void; onSwitchToManage?: () => void }> = ({ onAdded, onSwitchToManage }) => {
   const [draft, setDraft] = useState<FaqItem>({ question: '', answer: '' });
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const add = () => {
+    if (!draft.question.trim() || !draft.answer.trim()) return;
+    try {
+      setSaving(true);
+      const saved = localStorage.getItem('faqItems');
+      const list: FaqItem[] = saved ? JSON.parse(saved) : FAQ_DATA.slice();
+      list.unshift({ ...draft });
+      localStorage.setItem('faqItems', JSON.stringify(list));
+      setMessage('تمت إضافة السؤال بنجاح.');
+      setDraft({ question: '', answer: '' });
+      onAdded?.();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="mt-6">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">إضافة سؤال شائع</h2>
+      <p className="text-gray-600 dark:text-gray-300 mb-4 text-sm">سيظهر السؤال مباشرة في صفحة الأسئلة الشائعة.</p>
+      <div className="grid md:grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+        <label className="text-sm md:col-span-1">السؤال
+          <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={draft.question} onChange={(e) => setDraft({ ...draft, question: e.target.value })} />
+        </label>
+        <label className="text-sm md:col-span-1">الإجابة
+          <textarea className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 min-h-[80px]" value={draft.answer} onChange={(e) => setDraft({ ...draft, answer: e.target.value })} />
+        </label>
+        <div className="md:col-span-2 flex gap-2 justify-end">
+          {onSwitchToManage && (
+            <button onClick={onSwitchToManage} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">إدارة الأسئلة</button>
+          )}
+          <button onClick={add} disabled={saving} className="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-60">إضافة</button>
+        </div>
+        {message && <div className="md:col-span-2 text-sm text-green-700 dark:text-green-400">{message}</div>}
+      </div>
+    </section>
+  );
+};
+
+// إدارة الأسئلة (تعديل/حذف)
+const FaqManager: React.FC<{ onChanged?: () => void; onSwitchToAdd?: () => void }> = ({ onChanged, onSwitchToAdd }) => {
+  const [items, setItems] = useState<FaqItem[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [draft, setDraft] = useState<FaqItem>({ question: '', answer: '' });
 
   useEffect(() => {
     try {
@@ -393,51 +439,43 @@ const FaqEditor: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
   const persist = (list: FaqItem[]) => {
     setItems(list);
     localStorage.setItem('faqItems', JSON.stringify(list));
-  onChanged?.();
+    onChanged?.();
   };
 
-  const resetDraft = () => setDraft({ question: '', answer: '' });
-
-  const addOrUpdate = () => {
-    if (!draft.question.trim() || !draft.answer.trim()) return;
-    if (editingIndex !== null) {
-      const next = items.slice();
-      next[editingIndex] = { ...draft };
-      persist(next);
-      setEditingIndex(null);
-      resetDraft();
-    } else {
-      persist([{ ...draft }, ...items]);
-      resetDraft();
-    }
-  };
-
-  const edit = (index: number) => { setEditingIndex(index); setDraft(items[index]); };
-  const remove = (index: number) => {
-    const next = items.filter((_, i) => i !== index);
+  const startEdit = (i: number) => { setEditingIndex(i); setDraft(items[i]); };
+  const cancel = () => { setEditingIndex(null); };
+  const save = () => {
+    if (editingIndex === null) return;
+    const next = items.slice();
+    next[editingIndex] = { ...draft };
     persist(next);
-    if (editingIndex === index) { setEditingIndex(null); resetDraft(); }
+    setEditingIndex(null);
   };
+  const remove = (i: number) => { const next = items.filter((_, idx) => idx !== i); persist(next); if (editingIndex === i) setEditingIndex(null); };
 
   return (
-    <section className="mt-12">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">تحرير الأسئلة الشائعة</h2>
-      <p className="text-gray-600 dark:text-gray-300 mb-4 text-sm">تُحفظ التغييرات محلياً في المتصفح وتظهر في صفحة الأسئلة الشائعة.</p>
-      <div className="grid md:grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
-        <label className="text-sm md:col-span-1">السؤال
-          <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={draft.question} onChange={(e) => setDraft({ ...draft, question: e.target.value })} />
-        </label>
-        <label className="text-sm md:col-span-1">الإجابة
-          <textarea className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 min-h-[80px]" value={draft.answer} onChange={(e) => setDraft({ ...draft, answer: e.target.value })} />
-        </label>
-        <div className="md:col-span-2 flex gap-2 justify-end">
-          {editingIndex !== null && (
-            <button onClick={() => { setEditingIndex(null); resetDraft(); }} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">إلغاء</button>
-          )}
-          <button onClick={addOrUpdate} className="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">{editingIndex !== null ? 'حفظ التعديل' : 'إضافة'}</button>
-        </div>
+    <section className="mt-6">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">إدارة الأسئلة الشائعة</h2>
+        {onSwitchToAdd && (
+          <button onClick={onSwitchToAdd} className="px-3 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">إضافة سؤال</button>
+        )}
       </div>
-      <div className="mt-5 border rounded-xl overflow-hidden border-gray-200 dark:border-gray-700">
+      {editingIndex !== null && (
+        <div className="mb-4 grid md:grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <label className="text-sm md:col-span-1">السؤال
+            <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={draft.question} onChange={(e) => setDraft({ ...draft, question: e.target.value })} />
+          </label>
+          <label className="text-sm md:col-span-1">الإجابة
+            <textarea className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 min-h-[80px]" value={draft.answer} onChange={(e) => setDraft({ ...draft, answer: e.target.value })} />
+          </label>
+          <div className="md:col-span-2 flex gap-2 justify-end">
+            <button onClick={cancel} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">إلغاء</button>
+            <button onClick={save} className="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">حفظ التعديل</button>
+          </div>
+        </div>
+      )}
+      <div className="border rounded-xl overflow-hidden border-gray-200 dark:border-gray-700">
         {items.length === 0 ? (
           <div className="p-4 text-sm text-gray-600 dark:text-gray-300">لا توجد أسئلة بعد.</div>
         ) : (
@@ -457,7 +495,7 @@ const FaqEditor: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
                   </td>
                   <td className="p-3 w-32">
                     <div className="flex gap-2">
-                      <button onClick={() => edit(i)} className="text-blue-600 dark:text-blue-400 hover:underline">تعديل</button>
+                      <button onClick={() => startEdit(i)} className="text-blue-600 dark:text-blue-400 hover:underline">تعديل</button>
                       <button onClick={() => remove(i)} className="text-red-600 dark:text-red-400 hover:underline">حذف</button>
                     </div>
                   </td>
@@ -472,7 +510,7 @@ const FaqEditor: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
 };
 
 const ToolsPage: React.FC = () => {
-  const [active, setActive] = useState<null | 'ocr' | 'newsAdd' | 'newsManage' | 'faq'>(null);
+  const [active, setActive] = useState<null | 'ocr' | 'newsAdd' | 'newsManage' | 'faqAdd' | 'faqManage'>(null);
   const [newsCount, setNewsCount] = useState<number>(0);
   const [faqCount, setFaqCount] = useState<number>(0);
   const [ocrStats, setOcrStats] = useState<OcrStats | null>(null);
@@ -565,16 +603,32 @@ const ToolsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* FAQ Card */}
+          {/* FAQ Add Card */}
           <div className="relative">
             <div
               role="button" tabIndex={0}
-              onClick={() => setActive(active === 'faq' ? null : 'faq')}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'faq' ? null : 'faq'); } }}
+              onClick={() => setActive(active === 'faqAdd' ? null : 'faqAdd')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'faqAdd' ? null : 'faqAdd'); } }}
               className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
-              <h3 className="text-xl font-semibold mb-1">الأسئلة الشائعة</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">تحرير قاعدة المعرفة والأسئلة المتكررة.</p>
+              <h3 className="text-xl font-semibold mb-1">إضافة سؤال شائع</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">إدراج سؤال جديد يظهر في صفحة الأسئلة.</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">عدد الأسئلة {faqCount}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* FAQ Manage Card */}
+          <div className="relative">
+            <div
+              role="button" tabIndex={0}
+              onClick={() => setActive(active === 'faqManage' ? null : 'faqManage')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.prevent.preventDefault(); setActive(active === 'faqManage' ? null : 'faqManage'); } }}
+              className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <h3 className="text-xl font-semibold mb-1">تحرير الأسئلة الشائعة</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">تعديل أو حذف الأسئلة المنشورة.</p>
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">عدد الأسئلة {faqCount}</span>
               </div>
@@ -589,7 +643,8 @@ const ToolsPage: React.FC = () => {
                 {active === 'ocr' && 'أداة التعرف الضوئي على الحروف (OCR)'}
                 {active === 'newsAdd' && 'إضافة خبر جديد'}
                 {active === 'newsManage' && 'إدارة الأخبار'}
-                {active === 'faq' && 'تحرير الأسئلة الشائعة'}
+                {active === 'faqAdd' && 'إضافة سؤال شائع'}
+                {active === 'faqManage' && 'إدارة الأسئلة الشائعة'}
               </h3>
               <button onClick={() => setActive(null)} aria-label="إغلاق" className="w-8 h-8 rounded hover:bg-black/5 dark:hover:bg-white/10">✕</button>
             </div>
@@ -597,7 +652,8 @@ const ToolsPage: React.FC = () => {
               {active === 'ocr' && <OcrTool onStatsChanged={refreshStats} />}
               {active === 'newsAdd' && <NewsAddForm onAdded={refreshStats} onSwitchToManage={() => setActive('newsManage')} />}
               {active === 'newsManage' && <NewsManager onChanged={refreshStats} onSwitchToAdd={() => setActive('newsAdd')} />}
-              {active === 'faq' && <FaqEditor onChanged={refreshStats} />}
+              {active === 'faqAdd' && <FaqAddForm onAdded={refreshStats} onSwitchToManage={() => setActive('faqManage')} />}
+              {active === 'faqManage' && <FaqManager onChanged={refreshStats} onSwitchToAdd={() => setActive('faqAdd')} />}
             </div>
           </div>
         )}
