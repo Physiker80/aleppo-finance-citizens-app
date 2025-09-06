@@ -620,11 +620,11 @@ const ToolsPage: React.FC = () => {
           </div>
 
           {/* FAQ Manage Card */}
-          <div className="relative">
+      <div className="relative">
             <div
               role="button" tabIndex={0}
               onClick={() => setActive(active === 'faqManage' ? null : 'faqManage')}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.prevent.preventDefault(); setActive(active === 'faqManage' ? null : 'faqManage'); } }}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'faqManage' ? null : 'faqManage'); } }}
               className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               <h3 className="text-xl font-semibold mb-1">تحرير الأسئلة الشائعة</h3>
