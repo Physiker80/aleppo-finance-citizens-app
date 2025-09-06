@@ -608,7 +608,7 @@ const FaqManager: React.FC<{ onChanged?: () => void; onSwitchToAdd?: () => void 
 };
 
 const ToolsPage: React.FC = () => {
-  const [active, setActive] = useState<null | 'ocr' | 'newsAdd' | 'newsManage' | 'faqAdd' | 'faqManage'>(null);
+  const [active, setActive] = useState<null | 'ocr' | 'news' | 'faq'>(null);
   const [newsCount, setNewsCount] = useState<number>(0);
   const [faqCount, setFaqCount] = useState<number>(0);
   const [ocrStats, setOcrStats] = useState<OcrStats | null>(null);
@@ -646,7 +646,7 @@ const ToolsPage: React.FC = () => {
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">قسم المعلوماتية</h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* OCR Card */}
           <div className="relative">
             <div
@@ -669,64 +669,32 @@ const ToolsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* News Add Card */}
+          {/* News Card (Add + Manage) */}
           <div className="relative">
             <div
               role="button" tabIndex={0}
-              onClick={() => setActive(active === 'newsAdd' ? null : 'newsAdd')}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'newsAdd' ? null : 'newsAdd'); } }}
+              onClick={() => setActive(active === 'news' ? null : 'news')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'news' ? null : 'news'); } }}
               className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
-              <h3 className="text-xl font-semibold mb-1">إضافة خبر</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">إدراج خبر جديد يظهر في صفحة الأخبار.</p>
+              <h3 className="text-xl font-semibold mb-1">الأخبار</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">إضافة وإدارة الأخبار المنشورة.</p>
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">عدد الأخبار {newsCount}</span>
               </div>
             </div>
           </div>
 
-          {/* News Manage Card */}
+          {/* FAQ Card (Add + Manage) */}
           <div className="relative">
             <div
               role="button" tabIndex={0}
-              onClick={() => setActive(active === 'newsManage' ? null : 'newsManage')}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'newsManage' ? null : 'newsManage'); } }}
+              onClick={() => setActive(active === 'faq' ? null : 'faq')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'faq' ? null : 'faq'); } }}
               className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
-              <h3 className="text-xl font-semibold mb-1">تحرير الأخبار</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">تعديل أو حذف الأخبار المنشورة.</p>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">عدد الأخبار {newsCount}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* FAQ Add Card */}
-          <div className="relative">
-            <div
-              role="button" tabIndex={0}
-              onClick={() => setActive(active === 'faqAdd' ? null : 'faqAdd')}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'faqAdd' ? null : 'faqAdd'); } }}
-              className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              <h3 className="text-xl font-semibold mb-1">إضافة سؤال شائع</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">إدراج سؤال جديد يظهر في صفحة الأسئلة.</p>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">عدد الأسئلة {faqCount}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* FAQ Manage Card */}
-      <div className="relative">
-            <div
-              role="button" tabIndex={0}
-              onClick={() => setActive(active === 'faqManage' ? null : 'faqManage')}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'faqManage' ? null : 'faqManage'); } }}
-              className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              <h3 className="text-xl font-semibold mb-1">تحرير الأسئلة الشائعة</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">تعديل أو حذف الأسئلة المنشورة.</p>
+              <h3 className="text-xl font-semibold mb-1">الأسئلة الشائعة</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">إضافة وإدارة قاعدة الأسئلة المتكررة.</p>
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">عدد الأسئلة {faqCount}</span>
               </div>
@@ -739,19 +707,27 @@ const ToolsPage: React.FC = () => {
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
                 {active === 'ocr' && 'أداة التعرف الضوئي على الحروف (OCR)'}
-                {active === 'newsAdd' && 'إضافة خبر جديد'}
-                {active === 'newsManage' && 'إدارة الأخبار'}
-                {active === 'faqAdd' && 'إضافة سؤال شائع'}
-                {active === 'faqManage' && 'إدارة الأسئلة الشائعة'}
+                {active === 'news' && 'الأخبار: إضافة وإدارة'}
+                {active === 'faq' && 'الأسئلة الشائعة: إضافة وإدارة'}
               </h3>
               <button onClick={() => setActive(null)} aria-label="إغلاق" className="w-8 h-8 rounded hover:bg-black/5 dark:hover:bg-white/10">✕</button>
             </div>
             <div className="p-4 max-h-[70vh] overflow-auto">
               {active === 'ocr' && <OcrTool onStatsChanged={refreshStats} />}
-              {active === 'newsAdd' && <NewsAddForm onAdded={refreshStats} onSwitchToManage={() => setActive('newsManage')} />}
-              {active === 'newsManage' && <NewsManager onChanged={refreshStats} onSwitchToAdd={() => setActive('newsAdd')} />}
-              {active === 'faqAdd' && <FaqAddForm onAdded={refreshStats} onSwitchToManage={() => setActive('faqManage')} />}
-              {active === 'faqManage' && <FaqManager onChanged={refreshStats} onSwitchToAdd={() => setActive('faqAdd')} />}
+              {active === 'news' && (
+                <div>
+                  <NewsAddForm onAdded={refreshStats} />
+                  <div className="mt-6" />
+                  <NewsManager onChanged={refreshStats} />
+                </div>
+              )}
+              {active === 'faq' && (
+                <div>
+                  <FaqAddForm onAdded={refreshStats} />
+                  <div className="mt-6" />
+                  <FaqManager onChanged={refreshStats} />
+                </div>
+              )}
             </div>
           </div>
         )}
