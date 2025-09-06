@@ -24,6 +24,7 @@ import PerformancePage from './pages/hrms/PerformancePage';
 import RecruitmentPage from './pages/hrms/RecruitmentPage';
 import ReportsPage from './pages/hrms/ReportsPage';
 import RequestsPage from './pages/RequestsPage';
+import PrivacyPage from './pages/PrivacyPage';
 import { Ticket, Employee, ContactMessage, ContactMessageStatus, ContactMessageType } from './types';
 import { RequestStatus } from './types';
 
@@ -273,6 +274,8 @@ const App: React.FC = () => {
         return isEmployeeLoggedIn ? <RequestsPage /> : <LoginPage />;
       case '#/contact':
         return <ContactPage />;
+      case '#/privacy':
+        return <PrivacyPage />;
       case '#/confirmation':
         return <ConfirmationPage />;
       default:
