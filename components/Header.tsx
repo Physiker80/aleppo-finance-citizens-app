@@ -103,10 +103,11 @@ const Header: React.FC = () => {
     
     if (appContext?.isEmployeeLoggedIn) {
         navItems.push({ href: '#/dashboard', label: 'لوحة التحكم' });
-        if (appContext?.currentEmployee?.role === 'مدير') {
-            navItems.push({ href: '#/employees', label: 'إدارة الموظفين' });
-            navItems.push({ href: '#/tools', label: 'أدوات' });
-        }
+    if (appContext?.currentEmployee?.role === 'مدير') {
+      // ضع الموارد البشرية أول عنصر في القائمة العلوية
+      navItems.unshift({ href: '#/employees', label: 'الموارد البشرية' });
+      navItems.push({ href: '#/tools', label: 'أدوات' });
+    }
     }
 
     return (
@@ -163,6 +164,9 @@ const Header: React.FC = () => {
             </a>
             
             <nav className="hidden md:flex items-center space-x-2 rtl:space-x-reverse">
+              {appContext?.isEmployeeLoggedIn && appContext?.currentEmployee?.role === 'مدير' && (
+                <NavLink href="#/employees">الموارد البشرية</NavLink>
+              )}
               <NavLink href="#/">الرئيسية</NavLink>
               <NavLink href="#/submit">تقديم طلب جديد</NavLink>
               <NavLink href="#/track">متابعة طلب</NavLink>
@@ -172,7 +176,6 @@ const Header: React.FC = () => {
               {appContext?.isEmployeeLoggedIn && <NavLink href="#/dashboard">لوحة التحكم</NavLink>}
               {appContext?.isEmployeeLoggedIn && appContext?.currentEmployee?.role === 'مدير' && (
                 <>
-                  <NavLink href="#/employees">إدارة الموظفين</NavLink>
                   <NavLink href="#/tools">أدوات</NavLink>
                 </>
               )}

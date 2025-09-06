@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useContext, useMemo, useState, useRef } from 'react';
 import { AppContext } from '../App';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -20,6 +20,19 @@ const statusColors: { [key in RequestStatus]: string } = {
 
 const StatusBadge: React.FC<{ status: RequestStatus }> = ({ status }) => (
   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[status]}`}>
+    {status}
+  </span>
+);
+
+// Badges for Contact Messages status
+const contactStatusColors: { [key in ContactMessageStatus]: string } = {
+  [ContactMessageStatus.New]: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
+  [ContactMessageStatus.InProgress]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
+  [ContactMessageStatus.Closed]: 'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300',
+};
+
+const ContactStatusBadge: React.FC<{ status: ContactMessageStatus }> = ({ status }) => (
+  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${contactStatusColors[status]}`}>
     {status}
   </span>
 );
@@ -286,6 +299,7 @@ const DashboardPage: React.FC = () => {
   const [galleryFiles, setGalleryFiles] = useState<File[] | null>(null);
   const [galleryStartIndex, setGalleryStartIndex] = useState<number>(0);
   const [showDiwanModal, setShowDiwanModal] = useState<boolean>(false);
+  const contactSectionRef = useRef<HTMLDivElement | null>(null);
   const openGallery = (files: File[], startIndex = 0) => { setGalleryFiles(files); setGalleryStartIndex(startIndex); };
   const closeGallery = () => setGalleryFiles(null);
 
@@ -401,7 +415,7 @@ ${trackUrl}
     <Card>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">لوحة تحكم الموظفين</h2>
+          <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">لوحة التحكم</h2>
           {currentEmployee && (
             <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
               مرحباً {currentEmployee.name} - {currentEmployee.department} ({currentEmployee.role})
@@ -409,17 +423,6 @@ ${trackUrl}
           )}
         </div>
         <div className="flex space-x-2 rtl:space-x-reverse">
-          {currentEmployee?.role === 'مدير' && (
-            <Button 
-              onClick={() => window.location.hash = '#/employees'} 
-              variant="secondary"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2 rtl:ml-0 rtl:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              إدارة الموظفين
-            </Button>
-          )}
           {tickets.length > 0 && (
             <Button onClick={handleExportCSV} variant="secondary">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2 rtl:ml-0 rtl:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
@@ -432,36 +435,49 @@ ${trackUrl}
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
               {/* المحتوى/المعلوماتية */}
-              <div className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => { window.location.hash = '#/tools'; }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/tools'; } }}
+                className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-purple-600/10 text-purple-400 text-2xl">⌁</div>
-                    <h3 className="mt-3 text-xl font-semibold">المعلوماتية / المحتوى</h3>
+                    <h3 className="text-xl font-semibold">المعلوماتية / المحتوى</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">تحرير المحتوى (الأخبار، الأسئلة، الشروط، الخصوصية).</p>
                   </div>
-                  <Button variant="secondary" onClick={() => window.location.hash = '#/tools'}>مركز المحتوى</Button>
                 </div>
               </div>
 
-              {/* إدارة الموظفين */}
-              <div className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm">
+              {/* الموارد البشرية */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => { window.location.hash = '#/hrms'; }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/hrms'; } }}
+                className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-emerald-600/10 text-emerald-400 text-2xl">👤</div>
-                    <h3 className="mt-3 text-xl font-semibold">إدارة الموظفين</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">إضافة وتعديل وحذف بيانات الموظفين وصلاحياتهم.</p>
+                    <h3 className="text-xl font-semibold">الموارد البشرية</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">منصة HRMS متكاملة: بيانات الموظفين، الرواتب، الحضور، الإجازات، والأداء.</p>
                     <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">{`$${''}`}</div>
                   </div>
-                  <Button variant="secondary" onClick={() => window.location.hash = '#/employees'}>الموظفون</Button>
                 </div>
               </div>
 
               {/* لوحة الطلبات */}
-              <div className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => { window.location.hash = '#/requests'; }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/requests'; } }}
+                className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
                 <div className="flex items-start justify-between">
                   <div className="min-w-0">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-blue-600/10 text-blue-400 text-2xl">📄</div>
-                    <h3 className="mt-3 text-xl font-semibold">لوحة الطلبات</h3>
+                    <h3 className="text-xl font-semibold">لوحة الطلبات</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">إدارة ومتابعة جميع الطلبات الواردة.</p>
                     <div className="mt-3 flex gap-2 flex-wrap text-xs">
                       <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">الإجمالي {ticketStats.total}</span>
@@ -471,29 +487,37 @@ ${trackUrl}
                       <span className="px-2 py-0.5 rounded bg-gray-200 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300">{RequestStatus.Closed} {ticketStats.byStatus[RequestStatus.Closed]}</span>
                     </div>
                   </div>
-                  <Button variant="secondary" onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}>عرض</Button>
                 </div>
               </div>
 
-              {/* أقسام المديرية */}
-              <div className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm">
+              {/* الهيكل الإداري */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => { window.location.hash = '#/dashboard'; }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/dashboard'; } }}
+                className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-amber-500/10 text-amber-400 text-2xl">🔊</div>
-                    <h3 className="mt-3 text-xl font-semibold">أقسام المديرية</h3>
+                    <h3 className="text-xl font-semibold">الهيكل الإداري</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">عرض التوزيع الإحصائي للطلبات ونشاط المراسلات الداخلية بين الأقسام.</p>
                     <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">{`عدد الأقسام: 5`}</div>
                   </div>
-                  <Button variant="secondary" onClick={() => window.location.hash = '#/dashboard'}>عرض</Button>
                 </div>
               </div>
 
               {/* رسائل التواصل */}
-              <div className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => { window.location.hash = '#/messages'; }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/messages'; } }}
+                className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
                 <div className="flex items-start justify-between w-full">
                   <div className="min-w-0">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-pink-500/10 text-pink-400 text-2xl">💬</div>
-                    <h3 className="mt-3 text-xl font-semibold">رسائل التواصل</h3>
+                    <h3 className="text-xl font-semibold">رسائل التواصل</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">عرض ومعالجة رسائل "تواصل معنا".</p>
                     <div className="mt-3 flex gap-2 flex-wrap text-xs">
                       <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">الإجمالي {contactStats.total}</span>
@@ -502,84 +526,31 @@ ${trackUrl}
                       <span className="px-2 py-0.5 rounded bg-gray-200 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300">مغلق {contactStats.byStatus[ContactMessageStatus.Closed]}</span>
                     </div>
                   </div>
-                  <Button variant="secondary" onClick={() => window.location.hash = '#/contact'}>فتح</Button>
                 </div>
               </div>
 
               {/* إدارة الديوان العام */}
-              <div className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => { window.location.hash = '#/diwan'; }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/diwan'; } }}
+                className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-lime-500/10 text-lime-400 text-2xl">📄</div>
-                    <h3 className="mt-3 text-xl font-semibold">إدارة الديوان العام</h3>
+                    <h3 className="text-xl font-semibold">إدارة الديوان العام</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">التعاميم والكتب الرسمية (إنشاء وأرشفة).</p>
                     <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">وارد 0 • صادر 0 • قيد 0</div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="secondary" onClick={() => setShowDiwanModal(true)}>عرض المخطط</Button>
-                    <Button variant="secondary" onClick={() => { window.location.hash = '#/diwan'; }}>فتح الصفحة</Button>
-                  </div>
+                  {/* الأزرار داخل الكرت أزيلت — الكرت نفسه أصبح قابلًا للنقر */}
                 </div>
               </div>
       </div>
 
-      {tickets.length === 0 ? (
-        <div className="text-center py-16">
-          <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-200">لا توجد طلبات</h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">لم يتم تقديم أي طلبات من قبل المستخدمين حتى الآن.</p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white dark:bg-transparent divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700/50">
-              <tr>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">رقم التتبع</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">تاريخ التقديم</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">مقدم الطلب</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">القسم</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الحالة</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الإجراءات</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {tickets.map((ticket) => (
-                <tr key={ticket.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">{ticket.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{ticket.submissionDate.toLocaleDateString('ar-SY')}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="text-gray-900 dark:text-gray-100 font-medium">{ticket.fullName}</div>
-                    {ticket.email && <div className="text-gray-500 dark:text-gray-400">{ticket.email}</div>}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{ticket.department}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm"><StatusBadge status={ticket.status} /></td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 rtl:space-x-reverse">
-                    <select
-                      value={ticket.status}
-                      onChange={(e) => handleStatusChange(ticket, e.target.value)}
-                      className="w-auto p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                      aria-label={`Change status for ticket ${ticket.id}`}
-                    >
-                      {Object.values(RequestStatus).map(status => (
-                        <option key={status} value={status}>{status}</option>
-                      ))}
-                    </select>
-                    {ticket.attachments && ticket.attachments.length > 0 && (
-                      <Button onClick={() => openGallery(ticket.attachments!, 0)} variant="secondary" size="sm">
-                        المرفقات ({ticket.attachments.length})
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+  {/* قسم رسائل التواصل لم يعد يُعرض داخل لوحة التحكم */}
 
-  {galleryFiles && <AttachmentGalleryModal files={galleryFiles} startIndex={galleryStartIndex} onClose={closeGallery} />}
+  {/* تم نقل جدول الطلبات إلى صفحة مستقلة */}
   {showDiwanModal && <DiwanWorkflowModal onClose={() => setShowDiwanModal(false)} />}
     </Card>
   );

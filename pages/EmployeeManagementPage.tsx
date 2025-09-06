@@ -160,7 +160,8 @@ const EmployeeManagementPage: React.FC = () => {
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         
-        const importedEmployees: Employee[] = [];
+  // لا نستورد كلمات المرور؛ سنحافظ على كلمات المرور الحالية للموظفين الموجودين
+  const importedEmployees: Omit<Employee, 'password'>[] = [];
         for (let i = 1; i < jsonData.length; i++) {
           const row = jsonData[i] as any[];
           if (row.length >= 4) {
@@ -169,8 +170,8 @@ const EmployeeManagementPage: React.FC = () => {
               name: row[1] || '',
               department: row[2] || '',
               role: row[3] || 'موظف',
-              password: 'temp123', // كلمة مرور مؤقتة
-            });
+              // بدون كلمة مرور هنا
+            } as any);
           }
         }
         
@@ -179,9 +180,17 @@ const EmployeeManagementPage: React.FC = () => {
           importedEmployees.forEach(newEmp => {
             const existingIndex = mergedEmployees.findIndex(emp => emp.username === newEmp.username);
             if (existingIndex >= 0) {
-              mergedEmployees[existingIndex] = { ...mergedEmployees[existingIndex], ...newEmp };
+              // حافظ على كلمة المرور الحالية ولا تسمح بتعديل حساب الأدمن بشكل غير مباشر
+              const current = mergedEmployees[existingIndex];
+              if (current.username === 'admin') {
+                mergedEmployees[existingIndex] = { ...current, name: newEmp.name, department: newEmp.department, role: newEmp.role };
+              } else {
+                mergedEmployees[existingIndex] = { ...current, name: newEmp.name, department: newEmp.department, role: newEmp.role };
+              }
             } else {
-              mergedEmployees.push(newEmp);
+              // مستخدم جديد: عيِّن كلمة مرور مؤقتة، مع حماية اسم المستخدم 'admin'
+              const tempPassword = newEmp.username === 'admin' ? 'admin123' : 'temp123';
+              mergedEmployees.push({ ...(newEmp as any), password: tempPassword });
             }
           });
           
@@ -219,7 +228,7 @@ const EmployeeManagementPage: React.FC = () => {
   return (
     <Card>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">إدارة الموظفين</h2>
+  <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">الموارد البشرية</h2>
         <div className="flex space-x-2 rtl:space-x-reverse">
           <Button onClick={() => setShowCreateForm(true)} variant="primary">
             إضافة موظف جديد

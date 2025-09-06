@@ -13,6 +13,17 @@ import EmployeeManagementPage from './pages/EmployeeManagementPage';
 import ToolsPage from './pages/ToolsPage';
 import GeneralDiwanPage from './pages/GeneralDiwanPage';
 import ContactPage from './pages/ContactPage';
+import ContactMessagesPage from './pages/ContactMessagesPage';
+import HrmsPage from './pages/HrmsPage';
+import CoreHrPage from './pages/hrms/CoreHrPage';
+import PayrollPage from './pages/hrms/PayrollPage';
+import AttendancePage from './pages/hrms/AttendancePage';
+import LeavePage from './pages/hrms/LeavePage';
+import EssMssPage from './pages/hrms/EssMssPage';
+import PerformancePage from './pages/hrms/PerformancePage';
+import RecruitmentPage from './pages/hrms/RecruitmentPage';
+import ReportsPage from './pages/hrms/ReportsPage';
+import RequestsPage from './pages/RequestsPage';
 import { Ticket, Employee, ContactMessage, ContactMessageStatus, ContactMessageType } from './types';
 import { RequestStatus } from './types';
 
@@ -234,10 +245,32 @@ const App: React.FC = () => {
         return isEmployeeLoggedIn ? <DashboardPage /> : <LoginPage />;
       case '#/employees':
         return isEmployeeLoggedIn && currentEmployee?.role === 'مدير' ? <EmployeeManagementPage /> : <LoginPage />;
+      case '#/hrms':
+        return isEmployeeLoggedIn ? <HrmsPage /> : <LoginPage />;
+      case '#/hrms/core':
+        return isEmployeeLoggedIn ? <CoreHrPage /> : <LoginPage />;
+      case '#/hrms/payroll':
+        return isEmployeeLoggedIn ? <PayrollPage /> : <LoginPage />;
+      case '#/hrms/attendance':
+        return isEmployeeLoggedIn ? <AttendancePage /> : <LoginPage />;
+      case '#/hrms/leave':
+        return isEmployeeLoggedIn ? <LeavePage /> : <LoginPage />;
+      case '#/hrms/ess-mss':
+        return isEmployeeLoggedIn ? <EssMssPage /> : <LoginPage />;
+      case '#/hrms/performance':
+        return isEmployeeLoggedIn ? <PerformancePage /> : <LoginPage />;
+      case '#/hrms/recruitment':
+        return isEmployeeLoggedIn ? <RecruitmentPage /> : <LoginPage />;
+      case '#/hrms/reports':
+        return isEmployeeLoggedIn ? <ReportsPage /> : <LoginPage />;
       case '#/tools':
         return isEmployeeLoggedIn && currentEmployee?.role === 'مدير' ? <ToolsPage /> : <LoginPage />;
       case '#/diwan':
         return isEmployeeLoggedIn ? <GeneralDiwanPage /> : <LoginPage />;
+      case '#/messages':
+        return isEmployeeLoggedIn ? <ContactMessagesPage /> : <LoginPage />;
+      case '#/requests':
+        return isEmployeeLoggedIn ? <RequestsPage /> : <LoginPage />;
       case '#/contact':
         return <ContactPage />;
       case '#/confirmation':
