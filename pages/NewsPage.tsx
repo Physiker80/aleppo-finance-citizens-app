@@ -1,8 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { NEWS_DATA } from '../constants';
 import Card from '../components/ui/Card';
 
 const NewsPage: React.FC = () => {
+  const items = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('newsItems');
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return NEWS_DATA;
+  }, []);
   return (
     <div>
       <div className="text-center mb-10">
@@ -12,7 +19,7 @@ const NewsPage: React.FC = () => {
         </p>
       </div>
       <div className="space-y-6">
-        {NEWS_DATA.map((item, index) => (
+        {items.map((item: any, index: number) => (
           <Card key={index} className="transition-shadow duration-300 hover:shadow-lg">
             <h3 className="text-xl font-bold text-blue-700 dark:text-blue-400 mb-2">{item.title}</h3>
             <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">{item.date}</p>

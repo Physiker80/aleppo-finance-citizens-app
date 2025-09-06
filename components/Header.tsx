@@ -103,11 +103,10 @@ const Header: React.FC = () => {
     
     if (appContext?.isEmployeeLoggedIn) {
         navItems.push({ href: '#/dashboard', label: 'لوحة التحكم' });
-    if (appContext?.currentEmployee?.role === 'مدير') {
-      // ضع الموارد البشرية أول عنصر في القائمة العلوية
-      navItems.unshift({ href: '#/employees', label: 'الموارد البشرية' });
-      navItems.push({ href: '#/tools', label: 'أدوات' });
-    }
+        if (appContext?.currentEmployee?.role === 'مدير') {
+          // إبقاء أدوات المدير فقط وإزالة رابط الموارد البشرية من القوائم
+          navItems.push({ href: '#/tools', label: 'أدوات' });
+        }
     }
 
     return (
@@ -164,9 +163,7 @@ const Header: React.FC = () => {
             </a>
             
             <nav className="hidden md:flex items-center space-x-2 rtl:space-x-reverse">
-              {appContext?.isEmployeeLoggedIn && appContext?.currentEmployee?.role === 'مدير' && (
-                <NavLink href="#/employees">الموارد البشرية</NavLink>
-              )}
+              {/* تمت إزالة رابط "الموارد البشرية" من القائمة العلوية */}
               <NavLink href="#/">الرئيسية</NavLink>
               <NavLink href="#/submit">تقديم طلب جديد</NavLink>
               <NavLink href="#/track">متابعة طلب</NavLink>

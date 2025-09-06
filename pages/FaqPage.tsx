@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { FAQ_DATA } from '../constants';
 import Card from '../components/ui/Card';
 
@@ -34,6 +34,14 @@ const FaqItemComponent: React.FC<{ item: { question: string; answer: string } }>
 };
 
 const FaqPage: React.FC = () => {
+  const items = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('faqItems');
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return FAQ_DATA;
+  }, []);
+
   return (
     <Card>
       <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-gray-100 mb-2">قاعدة المعرفة والأسئلة الشائعة</h2>
@@ -41,7 +49,7 @@ const FaqPage: React.FC = () => {
         ابحث عن إجابات للأسئلة الأكثر تكراراً لتوفر على نفسك الوقت والجهد.
       </p>
       <div className="space-y-4">
-        {FAQ_DATA.map((item, index) => (
+        {items.map((item: any, index: number) => (
           <FaqItemComponent key={index} item={item} />
         ))}
       </div>
