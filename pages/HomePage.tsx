@@ -23,7 +23,7 @@ const HomePage: React.FC = () => {
     <div className="space-y-12">
       <div className="text-center py-12 bg-white dark:bg-gray-800/50 rounded-lg shadow-md">
         <h1 className="text-4xl md:text-5xl font-bold text-blue-800 dark:text-blue-300 mb-4">
-          أهلاً بكم في البوابة الإلكترونية لمديرية مالية حلب
+          مرحبا بكم في البوابة الإلكترونية لمديرية مالية محافظةحلب
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
           نوفر لكم قناة رسمية وموثوقة لتقديم الاستعلامات والشكاوى ومتابعتها بكل سهولة وشفافية.

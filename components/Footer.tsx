@@ -7,52 +7,52 @@ const Footer: React.FC = () => {
   const ministryLogo = 'https://syrian.zone/syid/materials/logo.ai.svg'; 
 
   return (
-    <footer className="bg-white dark:bg-transparent text-gray-800 dark:text-white font-heading mt-auto border-t border-gray-200 dark:border-gray-500/30">
+    <footer className="bg-transparent text-gray-500 dark:text-gray-300 font-heading mt-auto border-t border-gray-200 dark:border-gray-500/30">
       <div className="container mx-auto px-6 py-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           
           {/* Ministry Logo Column */}
           <div className="flex flex-col items-center md:items-start text-center md:text-right">
             <img src={ministryLogo} alt="شعار وزارة المالية" className="h-24 w-24 object-contain mb-4" />
-            <h3 className="text-2xl font-bold font-heading">وزارة المالية</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ministry of Finance</p>
+            <h3 className="text-2xl font-bold font-heading" style={{ color: '#988561' }}>وزارة المالية</h3>
+            <p className="text-sm uppercase tracking-wider" style={{ color: '#988561' }}>Ministry of Finance</p>
           </div>
 
           {/* Important Links Column */}
           <div>
-            <h4 className="text-lg font-bold mb-4 border-b-2 border-emerald-600 dark:border-green-500 pb-2 inline-block">روابط مهمة</h4>
+            <h4 className="text-lg font-bold mb-4 border-b-2 border-green-500 pb-2 inline-block">روابط مهمة</h4>
             <ul className="space-y-3">
-              <li><a href="#/news" className="hover:text-emerald-700 dark:hover:text-green-400 transition-colors">الأخبار</a></li>
-              <li><a href="#/faq" className="hover:text-emerald-700 dark:hover:text-green-400 transition-colors">الأسئلة الشائعة</a></li>
-              <li><a href="#/privacy" className="hover:text-emerald-700 dark:hover:text-green-400 transition-colors">سياسة الخصوصية</a></li>
-              <li><a href="#/terms" className="hover:text-emerald-700 dark:hover:text-green-400 transition-colors">الشروط والأحكام</a></li>
+              <li><a href="#/news" className="hover:text-black dark:hover:text-white transition-colors">الأخبار</a></li>
+              <li><a href="#/faq" className="hover:text-black dark:hover:text-white transition-colors">الأسئلة الشائعة</a></li>
+              <li><a href="#/privacy" className="hover:text-black dark:hover:text-white transition-colors">سياسة الخصوصية</a></li>
+              <li><a href="#/terms" className="hover:text-black dark:hover:text-white transition-colors">الشروط والأحكام</a></li>
             </ul>
           </div>
 
           {/* Citizen Services Column */}
           <div>
-            <h4 className="text-lg font-bold mb-4 border-b-2 border-emerald-600 dark:border-green-500 pb-2 inline-block">خدمات المواطنين</h4>
+            <h4 className="text-lg font-bold mb-4 border-b-2 border-green-500 pb-2 inline-block">خدمات المواطنين</h4>
             <ul className="space-y-3">
-              <li><a href="#/services" className="hover:text-emerald-700 dark:hover:text-green-400 transition-colors">الخدمات</a></li>
-              <li><a href="#/contact" className="hover:text-emerald-700 dark:hover:text-green-400 transition-colors">تواصل معنا</a></li>
+              <li><a href="#/services" className="hover:text-black dark:hover:text-white transition-colors">الخدمات</a></li>
+              <li><a href="#/contact" className="hover:text-black dark:hover:text-white transition-colors">تواصل معنا</a></li>
             </ul>
           </div>
 
           {/* Follow Us Column */}
           <div>
-            <h4 className="text-lg font-bold mb-4 border-b-2 border-emerald-600 dark:border-green-500 pb-2 inline-block">تابعنا على</h4>
+            <h4 className="text-lg font-bold mb-4 border-b-2 border-green-500 pb-2 inline-block">تابعنا على</h4>
             <div className="flex space-x-4 rtl:space-x-reverse mt-4">
-              <a href="mailto:info@syrian-finance.gov.sy" className="text-2xl hover:text-emerald-700 dark:hover:text-green-400 transition-colors"><MdOutlineEmail /></a>
-              <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer" className="text-2xl hover:text-emerald-700 dark:hover:text-green-400 transition-colors"><FaInstagram /></a>
-              <a href="https://t.me" target="_blank" rel="noopener noreferrer" className="text-2xl hover:text-emerald-700 dark:hover:text-green-400 transition-colors"><FaTelegramPlane /></a>
-              <a href="https://www.facebook.com" target="_blank" rel="noopener noreferrer" className="text-2xl hover:text-emerald-700 dark:hover:text-green-400 transition-colors"><FaFacebookF /></a>
+              <a href="mailto:info@syrian-finance.gov.sy" className="text-2xl hover:text-black dark:hover:text-white transition-colors"><MdOutlineEmail /></a>
+              <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer" className="text-2xl hover:text-black dark:hover:text-white transition-colors"><FaInstagram /></a>
+              <a href="https://t.me" target="_blank" rel="noopener noreferrer" className="text-2xl hover:text-black dark:hover:text-white transition-colors"><FaTelegramPlane /></a>
+              <a href="https://www.facebook.com" target="_blank" rel="noopener noreferrer" className="text-2xl hover:text-black dark:hover:text-white transition-colors"><FaFacebookF /></a>
             </div>
           </div>
 
         </div>
       </div>
-      <div className="bg-gray-100 dark:bg-black/20 py-4">
-        <div className="container mx-auto text-center text-sm text-gray-600 dark:text-gray-400">
+      <div className="bg-transparent py-4">
+        <div className="container mx-auto text-center text-sm text-gray-500 dark:text-gray-400">
           <p>وزارة المالية - الجمهورية العربية السورية | جميع الحقوق محفوظة © {new Date().getFullYear()}</p>
         </div>
       </div>
