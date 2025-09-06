@@ -92,12 +92,13 @@ const Header: React.FC = () => {
   };
 
   const MenuOverlay: React.FC = () => {
-    const navItems = [
+  const navItems = [
         { href: '#/', label: 'الرئيسية' },
         { href: '#/submit', label: 'تقديم طلب جديد' },
         { href: '#/track', label: 'متابعة طلب' },
         { href: '#/faq', label: 'الأسئلة الشائعة' },
         { href: '#/news', label: 'الأخبار والإعلانات' },
+    { href: '#/contact', label: 'تواصل معنا' },
     ];
     
     if (appContext?.isEmployeeLoggedIn) {
@@ -167,6 +168,7 @@ const Header: React.FC = () => {
               <NavLink href="#/track">متابعة طلب</NavLink>
               <NavLink href="#/faq">الأسئلة الشائعة</NavLink>
               <NavLink href="#/news">الأخبار والإعلانات</NavLink>
+              <NavLink href="#/contact">تواصل معنا</NavLink>
               {appContext?.isEmployeeLoggedIn && <NavLink href="#/dashboard">لوحة التحكم</NavLink>}
               {appContext?.isEmployeeLoggedIn && appContext?.currentEmployee?.role === 'مدير' && (
                 <>

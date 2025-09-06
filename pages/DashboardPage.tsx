@@ -1,9 +1,11 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import { AppContext } from '../App';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { RequestStatus, Ticket } from '../types';
+import { RequestStatus, Ticket, ContactMessageStatus } from '../types';
 import { Document, Page, pdfjs } from 'react-pdf';
+import Mermaid from '../components/Mermaid';
+import { DIWAN_WORKFLOW_DIAGRAM } from '../diagrams/diwan';
 // Use a Vite-friendly worker import so the PDF.js worker is bundled & served correctly
 // @ts-expect-error Vite will resolve this to a URL string
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -254,16 +256,61 @@ const AttachmentGalleryModal: React.FC<{ files: File[]; startIndex?: number; onC
   );
 };
 
+const DiwanWorkflowModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/75" onClick={onClose}>
+      <div className="relative w-screen h-screen" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 w-[92vw] max-w-6xl rounded-xl border border-white/20 bg-white dark:bg-gray-900 shadow-xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">مخطط سير عمل الديوان العام</h3>
+            <button onClick={onClose} aria-label="إغلاق" className="w-8 h-8 rounded hover:bg-black/5 dark:hover:bg-white/10">✕</button>
+          </div>
+          <div className="p-4 max-h-[78vh] overflow-auto">
+            <div className="rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
+              <Mermaid chart={DIWAN_WORKFLOW_DIAGRAM} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 const DashboardPage: React.FC = () => {
   const appContext = useContext(AppContext);
   const tickets = appContext?.tickets || [];
+  const contactMessages = appContext?.contactMessages || [];
   const updateTicketStatus = appContext?.updateTicketStatus;
   const currentEmployee = appContext?.currentEmployee;
   const [galleryFiles, setGalleryFiles] = useState<File[] | null>(null);
   const [galleryStartIndex, setGalleryStartIndex] = useState<number>(0);
+  const [showDiwanModal, setShowDiwanModal] = useState<boolean>(false);
   const openGallery = (files: File[], startIndex = 0) => { setGalleryFiles(files); setGalleryStartIndex(startIndex); };
   const closeGallery = () => setGalleryFiles(null);
+
+  const ticketStats = useMemo(() => {
+    const total = tickets.length;
+    const byStatus: Record<RequestStatus, number> = {
+      [RequestStatus.New]: 0,
+      [RequestStatus.InProgress]: 0,
+      [RequestStatus.Answered]: 0,
+      [RequestStatus.Closed]: 0,
+    };
+    tickets.forEach(t => { byStatus[t.status]++; });
+    return { total, byStatus };
+  }, [tickets]);
+
+  const contactStats = useMemo(() => {
+    const total = contactMessages.length;
+    const byStatus: Record<ContactMessageStatus, number> = {
+      [ContactMessageStatus.New]: 0,
+      [ContactMessageStatus.InProgress]: 0,
+      [ContactMessageStatus.Closed]: 0,
+    };
+    contactMessages.forEach(m => { byStatus[m.status]++; });
+    return { total, byStatus };
+  }, [contactMessages]);
 
   const handleStatusChange = (ticket: Ticket, newStatus: string) => {
     if (updateTicketStatus) {
@@ -375,12 +422,108 @@ ${trackUrl}
           )}
           {tickets.length > 0 && (
             <Button onClick={handleExportCSV} variant="secondary">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2 rtl:ml-0 rtl:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-            تصدير إلى CSV
-          </Button>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2 rtl:ml-0 rtl:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              تصدير إلى CSV
+            </Button>
           )}
         </div>
-      </div>      {tickets.length === 0 ? (
+      </div>
+
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+              {/* المحتوى/المعلوماتية */}
+              <div className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-purple-600/10 text-purple-400 text-2xl">⌁</div>
+                    <h3 className="mt-3 text-xl font-semibold">المعلوماتية / المحتوى</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">تحرير المحتوى (الأخبار، الأسئلة، الشروط، الخصوصية).</p>
+                  </div>
+                  <Button variant="secondary" onClick={() => window.location.hash = '#/tools'}>مركز المحتوى</Button>
+                </div>
+              </div>
+
+              {/* إدارة الموظفين */}
+              <div className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-emerald-600/10 text-emerald-400 text-2xl">👤</div>
+                    <h3 className="mt-3 text-xl font-semibold">إدارة الموظفين</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">إضافة وتعديل وحذف بيانات الموظفين وصلاحياتهم.</p>
+                    <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">{`$${''}`}</div>
+                  </div>
+                  <Button variant="secondary" onClick={() => window.location.hash = '#/employees'}>الموظفون</Button>
+                </div>
+              </div>
+
+              {/* لوحة الطلبات */}
+              <div className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-blue-600/10 text-blue-400 text-2xl">📄</div>
+                    <h3 className="mt-3 text-xl font-semibold">لوحة الطلبات</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">إدارة ومتابعة جميع الطلبات الواردة.</p>
+                    <div className="mt-3 flex gap-2 flex-wrap text-xs">
+                      <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">الإجمالي {ticketStats.total}</span>
+                      <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">{RequestStatus.New} {ticketStats.byStatus[RequestStatus.New]}</span>
+                      <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300">{RequestStatus.InProgress} {ticketStats.byStatus[RequestStatus.InProgress]}</span>
+                      <span className="px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">{RequestStatus.Answered} {ticketStats.byStatus[RequestStatus.Answered]}</span>
+                      <span className="px-2 py-0.5 rounded bg-gray-200 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300">{RequestStatus.Closed} {ticketStats.byStatus[RequestStatus.Closed]}</span>
+                    </div>
+                  </div>
+                  <Button variant="secondary" onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}>عرض</Button>
+                </div>
+              </div>
+
+              {/* أقسام المديرية */}
+              <div className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-amber-500/10 text-amber-400 text-2xl">🔊</div>
+                    <h3 className="mt-3 text-xl font-semibold">أقسام المديرية</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">عرض التوزيع الإحصائي للطلبات ونشاط المراسلات الداخلية بين الأقسام.</p>
+                    <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">{`عدد الأقسام: 5`}</div>
+                  </div>
+                  <Button variant="secondary" onClick={() => window.location.hash = '#/dashboard'}>عرض</Button>
+                </div>
+              </div>
+
+              {/* رسائل التواصل */}
+              <div className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm">
+                <div className="flex items-start justify-between w-full">
+                  <div className="min-w-0">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-pink-500/10 text-pink-400 text-2xl">💬</div>
+                    <h3 className="mt-3 text-xl font-semibold">رسائل التواصل</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">عرض ومعالجة رسائل "تواصل معنا".</p>
+                    <div className="mt-3 flex gap-2 flex-wrap text-xs">
+                      <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">الإجمالي {contactStats.total}</span>
+                      <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">جديد {contactStats.byStatus[ContactMessageStatus.New]}</span>
+                      <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300">قيد المعالجة {contactStats.byStatus[ContactMessageStatus.InProgress]}</span>
+                      <span className="px-2 py-0.5 rounded bg-gray-200 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300">مغلق {contactStats.byStatus[ContactMessageStatus.Closed]}</span>
+                    </div>
+                  </div>
+                  <Button variant="secondary" onClick={() => window.location.hash = '#/contact'}>فتح</Button>
+                </div>
+              </div>
+
+              {/* إدارة الديوان العام */}
+              <div className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-lime-500/10 text-lime-400 text-2xl">📄</div>
+                    <h3 className="mt-3 text-xl font-semibold">إدارة الديوان العام</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">التعاميم والكتب الرسمية (إنشاء وأرشفة).</p>
+                    <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">وارد 0 • صادر 0 • قيد 0</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="secondary" onClick={() => setShowDiwanModal(true)}>عرض المخطط</Button>
+                    <Button variant="secondary" onClick={() => { window.location.hash = '#/diwan'; }}>فتح الصفحة</Button>
+                  </div>
+                </div>
+              </div>
+      </div>
+
+      {tickets.length === 0 ? (
         <div className="text-center py-16">
           <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -435,7 +578,9 @@ ${trackUrl}
           </table>
         </div>
       )}
+
   {galleryFiles && <AttachmentGalleryModal files={galleryFiles} startIndex={galleryStartIndex} onClose={closeGallery} />}
+  {showDiwanModal && <DiwanWorkflowModal onClose={() => setShowDiwanModal(false)} />}
     </Card>
   );
 };

@@ -45,6 +45,8 @@ const TrackRequestPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [decodeMsg, setDecodeMsg] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const trackingInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [controlHeight, setControlHeight] = useState<number | null>(null);
   // Manual crop fallback state
   const [cropMode, setCropMode] = useState(false);
   const [cropImgUrl, setCropImgUrl] = useState<string | null>(null);
@@ -574,8 +576,8 @@ const TrackRequestPage: React.FC = () => {
       <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-1">متابعة حالة طلب</h2>
       <p className="text-gray-600 dark:text-gray-400 mb-6">أدخل رقم التتبع الخاص بطلبك للاستعلام عن حالته.</p>
       
-      <div className="flex flex-col sm:flex-row items-center gap-3">
-        <div className="flex-grow w-full">
+  <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+  <div className="flex-grow w-full">
           <div className="relative">
             <Input 
               id="trackingId" 
@@ -584,6 +586,7 @@ const TrackRequestPage: React.FC = () => {
               value={trackingId} 
               onChange={(e) => setTrackingId(e.target.value)}
               className="pr-28 rtl:pl-28"
+              ref={trackingInputRef}
               endAdornment={
                 <Button 
                   onClick={() => handleSearch()} 
@@ -600,9 +603,8 @@ const TrackRequestPage: React.FC = () => {
               }
             />
           </div>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">مثال: ALF-20240815-ABC123 أو رابط يحتوي id=ALF-...</p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+  <div className="flex items-center gap-2 flex-shrink-0">
           <input
             ref={fileInputRef}
             type="file"
@@ -618,7 +620,8 @@ const TrackRequestPage: React.FC = () => {
           <Button
             onClick={() => fileInputRef.current?.click()}
             variant="primary"
-            className="self-end whitespace-nowrap flex-shrink-0 min-w-[108px]"
+            className="whitespace-nowrap flex-shrink-0 min-w-[108px] !py-2 !px-4"
+            style={controlHeight ? { height: `${controlHeight}px` } : undefined}
             title="رفع صورة/‏PDF للباركود أو QR"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12" /><path d="M7 8l5-5 5 5" /><path d="M5 21h14" /></svg>
@@ -702,6 +705,18 @@ const TrackRequestPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Sync upload button height with input height */}
+      {React.useEffect(() => {
+        const sync = () => {
+          if (trackingInputRef.current) {
+            setControlHeight(trackingInputRef.current.clientHeight);
+          }
+        };
+        sync();
+        window.addEventListener('resize', sync);
+        return () => window.removeEventListener('resize', sync);
+      }, [])}
     </Card>
   );
 };

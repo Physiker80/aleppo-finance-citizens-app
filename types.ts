@@ -52,3 +52,23 @@ export interface Employee {
   role: string;
   lastLogin?: string;
 }
+
+export enum ContactMessageStatus {
+  New = 'جديد',
+  InProgress = 'قيد المعالجة',
+  Closed = 'مغلق',
+}
+
+export type ContactMessageType = 'طلب' | 'شكوى' | 'اقتراح';
+
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email?: string;
+  subject?: string;
+  message: string;
+  type: ContactMessageType;
+  department?: string;
+  status: ContactMessageStatus;
+  submissionDate: Date;
+}

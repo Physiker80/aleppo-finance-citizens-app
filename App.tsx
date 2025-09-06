@@ -11,7 +11,9 @@ import ConfirmationPage from './pages/ConfirmationPage';
 import LoginPage from './pages/LoginPage';
 import EmployeeManagementPage from './pages/EmployeeManagementPage';
 import ToolsPage from './pages/ToolsPage';
-import { Ticket, Employee } from './types';
+import GeneralDiwanPage from './pages/GeneralDiwanPage';
+import ContactPage from './pages/ContactPage';
+import { Ticket, Employee, ContactMessage, ContactMessageStatus, ContactMessageType } from './types';
 import { RequestStatus } from './types';
 
 type Theme = 'light' | 'dark';
@@ -20,11 +22,14 @@ interface AppContextType {
   tickets: Ticket[];
   addTicket: (ticket: Omit<Ticket, 'id' | 'status'>) => string;
   findTicket: (id: string) => Ticket | undefined;
+  contactMessages: ContactMessage[];
+  addContactMessage: (msg: Omit<ContactMessage, 'id' | 'status' | 'submissionDate'>) => string;
   isEmployeeLoggedIn: boolean;
   currentEmployee: Employee | null;
   employeeLogin: (employee: Employee) => void;
   logout: () => void;
   updateTicketStatus: (ticketId: string, newStatus: RequestStatus) => void;
+  updateContactMessageStatus: (id: string, newStatus: ContactMessageStatus) => void;
   lastSubmittedId: string | null;
   theme: Theme;
   toggleTheme: () => void;
@@ -35,6 +40,19 @@ export const AppContext = createContext<AppContextType | null>(null);
 const App: React.FC = () => {
   const [route, setRoute] = useState(window.location.hash || '#/');
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [contactMessages, setContactMessages] = useState<ContactMessage[]>(() => {
+    const raw = localStorage.getItem('contactMessages');
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed.map((m: any) => ({
+        ...m,
+        submissionDate: m.submissionDate ? new Date(m.submissionDate) : new Date(),
+      })) as ContactMessage[];
+    } catch {
+      return [];
+    }
+  });
   const [isEmployeeLoggedIn, setIsEmployeeLoggedIn] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(() => {
     const savedUser = localStorage.getItem('currentUser');
@@ -55,6 +73,10 @@ const App: React.FC = () => {
       }
     }
   }, []);
+  // persist contact messages
+  useEffect(() => {
+    localStorage.setItem('contactMessages', JSON.stringify(contactMessages));
+  }, [contactMessages]);
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
       const storedTheme = window.localStorage.getItem('theme') as Theme;
@@ -106,6 +128,16 @@ const App: React.FC = () => {
     };
     setTickets(prevTickets => [...prevTickets, newTicket]);
     setLastSubmittedId(newTicket.id);
+    return newId;
+  };
+
+  const addContactMessage = (msg: Omit<ContactMessage, 'id' | 'status' | 'submissionDate'>) => {
+    const now = new Date();
+    const datePart = now.toISOString().slice(0, 10).replace(/-/g, "");
+    const uniquePart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const newId = `MSG-${datePart}-${uniquePart}`;
+    const newMsg: ContactMessage = { id: newId, status: ContactMessageStatus.New, submissionDate: now, ...msg };
+    setContactMessages(prev => [newMsg, ...prev]);
     return newId;
   };
 
@@ -181,6 +213,10 @@ const App: React.FC = () => {
     );
   };
 
+  const updateContactMessageStatus = (id: string, newStatus: ContactMessageStatus) => {
+    setContactMessages(prev => prev.map(m => m.id === id ? { ...m, status: newStatus } : m));
+  };
+
 
   const renderPage = () => {
     switch (route) {
@@ -200,6 +236,10 @@ const App: React.FC = () => {
         return isEmployeeLoggedIn && currentEmployee?.role === 'مدير' ? <EmployeeManagementPage /> : <LoginPage />;
       case '#/tools':
         return isEmployeeLoggedIn && currentEmployee?.role === 'مدير' ? <ToolsPage /> : <LoginPage />;
+      case '#/diwan':
+        return isEmployeeLoggedIn ? <GeneralDiwanPage /> : <LoginPage />;
+      case '#/contact':
+        return <ContactPage />;
       case '#/confirmation':
         return <ConfirmationPage />;
       default:
@@ -212,11 +252,14 @@ const App: React.FC = () => {
       tickets, 
       addTicket, 
       findTicket, 
+      contactMessages,
+      addContactMessage,
       isEmployeeLoggedIn, 
       currentEmployee,
       employeeLogin,
       logout, 
-      updateTicketStatus, 
+      updateTicketStatus,
+      updateContactMessageStatus,
       lastSubmittedId, 
       theme, 
       toggleTheme 
