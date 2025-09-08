@@ -253,6 +253,15 @@ const ConfirmationPage: React.FC = () => {
         }
       }
 
+      // Wait for header logo to load to avoid it missing in the capture
+      const headerLogo = content.querySelector('img[src*="logo.ai.svg"]') as HTMLImageElement | null;
+      if (headerLogo && !headerLogo.complete) {
+        await new Promise<void>((resolve) => {
+          headerLogo.onload = () => resolve();
+          headerLogo.onerror = () => resolve();
+        });
+      }
+
       // Wait for QR image (if present) to load fully
       const qrImg = document.querySelector('#pdf-qr img') as HTMLImageElement | null;
       if (qrImg && !qrImg.complete) {
@@ -760,7 +769,7 @@ const ConfirmationPage: React.FC = () => {
         </div>
       )}
 
-      <div ref={pdfContentRef} style={{ position: 'absolute', left: '-9999px', width: '800px', direction: 'rtl', fontFamily: 'Cairo, sans-serif', backgroundColor: 'white', zIndex: -1000 }}>
+  <div ref={pdfContentRef} style={{ position: 'absolute', left: '-9999px', width: '800px', direction: 'rtl', fontFamily: 'Cairo, sans-serif', backgroundColor: 'white', zIndex: -1000 }}>
         <div style={{ padding: '40px', color: '#333', minHeight: '1000px', backgroundColor: '#ffffff' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '3px solid #0f3c35', paddingBottom: '25px', marginBottom: '30px' }}>
             <div style={{textAlign: 'right'}}>
@@ -797,7 +806,7 @@ const ConfirmationPage: React.FC = () => {
                 </tr>
                 <tr>
                   <td style={{ padding: '15px', border: '1px solid #e0e0e0', fontWeight: 'bold', color: '#0f3c35' }}>تاريخ التقديم</td>
-                  <td style={{ padding: '15px', border: '1px solid #e0e0e0', color: '#333' }}>{ticket?.submissionDate?.toLocaleDateString('ar-SY') || 'غير محدد'}</td>
+                  <td style={{ padding: '15px', border: '1px solid #e0e0e0', color: '#333' }}>{ticket?.submissionDate ? new Intl.DateTimeFormat('ar-SY-u-nu-latn', { dateStyle: 'medium' }).format(ticket.submissionDate) : 'غير محدد'}</td>
                 </tr>
                 <tr style={{ backgroundColor: '#f8f9fa' }}>
                   <td style={{ padding: '15px', border: '1px solid #e0e0e0', fontWeight: 'bold', color: '#0f3c35' }}>الحالة</td>

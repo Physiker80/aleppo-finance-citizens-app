@@ -7,7 +7,7 @@ const Footer: React.FC = () => {
   const ministryLogo = 'https://syrian.zone/syid/materials/logo.ai.svg'; 
 
   return (
-    <footer className="bg-transparent text-gray-500 dark:text-gray-300 font-heading mt-auto border-t border-gray-200 dark:border-gray-500/30">
+  <footer className="bg-transparent text-gray-500 dark:text-gray-300 font-heading font-kufi mt-auto border-t border-gray-200 dark:border-gray-500/30">
       <div className="container mx-auto px-6 py-10">
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 lg:gap-4 divide-y divide-gray-200 dark:divide-gray-700/40 md:divide-y-0 lg:divide-x lg:rtl:divide-x-reverse">
           
@@ -15,11 +15,11 @@ const Footer: React.FC = () => {
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 text-right px-1 lg:px-4 md:col-span-2 lg:col-span-2" dir="rtl">
             <div className="flex flex-col items-center text-center w-full md:w-[190px] md:shrink-0 order-2 md:order-1 bg-transparent border-0 p-0">
               <img src={ministryLogo} alt="شعار وزارة المالية" className="h-16 md:h-20 w-auto object-contain mb-2" />
-              <div className="text-lg md:text-xl font-bold" style={{ color: '#988561' }}>وزارة المالية</div>
+              <div className="text-lg md:text-xl font-bold font-kufi" style={{ color: '#988561' }}>وزارة المالية</div>
               <div className="text-xs md:text-sm uppercase tracking-wider" style={{ color: '#988561' }}>MINISTRY OF FINANCE</div>
             </div>
             <div className="flex-[4] min-w-0 order-1 md:order-2">
-              <h4 className="text-lg font-bold mb-3 border-b-2 border-green-500 pb-2 inline-block">وزارة المالية</h4>
+              <h4 className="text-xl md:text-2xl font-bold mb-3 border-b-2 border-green-500 pb-2 inline-block font-kufi">وزارة المالية</h4>
               <p className="text-base leading-8 text-gray-700 dark:text-gray-300 mt-1 text-justify">
                 تسعى وزارة المالية في الجمهورية العربية السورية إلى إدارة المال العام بكفاءة وشفافية، وتحديث
                 الأنظمة المالية والضريبية، ودعم التحول الرقمي للخدمات الحكومية بما يضمن تبسيط الإجراءات ورفع جودة
@@ -30,7 +30,7 @@ const Footer: React.FC = () => {
 
           {/* Important Links Column */}
           <div className="px-1 lg:px-3">
-            <h4 className="text-lg font-bold mb-3 border-b-2 border-green-500 pb-2 inline-block">روابط مهمة</h4>
+            <h4 className="text-lg font-bold mb-3 border-b-2 border-green-500 pb-2 inline-block font-kufi">روابط مهمة</h4>
             <ul className="space-y-2.5">
               <li><a href="#/news" className="hover:text-black dark:hover:text-white transition-colors">الأخبار</a></li>
               <li><a href="#/faq" className="hover:text-black dark:hover:text-white transition-colors">الأسئلة الشائعة</a></li>
@@ -42,7 +42,7 @@ const Footer: React.FC = () => {
 
           {/* Citizen Services Column */}
           <div className="px-1 lg:px-3">
-            <h4 className="text-lg font-bold mb-3 border-b-2 border-green-500 pb-2 inline-block">خدمات المواطنين</h4>
+            <h4 className="text-lg font-bold mb-3 border-b-2 border-green-500 pb-2 inline-block font-kufi">خدمات المواطنين</h4>
             <ul className="space-y-2.5">
               <li><a href="#/services" className="hover:text-black dark:hover:text-white transition-colors">الخدمات</a></li>
               <li><a href="#/contact" className="hover:text-black dark:hover:text-white transition-colors">تواصل معنا</a></li>
@@ -51,7 +51,7 @@ const Footer: React.FC = () => {
 
           {/* Follow Us Column */}
           <div className="px-1 lg:px-3">
-            <h4 className="text-lg font-bold mb-3 border-b-2 border-green-500 pb-2 inline-block">تابعنا على</h4>
+            <h4 className="text-lg font-bold mb-3 border-b-2 border-green-500 pb-2 inline-block font-kufi">تابعنا على</h4>
             <div className="flex space-x-3 rtl:space-x-reverse mt-3">
               <a href="mailto:info@syrian-finance.gov.sy" className="text-2xl hover:text-black dark:hover:text-white transition-colors"><MdOutlineEmail /></a>
               <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer" className="text-2xl hover:text-black dark:hover:text-white transition-colors"><FaInstagram /></a>

@@ -3,6 +3,7 @@ import { AppContext } from '../App';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
+import TextArea from '../components/ui/TextArea';
 import { Ticket, RequestStatus } from '../types';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import { DecodeHintType, BarcodeFormat } from '@zxing/library';
@@ -12,6 +13,9 @@ import Tesseract from 'tesseract.js';
 // @ts-expect-error Vite resolves to URL
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc as unknown as string;
+
+// Ministry identity logo for header branding
+const ministryLogo = 'https://syrian.zone/syid/materials/logo.ai.svg';
 
 const StatusStep: React.FC<{
   status: RequestStatus;
@@ -40,13 +44,18 @@ const StatusStep: React.FC<{
 const TrackRequestPage: React.FC = () => {
   const appContext = useContext(AppContext);
   const [trackingId, setTrackingId] = useState('');
-  const [ticket, setTicket] = useState<Ticket | null>(null);
+  // Multi-tracking state
+  const [trackedIds, setTrackedIds] = useState<string[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [notFound, setNotFound] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [decodeMsg, setDecodeMsg] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const trackingInputRef = React.useRef<HTMLInputElement | null>(null);
   const [controlHeight, setControlHeight] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [multiMode, setMultiMode] = useState(true); // تسهيل إدخال عدة أرقام افتراضياً
   // Manual crop fallback state
   const [cropMode, setCropMode] = useState(false);
   const [cropImgUrl, setCropImgUrl] = useState<string | null>(null);
@@ -56,157 +65,333 @@ const TrackRequestPage: React.FC = () => {
   const [isCropping, setIsCropping] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
 
-  // Check for QR code scan parameter on component mount
-  React.useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.hash.split('?')[1]);
-    const idFromQR = urlParams.get('id');
-    if (idFromQR) {
-      setTrackingId(idFromQR);
-      // Auto-search when coming from QR code
-      setTimeout(() => {
-        const foundTicket = appContext?.findTicket(idFromQR);
-        if (foundTicket) {
-          setTicket(foundTicket);
-        } else {
-          setError('رقم التتبع غير صحيح أو لم يتم العثور على الطلب.');
-        }
-      }, 500);
-    }
-  }, [appContext]);
-  
-  const handleSearch = (explicitId?: string) => {
-    const id = (explicitId ?? trackingId).trim();
-    if (!id) {
-      setError('يرجى إدخال رقم التتبع.');
-      return;
-    }
-    setIsLoading(true);
-    setError(null);
-    setTicket(null);
-    
-    setTimeout(() => {
-        const foundTicket = appContext?.findTicket(id);
-        if (foundTicket) {
-            setTicket(foundTicket);
-        } else {
-            setError('رقم التتبع غير صحيح أو لم يتم العثور على الطلب.');
-        }
-        setIsLoading(false);
-    }, 1000);
+  // Helpers for multi-IDs
+  const normalizeId = (id: string) => id.trim();
+  const splitIds = (input: string) => input.split(/[\s,،;\n\r\t]+/).map(normalizeId).filter(Boolean);
+  const persistIds = (ids: string[]) => {
+    try { localStorage.setItem('tracked_ids', JSON.stringify(ids)); } catch {}
+  };
+  const loadPersistedIds = (): string[] => {
+    try {
+      const raw = localStorage.getItem('tracked_ids');
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr.filter((x) => typeof x === 'string') : [];
+    } catch { return []; }
   };
 
-  // Fetch remote image as Data URL (base64). When asSvgText=true, treat response as text and encode as SVG data URL.
-  const fetchAsDataUrl = async (url: string, asSvgText: boolean = false): Promise<string | null> => {
-    try {
-      const res = await fetch(url, { mode: 'cors' });
-      if (!res.ok) return null;
-      if (asSvgText) {
-        const text = await res.text();
-        const base64 = btoa(unescape(encodeURIComponent(text)));
-        return `data:image/svg+xml;base64,${base64}`;
-      }
-      const blob = await res.blob();
-      const dataUrl = await new Promise<string>((resolve) => {
-        const fr = new FileReader();
-        fr.onload = () => resolve(fr.result as string);
-        fr.readAsDataURL(blob);
+  // Load persisted IDs and QR param on mount
+  React.useEffect(() => {
+    const initialIds = loadPersistedIds();
+    const urlParams = new URLSearchParams(window.location.hash.split('?')[1]);
+    const idFromQR = urlParams.get('id');
+    const merged = Array.from(new Set([...(initialIds || []), ...(idFromQR ? [idFromQR] : [])]));
+    if (merged.length) {
+      setTrackedIds(merged);
+      // resolve tickets
+      const found: Ticket[] = [];
+      const missing: string[] = [];
+      merged.forEach((id) => {
+        const t = appContext?.findTicket(id);
+        if (t) found.push(t); else missing.push(id);
       });
-      return dataUrl;
+      setTickets(found);
+      setNotFound(missing);
+    }
+    if (idFromQR) setTrackingId(idFromQR);
+  }, [appContext]);
+  
+  const addIdsToTracked = (ids: string[]) => {
+    if (!ids.length) return;
+    setIsLoading(true);
+    setError(null);
+    // de-dup against existing
+    const existing = new Set(trackedIds.map((s) => s.toUpperCase()));
+    const newUnique = ids.map((s) => s.trim()).filter(Boolean).filter((s) => !existing.has(s.toUpperCase()));
+    const nextIds = [...trackedIds, ...newUnique];
+    // resolve tickets for just-added ids
+    const justFound: Ticket[] = [];
+    const justMissing: string[] = [];
+    newUnique.forEach((id) => {
+      const t = appContext?.findTicket(id);
+      if (t) justFound.push(t); else justMissing.push(id);
+    });
+    // merge tickets, avoid duplicate ids
+    const ticketIdSet = new Set(tickets.map((t) => t.id));
+    const mergedTickets = [...tickets, ...justFound.filter((t) => !ticketIdSet.has(t.id))];
+    const mergedMissing = Array.from(new Set([...notFound, ...justMissing]));
+    setTrackedIds(nextIds);
+    setTickets(mergedTickets);
+    setNotFound(mergedMissing);
+    persistIds(nextIds);
+    setTimeout(() => setIsLoading(false), 300);
+  };
+
+  const handleSearch = (explicitId?: string) => {
+    const raw = explicitId ?? trackingId;
+    const ids = splitIds(raw);
+    if (!ids.length) {
+      setError('يرجى إدخال رقم/أرقام التتبع.');
+      return;
+    }
+    addIdsToTracked(ids);
+  };
+
+  const onInputKeyDown = (e: React.KeyboardEvent) => {
+    if (!multiMode && e.key === 'Enter') {
+      e.preventDefault();
+      handleSearch();
+    }
+    if (multiMode && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handleSearch();
+    }
+  };
+
+  const prettyTrackingId = (id: string) => {
+    if (!id) return '';
+    // Add thin spacing around dashes for readability and keep LTR rendering
+    return id.replace(/-/g, ' - ').replace(/\s\s+/g, ' - ');
+  };
+
+  const copyText = async (text: string) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
+
+  // Build QR as data URL (tries qrcodejs then qrcode-generator)
+  const buildQRDataUrl = async (text: string, size = 160): Promise<string | null> => {
+    try {
+      const QRCodeAny = (window as any).QRCode;
+      if (QRCodeAny) {
+        const tmpDiv = document.createElement('div');
+        new QRCodeAny(tmpDiv, { text, width: size, height: size, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCodeAny.CorrectLevel.M });
+        const c = tmpDiv.querySelector('canvas') as HTMLCanvasElement | null;
+        const im = tmpDiv.querySelector('img') as HTMLImageElement | null;
+        if (c) return c.toDataURL('image/png');
+        if (im && im.src) return im.src;
+      }
+    } catch {}
+    try {
+      const qrcodeFactory = (window as any).qrcode;
+      if (qrcodeFactory) {
+        const qr = qrcodeFactory(4, 'M');
+        qr.addData(text);
+        qr.make();
+        const gifUrl = qr.createDataURL(8, 0);
+        // Convert GIF to PNG to embed cleanly
+        return await new Promise<string>((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            const oc = document.createElement('canvas');
+            oc.width = size; oc.height = size;
+            const ctx = oc.getContext('2d');
+            if (ctx) {
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(0, 0, size, size);
+              ctx.drawImage(img, 0, 0, size, size);
+              resolve(oc.toDataURL('image/png'));
+            } else {
+              resolve(gifUrl);
+            }
+          };
+          img.onerror = () => resolve(gifUrl);
+          img.src = gifUrl;
+        });
+      }
+    } catch {}
+    return null;
+  };
+
+  // Build CODE128 barcode as PNG data URL via JsBarcode
+  const buildBarcodeDataUrl = async (text: string, opts?: { width?: number; height?: number; displayValue?: boolean; fontSize?: number; }): Promise<string | null> => {
+    try {
+      const JsBarcodeAny = (window as any).JsBarcode;
+      if (!JsBarcodeAny) return null;
+      const canvas = document.createElement('canvas');
+      JsBarcodeAny(canvas, text, {
+        format: 'CODE128',
+        lineColor: '#000000',
+        width: opts?.width ?? 2.5,
+        height: opts?.height ?? 80,
+        displayValue: opts?.displayValue ?? true,
+        fontSize: opts?.fontSize ?? 14,
+        margin: 10,
+        background: '#ffffff',
+      });
+      return canvas.toDataURL('image/png');
     } catch {
       return null;
     }
   };
 
-  // Get logo Data URL with robust fallbacks (PNG then SVG then 1x1 transparent PNG)
-  const getLogoDataUrl = async (): Promise<string> => {
-    const png = await fetchAsDataUrl('https://syrian.zone/syid/materials/logo.png');
-    if (png) return png;
-    const svg = await fetchAsDataUrl('https://syrian.zone/syid/materials/logo.ai.svg', true);
-    if (svg) return svg;
-    // Fallback: 1x1 transparent PNG
-    return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/ax7p4EAAAAASUVORK5CYII=';
-  };
-
   const handleDownloadPdf = async (ticket: Ticket) => {
-    const logoDataUrl = await getLogoDataUrl();
+    const trackingUrl = `${window.location.origin}/#/track?id=${ticket.id}`;
+    const [qrUrl, barcodeUrl] = await Promise.all([
+      buildQRDataUrl(trackingUrl, 160),
+      buildBarcodeDataUrl(ticket.id, { height: 80, width: 2.5, displayValue: true, fontSize: 14 })
+    ]);
     const pdfContent = `
-      <html>
+      <html lang="ar" dir="rtl">
         <head>
+          <meta charset="utf-8" />
           <title>تفاصيل الطلب: ${ticket.id}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
           <style>
-            @page { size: A4; margin: 16mm; }
-            body { 
-              font-family: 'Cairo', sans-serif; 
+            body {
+              font-family: 'Cairo', sans-serif;
               direction: rtl;
               margin: 0;
+              background: #ffffff;
+              color: #333;
             }
-            h1 { 
-              color: #2563EB; 
-              border-bottom: 2px solid #2563EB;
-              padding-bottom: 10px;
-              text-align: center;
-              margin: 8px 0 16px;
+            .container { padding: 40px; }
+            @page { size: A4; margin: 12mm; }
+            @media print {
+              .page { break-after: page; page-break-after: always; }
+              .page-break { break-before: page; page-break-before: always; }
             }
-            .logo {
-              display: block;
-              margin: 24px auto 8px auto;
-              width: 200px;
-              height: auto;
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 3px solid #0f3c35;
+              padding-bottom: 25px;
+              margin-bottom: 30px;
             }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 20px;
+            .subheader {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 2px solid #0f3c35;
+              padding-bottom: 14px;
+              margin-bottom: 20px;
             }
-            th, td {
-              border: 1px solid #ddd;
-              padding: 12px;
-              text-align: right;
-            }
-            th {
-              background-color: #f2f2f2;
-              font-weight: bold;
-            }
-            .details {
-                white-space: pre-wrap;
-                word-wrap: break-word;
-            }
+            .header-text { text-align: right; }
+            .header-text h1 { margin: 8px 0 0; font-size: 28px; color: #0f3c35; font-weight: 600; }
+            .header-text p { margin: 6px 0 0; color: #555; font-weight: 600; }
+            .subheader-text h2 { margin: 6px 0 0; font-size: 20px; color: #0f3c35; font-weight: 600; }
+            .subheader-text p { margin: 4px 0 0; color: #777; font-size: 13px; }
+            .section-title { font-size: 24px; margin-bottom: 20px; color: #0f3c35; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; }
+            table { width: 100%; border-collapse: collapse; font-size: 16px; border-radius: 8px; overflow: hidden; }
+            td { padding: 15px; border: 1px solid #e0e0e0; }
+            .label { font-weight: bold; color: #0f3c35; width: 30%; background: #f8f9fa; }
+            .details { white-space: pre-wrap; line-height: 1.6; }
+            .logo { height: 90px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
+            .logo-sm { height: 60px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
           </style>
-          <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-        </head>
-        <body>
-          <img id="pdf-logo" src="${logoDataUrl}" alt="Syrian Zone Logo" class="logo" />
-          <h1>مديرية المالية - محافظة حلب</h1>
-          <h2 style="text-align:center; color:#2563EB; font-size:1.2em; margin-bottom:8px;">إيصال تقديم طلب</h2>
-          <p style="text-align:center; color:#666; font-size:0.95em; margin-bottom:18px;">وزارة المالية - الجمهورية العربية السورية</p>
-          <table>
-            <tr><th>الاسم الكامل</th><td>${ticket.fullName}</td></tr>
-            <tr><th>رقم الهاتف</th><td>${ticket.phone}</td></tr>
-            <tr><th>البريد الإلكتروني</th><td>${ticket.email || 'غير متوفر'}</td></tr>
-            <tr><th>نوع الطلب</th><td>${ticket.requestType}</td></tr>
-            <tr><th>القسم المعني</th><td>${ticket.department}</td></tr>
-            <tr><th>تاريخ التقديم</th><td>${ticket.submissionDate.toLocaleDateString('ar-SY')}</td></tr>
-            <tr><th>الحالة</th><td>${ticket.status}</td></tr>
-            <tr><th>تفاصيل الطلب</th><td class="details">${ticket.details}</td></tr>
-          </table>
+  </head>
+  <body>
+          <div class="container">
+            <div class="page">
+              <div class="header">
+                <div class="header-text">
+                  <h1>مديريــة الماليــة - محافظــة حلــب</h1>
+                  <p>تفاصيل الطلب</p>
+                  <p style="font-size:14px;color:#777">وزارة المالية - الجمهورية العربية السورية</p>
+                </div>
+                <img class="logo" src="${ministryLogo}" alt="شعار الوزارة" />
+              </div>
+
+              <h2 class="section-title">تفاصيل الطلب</h2>
+              <table>
+                <tbody>
+                <tr>
+                  <td class="label">رقم التتبع</td>
+                  <td>${ticket.id}</td>
+                </tr>
+                <tr>
+                  <td class="label">الاسم الكامل</td>
+                  <td>${ticket.fullName}</td>
+                </tr>
+                <tr>
+                  <td class="label">رقم الهاتف</td>
+                  <td>${ticket.phone}</td>
+                </tr>
+                <tr>
+                  <td class="label">البريد الإلكتروني</td>
+                  <td>${ticket.email || 'غير محدد'}</td>
+                </tr>
+                <tr>
+                  <td class="label">نوع الطلب</td>
+                  <td>${ticket.requestType}</td>
+                </tr>
+                <tr>
+                  <td class="label">القسم المعني</td>
+                  <td>${ticket.department}</td>
+                </tr>
+                <tr>
+                  <td class="label">تاريخ التقديم</td>
+                  <td>${new Intl.DateTimeFormat('ar-SY-u-nu-latn', { dateStyle: 'medium' }).format(ticket.submissionDate)}</td>
+                </tr>
+                <tr>
+                  <td class="label">الحالة الحالية</td>
+                  <td>${ticket.status}</td>
+                </tr>
+                <tr>
+                  <td class="label" style="vertical-align: top;">تفاصيل الطلب</td>
+                  <td class="details">${ticket.details}</td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="page-break" style="margin-top: 0;">
+              <div class="subheader">
+                <div class="subheader-text" style="text-align: right;">
+                  <h2>معلومات متابعة الطلب</h2>
+                  <p>وزارة المالية - الجمهورية العربية السورية</p>
+                </div>
+                <img class="logo-sm" src="${ministryLogo}" alt="شعار الوزارة" />
+              </div>
+              <div style="text-align: center; background-color: #f8f9fa; padding: 24px; border-radius: 12px; border: 2px solid #0f3c35">
+              <h3 style="font-size: 20px; font-weight: bold; color: #0f3c35; margin-bottom: 16px">معلومات متابعة الطلب</h3>
+              <div style="display:flex;justify-content:center;align-items:flex-start;gap:24px;flex-wrap:wrap">
+                <div>
+                  <div style="background:#ffffff;border:2px solid #0f3c35;border-radius:8px;padding:12px;min-width:300px;min-height:120px;display:flex;align-items:center;justify-content:center">
+                    ${barcodeUrl ? `<img id="barcodeImg" src="${barcodeUrl}" style="max-width:300px;max-height:120px;display:block"/>` : `<div style='font-size:12px;color:#666'>تعذر توليد الباركود</div>`}
+                  </div>
+                  <p style="font-size:12px;color:#0f3c35;margin:8px 0 0 0;font-weight:bold">باركود قابل للمسح والتتبع</p>
+                </div>
+                <div>
+                  <div style="background:#ffffff;border:2px dashed #0f3c35;border-radius:8px;padding:10px;display:inline-block">
+                    ${qrUrl ? `<img id="qrImg" src="${qrUrl}" width="160" height="160" style="display:block"/>` : `<div style='font-size:12px;color:#666'>تعذر توليد رمز QR</div>`}
+                  </div>
+                  <p style="font-size:12px;color:#0f3c35;margin:8px 0 0 0;font-weight:bold">رمز QR لفتح صفحة المتابعة</p>
+                </div>
+              </div>
+              <div style="background:#ffffff;padding:16px;border-radius:8px;border:2px dashed #0f3c35;min-width:300px;margin-top:16px;display:inline-block">
+                <p style="font-size:14px;color:#0f3c35;margin:0 0 8px 0;font-weight:bold">رقم التتبع الخاص بك:</p>
+                <p style="font-size:24px;font-family:monospace;color:#d63384;font-weight:bold;letter-spacing:2px;margin:6px 0;text-align:center">${ticket.id}</p>
+              </div>
+              </div>
+            </div>
+          </div>
           <script>
             (function(){
-              function waitForImage(img){
-                return new Promise(function(resolve){
-                  if(!img) return resolve();
-                  if(img.complete) return resolve();
-                  img.addEventListener('load', function(){ resolve(); }, { once: true });
-                  img.addEventListener('error', function(){ resolve(); }, { once: true });
-                });
+              function ready(){
+                var bi = document.getElementById('barcodeImg');
+                var qi = document.getElementById('qrImg');
+                var need = []; if(bi) need.push(bi); if(qi) need.push(qi);
+                if(need.length === 0){ setTimeout(function(){ window.print(); window.close(); }, 200); return; }
+                var left = need.length, done=false;
+                function check(){ if(done) return; if(--left <= 0){ done=true; setTimeout(function(){ window.print(); window.close(); }, 200); } }
+                need.forEach(function(img){ if(img.complete) { check(); } else { img.onload = check; img.onerror = check; } });
               }
-              function waitForFonts(){
-                if (document.fonts && document.fonts.ready) { return document.fonts.ready.catch(function(){}) } 
-                return Promise.resolve();
-              }
-              window.addEventListener('load', function(){
-                Promise.all([waitForImage(document.getElementById('pdf-logo')), waitForFonts()])
-                  .then(function(){ setTimeout(function(){ window.print(); window.close(); }, 150); });
-              });
+              if(document.readyState === 'complete') ready(); else window.addEventListener('load', ready);
             })();
           </script>
         </body>
@@ -217,6 +402,7 @@ const TrackRequestPage: React.FC = () => {
       printWindow.document.open();
       printWindow.document.write(pdfContent);
       printWindow.document.close();
+      // Inner script handles waiting and printing
     }
   };
 
@@ -395,6 +581,44 @@ const TrackRequestPage: React.FC = () => {
     }
   };
 
+  // Focused OCR: isolate magenta/pink text (e.g., the red tracking number in the receipt box), then OCR
+  const ocrExtractTrackingIdFromImageElRedMask = async (img: HTMLImageElement): Promise<string | null> => {
+    try {
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+      const ctx = c.getContext('2d'); if (!ctx) return null;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, 0, 0, img.width, img.height);
+      const imgData = ctx.getImageData(0, 0, img.width, img.height);
+      const data = imgData.data;
+      // Build a binary mask that keeps only magenta/pink-ish pixels as black text on white background
+      // Targeting colors similar to #d63384 used for tracking ID in the receipt template
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        const isMagenta = (r > 150) && (b > 70) && (g < 140) && (r - g > 40) && (b - g > 10) && (r >= b);
+        if (isMagenta) {
+          // black text
+          data[i] = 0; data[i + 1] = 0; data[i + 2] = 0; data[i + 3] = 255;
+        } else {
+          // white background
+          data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; data[i + 3] = 255;
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+      // Optional: light dilation to connect characters (skip for performance for now)
+      const result: any = await (Tesseract as any).recognize(c, 'ara+eng', {
+        // @ts-ignore
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_#=?&',
+        // @ts-ignore
+        preserve_interword_spaces: '1',
+      });
+      const text: string = result?.data?.text ?? '';
+      const id = extractTrackingId(text);
+      return id;
+    } catch {
+      return null;
+    }
+  };
+
   const preprocessVariants = async (img: HTMLImageElement): Promise<HTMLImageElement[]> => {
     const out: HTMLImageElement[] = [];
     const w = img.width, h = img.height;
@@ -455,11 +679,10 @@ const TrackRequestPage: React.FC = () => {
       if (file.type === 'application/pdf') {
         // Render up to first 5 pages to canvas using pdfjs, then decode via robust image trials
         const ab = await file.arrayBuffer();
-        const pdfDoc = await pdfjs.getDocument({ data: ab }).promise;
+  const pdfDoc = await pdfjs.getDocument({ data: ab }).promise;
         const maxPages = Math.min(5, pdfDoc.numPages || 1);
         const tryPages = Array.from({ length: maxPages }, (_, i) => i + 1);
         const scales = [6, 5, 4, 3, 2];
-        let foundId = null;
         for (const p of tryPages) {
           const page = await pdfDoc.getPage(p);
           let ocrTriedThisPage = false;
@@ -469,92 +692,85 @@ const TrackRequestPage: React.FC = () => {
             const ctx = canvas.getContext('2d');
             if (!ctx) continue;
             canvas.width = viewport.width; canvas.height = viewport.height;
-            await page.render({ canvasContext: ctx, viewport }).promise;
+            await page.render({ canvasContext: ctx as any, viewport }).promise;
             const imgUrl = canvas.toDataURL('image/png');
             const img = await loadImage(imgUrl);
-            // 1. Try robust decode
             const decodedText = await decodeFromImageElRobust(img);
             if (decodedText) {
               const id = extractTrackingId(decodedText);
               if (id) {
-                foundId = id;
-                break;
+                setTrackingId(id);
+                setDecodeMsg(null);
+                addIdsToTracked([id]);
+                return;
               }
             }
-            // 2. OCR fallback once per page (try on the highest scale attempted first)
+            // OCR fallback once per page (try on the highest scale attempted first)
             if (!ocrTriedThisPage && scale >= 5) {
+              // Try focused OCR on the red tracking number first
+              setDecodeMsg('نحاول التعرف على رقم التتبع المكتوب باللون الأحمر...');
+              const redId = await ocrExtractTrackingIdFromImageElRedMask(img);
+              if (redId) {
+                setTrackingId(redId);
+                setDecodeMsg(null);
+                addIdsToTracked([redId]);
+                return;
+              }
+              // Then generic OCR across the whole page
               setDecodeMsg('نحاول التعرف الضوئي على النص (OCR)...');
               const ocrId = await ocrExtractTrackingIdFromImageEl(img);
               if (ocrId) {
-                foundId = ocrId;
-                break;
+                setTrackingId(ocrId);
+                setDecodeMsg(null);
+                addIdsToTracked([ocrId]);
+                return;
               }
               ocrTriedThisPage = true;
             }
           }
-          if (foundId) break;
         }
-        // 3. Fallback: extract text content from PDF pages and parse the tracking ID
-        if (!foundId) {
-          for (const p of tryPages) {
-            const page = await pdfDoc.getPage(p);
-            const textContent = await page.getTextContent();
-            const pageText = (textContent.items as any[]).map((it) => it.str).join(' ');
-            const id = extractTrackingId(pageText);
-            if (id) {
-              foundId = id;
-              break;
-            }
+        // Fallback: extract text content from PDF pages and parse the tracking ID
+        for (const p of tryPages) {
+          const page = await pdfDoc.getPage(p);
+          const textContent = await page.getTextContent();
+          const pageText = (textContent.items as any[]).map((it) => it.str).join(' ');
+          const id = extractTrackingId(pageText);
+          if (id) {
+            setTrackingId(id);
+            setDecodeMsg(null);
+            addIdsToTracked([id]);
+            return;
           }
         }
-        // 4. Try extracting text from PDF using pdfjs's getTextContent (for scanned PDFs)
-        if (!foundId && pdfDoc.getMetadata) {
-          try {
-            const meta = await pdfDoc.getMetadata();
-            if (meta && meta.info && typeof meta.info === 'object') {
-              const metaText = Object.values(meta.info).join(' ');
-              const id = extractTrackingId(metaText);
-              if (id) foundId = id;
-            }
-          } catch {}
-        }
-        // 5. If we rendered any page, offer manual crop on first page at decent scale
-        if (!foundId) {
-          try {
-            const firstPage = await pdfDoc.getPage(1);
-            const viewport = firstPage.getViewport({ scale: 4 });
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              canvas.width = viewport.width; canvas.height = viewport.height;
-              await firstPage.render({ canvasContext: ctx, viewport }).promise;
-              const fallbackUrl = canvas.toDataURL('image/png');
-              setCropImgUrl(fallbackUrl);
-              setCropMode(true);
-              setDecodeMsg('لم يتم العثور على رقم التتبع تلقائياً في ملف PDF المرفوع. يرجى تحديد منطقة الكود (QR أو باركود) يدوياً في الصورة أدناه، أو التأكد من أن الكود واضح وكبير بما يكفي للقراءة.');
-              return;
-            }
-          } catch {}
-        }
-        if (foundId) {
-          setTrackingId(foundId);
-          setDecodeMsg(null);
-          handleSearch(foundId);
-          return;
-        }
-        setDecodeMsg('تعذر العثور على رقم التتبع في ملف PDF. تأكد من أن الملف يحتوي كود QR أو باركود واضح، أو استخدم أداة التحديد اليدوي لتجربة القراءة من منطقة محددة.');
+        // If we rendered any page, offer manual crop on first page at decent scale
+        try {
+          const firstPage = await pdfDoc.getPage(1);
+          const viewport = firstPage.getViewport({ scale: 4 });
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            canvas.width = viewport.width; canvas.height = viewport.height;
+            await firstPage.render({ canvasContext: ctx as any, viewport }).promise;
+            const fallbackUrl = canvas.toDataURL('image/png');
+            setCropImgUrl(fallbackUrl);
+            setCropMode(true);
+            setDecodeMsg('لم نعثر على كود تلقائياً. حدد منطقة الكود وحاول القراءة.');
+            return;
+          }
+        } catch {}
+        setDecodeMsg('لم نعثر على كود صالح في صفحات ملف PDF.');
       } else if (file.type.startsWith('image/')) {
         // Decode from image element with robust retries (scales, rotations, tiles)
         const url = URL.createObjectURL(file);
         const baseImg = await loadImage(url);
         try {
           const decodedText = await decodeFromImageElRobust(baseImg);
-          if (decodedText) {
+      if (decodedText) {
             const id = extractTrackingId(decodedText);
             if (id) {
-              setTrackingId(id);
-              setDecodeMsg(null);
-              handleSearch(id);
+        setTrackingId(id);
+        setDecodeMsg(null);
+        addIdsToTracked([id]);
               URL.revokeObjectURL(url);
               return;
             }
@@ -629,7 +845,7 @@ const TrackRequestPage: React.FC = () => {
         setCropMode(false);
         setDecodeMsg(null);
         setTrackingId(id);
-        handleSearch(id);
+        addIdsToTracked([id]);
         return;
       }
     }
@@ -639,7 +855,7 @@ const TrackRequestPage: React.FC = () => {
       setCropMode(false);
       setDecodeMsg(null);
       setTrackingId(ocrId);
-      handleSearch(ocrId);
+      addIdsToTracked([ocrId]);
       return;
     }
     setDecodeMsg('تعذر قراءة المنطقة المحددة. حاول تحديد منطقة أوضح.');
@@ -647,41 +863,94 @@ const TrackRequestPage: React.FC = () => {
   
   const statusOrder = [RequestStatus.New, RequestStatus.InProgress, RequestStatus.Answered, RequestStatus.Closed];
 
+  const removeTracked = (id: string) => {
+    const nextIds = trackedIds.filter((x) => x !== id);
+    const nextTickets = tickets.filter((t) => t.id !== id);
+    const nextMissing = notFound.filter((x) => x !== id);
+    setTrackedIds(nextIds);
+    setTickets(nextTickets);
+    setNotFound(nextMissing);
+    persistIds(nextIds);
+  };
+
+  const clearAllTracked = () => {
+    setTrackedIds([]);
+    setTickets([]);
+    setNotFound([]);
+    persistIds([]);
+  };
+
   return (
     <Card>
-        <img src="https://syrian.zone/syid/materials/logo.ai.svg" alt="Syrian Zone Logo" className="mb-4 w-32 mx-auto" />
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-1">متابعة حالة طلب</h2>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">أدخل رقم التتبع الخاص بطلبك للاستعلام عن حالته.</p>
-        
-  <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
-  <div className="flex-grow w-full">
-          <div className="relative">
-            <Input 
-              id="trackingId" 
-              label="رقم التتبع" 
-              placeholder="مثال: ALF-20240815-ABC123" 
-              value={trackingId} 
-              onChange={(e) => setTrackingId(e.target.value)}
-              className="pr-28 rtl:pl-28"
-              ref={trackingInputRef}
-              endAdornment={
-                <Button 
-                  onClick={() => handleSearch()} 
-                  isLoading={isLoading} 
-                  className="!py-1.5 !px-3 !bg-transparent !text-gray-600 !hover:bg-transparent !shadow-none !ring-0 !focus:ring-0 !focus:ring-offset-0 !border-0 !rounded-md dark:!text-gray-300"
-                  aria-label="بحث"
-                  title="بحث"
-                >
+      <div className="flex justify-center mb-6">
+        <img src={ministryLogo} alt="شعار وزارة المالية" className="w-32 mx-auto" />
+      </div>
+      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-1">متابعة حالة طلب</h2>
+      <p className="text-gray-600 dark:text-gray-400 mb-6">أدخل رقم التتبع الخاص بطلبك للاستعلام عن حالته.</p>
+      
+      <div className="flex items-center justify-between mb-1">
+        <div className="text-xs text-gray-500 dark:text-gray-400"></div>
+        <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">
+          <input type="checkbox" checked={multiMode} onChange={(e) => setMultiMode(e.target.checked)} />
+          إدخال متعدد
+        </label>
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+        <div className="flex-grow w-full">
+          {multiMode ? (
+            <div>
+              <label htmlFor="trackingIdMulti" className="block font-medium text-gray-700 dark:text-gray-300 mb-1 text-base md:text-lg">أرقام التتبع</label>
+              <TextArea
+                id="trackingIdMulti"
+                rows={3}
+                className="text-right text-base md:text-lg font-mono tracking-wide"
+                placeholder={'مثال:\nALF-20240815-ABC123\nALF-20240816-DEF456'}
+                value={trackingId}
+                onChange={(e) => setTrackingId(e.target.value)}
+                onKeyDown={onInputKeyDown}
+              />
+              <div className="mt-2 flex items-center justify-between">
+                <div className="text-xs text-gray-500 dark:text-gray-400">سيتم إضافة {splitIds(trackingId).length} رقم</div>
+                <Button onClick={() => handleSearch()} isLoading={isLoading} className="!py-1.5 !px-4" title="بحث عن الأرقام">
                   {!isLoading && (
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
                   )}
                   {isLoading ? 'جاري...' : 'بحث'}
                 </Button>
-              }
-            />
-          </div>
+              </div>
+            </div>
+          ) : (
+            <div className="relative">
+              <Input
+                id="trackingId"
+                label="رقم التتبع"
+                labelClassName="text-base md:text-lg"
+                placeholder="مثال: ALF-20240815-ABC123"
+                value={trackingId}
+                onChange={(e) => setTrackingId(e.target.value)}
+                onKeyDown={onInputKeyDown}
+                className="pr-28 rtl:pl-28 text-right text-lg md:text-xl font-mono tracking-wide"
+                ref={trackingInputRef}
+                endAdornment={
+                  <Button
+                    onClick={() => handleSearch()}
+                    isLoading={isLoading}
+                    className="!py-1.5 !px-3 !bg-transparent !text-gray-600 !hover:bg-transparent !shadow-none !ring-0 !focus:ring-0 !focus:ring-offset-0 !border-0 !rounded-md dark:!text-gray-300"
+                    aria-label="بحث"
+                    title="بحث"
+                  >
+                    {!isLoading && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
+                    )}
+                    {isLoading ? 'جاري...' : 'بحث'}
+                  </Button>
+                }
+              />
+            </div>
+          )}
         </div>
-  <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <input
             ref={fileInputRef}
             type="file"
@@ -698,7 +967,7 @@ const TrackRequestPage: React.FC = () => {
             onClick={() => fileInputRef.current?.click()}
             variant="primary"
             className="whitespace-nowrap flex-shrink-0 min-w-[108px] !py-2 !px-4"
-            style={controlHeight ? { height: `${controlHeight}px` } : undefined}
+            style={!multiMode && controlHeight ? { height: `${controlHeight}px` } : undefined}
             title="رفع صورة/‏PDF للباركود أو QR"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12" /><path d="M7 8l5-5 5 5" /><path d="M5 21h14" /></svg>
@@ -708,52 +977,67 @@ const TrackRequestPage: React.FC = () => {
       </div>
 
       {decodeMsg && <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{decodeMsg}</p>}
+      {multiMode && (
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">وضع الإدخال المتعدد: استخدم سطر جديد أو فاصلة. Ctrl+Enter للبحث</p>
+      )}
 
-      {error && <p className="text-red-500 mt-4 text-sm">{error}</p>
-      }
-      
-      {ticket && (
-        <div className="mt-8 border-t dark:border-gray-700 pt-6">
-          <h3 className="text-xl font-bold mb-4 dark:text-gray-200">تفاصيل الطلب: <span className="font-mono text-blue-600 dark:text-blue-400">{ticket.id}</span></h3>
-          
-          <div className="mb-6 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="dark:text-gray-300"><strong className="block text-gray-500 dark:text-gray-400">الاسم:</strong> {ticket.fullName}</div>
-              {ticket.email && <div className="dark:text-gray-300"><strong className="block text-gray-500 dark:text-gray-400">البريد الإلكتروني:</strong> {ticket.email}</div>}
-              <div className="dark:text-gray-300"><strong className="block text-gray-500 dark:text-gray-400">تاريخ التقديم:</strong> {ticket.submissionDate.toLocaleDateString('ar-SY')}</div>
-              <div className="dark:text-gray-300"><strong className="block text-gray-500 dark:text-gray-400">نوع الطلب:</strong> {ticket.requestType}</div>
-              <div className="dark:text-gray-300"><strong className="block text-gray-500 dark:text-gray-400">القسم:</strong> {ticket.department}</div>
+      {error && <p className="text-red-500 mt-4 text-sm">{error}</p>}
+
+      {(tickets.length > 0 || notFound.length > 0) && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold mb-2 dark:text-gray-200">طلبات تمت إضافتها ({tickets.length})</h3>
+            <div className="flex items-center gap-2">
+              {trackedIds.length > 0 && (
+                <Button variant="secondary" className="!py-1 !px-3" onClick={clearAllTracked}>مسح الكل</Button>
+              )}
+            </div>
           </div>
-          
-          <h4 className="text-lg font-bold mb-6 dark:text-gray-200">حالة الطلب الحالية:</h4>
-          
-          <div className="flex items-start">
-            {statusOrder.map((status, index) => {
-                const currentStatusIndex = statusOrder.indexOf(ticket.status);
-                return (
-                    <React.Fragment key={status}>
-                        <StatusStep 
-                            status={status}
-                            isActive={currentStatusIndex === index}
-                            isCompleted={currentStatusIndex > index}
+          {notFound.length > 0 && (
+            <div className="text-sm text-orange-600 dark:text-amber-400 mb-3">لم يتم العثور على: {notFound.map((id) => <bdi key={id} dir="ltr" className="mx-1">{id}</bdi>)}</div>
+          )}
+          <div className="space-y-8">
+            {tickets.map((t) => {
+              const currentStatusIndex = statusOrder.indexOf(t.status);
+              return (
+                <div key={t.id} className="border-t dark:border-gray-700 pt-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-lg font-semibold dark:text-gray-100">تفاصيل الطلب</h4>
+                    <div className="flex items-center gap-2">
+                      <Button variant="secondary" className="!py-1 !px-3" onClick={() => copyText(t.id)}>نسخ</Button>
+                      <Button variant="secondary" className="!py-1 !px-3" onClick={() => handleDownloadPdf(t)}>PDF</Button>
+                      <Button className="!py-1 !px-3" onClick={() => removeTracked(t.id)}>إزالة</Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap" dir="rtl">
+                    <span className="font-mono text-xl md:text-2xl text-blue-700 dark:text-blue-400 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md px-3 py-1">
+                      <bdi dir="ltr">{t.id}</bdi>
+                    </span>
+                    {copied && <span className="text-xs text-green-600 dark:text-green-400">تم النسخ</span>}
+                  </div>
+                  <div className="mb-6 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-3">
+                    <div className="dark:text-gray-300"><strong className="block text-gray-500 dark:text-gray-400">الاسم:</strong> {t.fullName}</div>
+                    {t.email && <div className="dark:text-gray-300"><strong className="block text-gray-500 dark:text-gray-400">البريد الإلكتروني:</strong> {t.email}</div>}
+                    <div className="dark:text-gray-300"><strong className="block text-gray-500 dark:text-gray-400">تاريخ التقديم:</strong> {t.submissionDate.toLocaleDateString('ar-SY')}</div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    {statusOrder.map((status, index) => (
+                      <React.Fragment key={status}>
+                        <StatusStep
+                          status={status}
+                          isActive={currentStatusIndex === index}
+                          isCompleted={currentStatusIndex > index}
                         />
-                        {index < statusOrder.length -1 && (
-                            <div className={`flex-1 h-1 mt-4 ${currentStatusIndex > index ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'}`}></div>
+                        {index < statusOrder.length - 1 && (
+                          <div className={`w-8 sm:w-12 h-1 mt-4 ${currentStatusIndex > index ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'}`}></div>
                         )}
-                    </React.Fragment>
-                );
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+              );
             })}
           </div>
-          
-          <div className="mt-8 pt-6 border-t border-dashed dark:border-gray-700 text-center">
-            <Button 
-                onClick={() => handleDownloadPdf(ticket)}
-                variant="secondary"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                تحميل كملف PDF
-            </Button>
-          </div>
-
         </div>
       )}
 
