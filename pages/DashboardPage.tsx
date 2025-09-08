@@ -326,6 +326,15 @@ const DashboardPage: React.FC = () => {
     return { total, byStatus };
   }, [contactMessages]);
 
+  const departmentsCount = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('departmentsList');
+      if (!raw) return 5; // fallback to default cards text
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr.length : 5;
+    } catch { return 5; }
+  }, []);
+
   const handleStatusChange = (ticket: Ticket, newStatus: string) => {
     if (updateTicketStatus) {
       updateTicketStatus(ticket.id, newStatus as RequestStatus);
@@ -502,7 +511,7 @@ ${trackUrl}
                   <div>
                     <h3 className="text-xl font-semibold">الهيكل الإداري</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">صفحة أقسام المديرية ومهام كل قسم.</p>
-                    <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">{`عدد الأقسام: 5`}</div>
+                    <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">{`عدد الأقسام: ${departmentsCount}`}</div>
                   </div>
                 </div>
               </div>

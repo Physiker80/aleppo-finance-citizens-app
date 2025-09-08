@@ -95,21 +95,63 @@ const TrackRequestPage: React.FC = () => {
     }, 1000);
   };
 
-  const handleDownloadPdf = (ticket: Ticket) => {
+  // Fetch remote image as Data URL (base64). When asSvgText=true, treat response as text and encode as SVG data URL.
+  const fetchAsDataUrl = async (url: string, asSvgText: boolean = false): Promise<string | null> => {
+    try {
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) return null;
+      if (asSvgText) {
+        const text = await res.text();
+        const base64 = btoa(unescape(encodeURIComponent(text)));
+        return `data:image/svg+xml;base64,${base64}`;
+      }
+      const blob = await res.blob();
+      const dataUrl = await new Promise<string>((resolve) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result as string);
+        fr.readAsDataURL(blob);
+      });
+      return dataUrl;
+    } catch {
+      return null;
+    }
+  };
+
+  // Get logo Data URL with robust fallbacks (PNG then SVG then 1x1 transparent PNG)
+  const getLogoDataUrl = async (): Promise<string> => {
+    const png = await fetchAsDataUrl('https://syrian.zone/syid/materials/logo.png');
+    if (png) return png;
+    const svg = await fetchAsDataUrl('https://syrian.zone/syid/materials/logo.ai.svg', true);
+    if (svg) return svg;
+    // Fallback: 1x1 transparent PNG
+    return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/ax7p4EAAAAASUVORK5CYII=';
+  };
+
+  const handleDownloadPdf = async (ticket: Ticket) => {
+    const logoDataUrl = await getLogoDataUrl();
     const pdfContent = `
       <html>
         <head>
           <title>تفاصيل الطلب: ${ticket.id}</title>
           <style>
+            @page { size: A4; margin: 16mm; }
             body { 
               font-family: 'Cairo', sans-serif; 
               direction: rtl;
-              margin: 20px;
+              margin: 0;
             }
             h1 { 
               color: #2563EB; 
               border-bottom: 2px solid #2563EB;
               padding-bottom: 10px;
+              text-align: center;
+              margin: 8px 0 16px;
+            }
+            .logo {
+              display: block;
+              margin: 24px auto 8px auto;
+              width: 200px;
+              height: auto;
             }
             table {
               width: 100%;
@@ -133,32 +175,48 @@ const TrackRequestPage: React.FC = () => {
           <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
         </head>
         <body>
-          <h1>تفاصيل الطلب</h1>
+          <img id="pdf-logo" src="${logoDataUrl}" alt="Syrian Zone Logo" class="logo" />
+          <h1>مديرية المالية - محافظة حلب</h1>
+          <h2 style="text-align:center; color:#2563EB; font-size:1.2em; margin-bottom:8px;">إيصال تقديم طلب</h2>
+          <p style="text-align:center; color:#666; font-size:0.95em; margin-bottom:18px;">وزارة المالية - الجمهورية العربية السورية</p>
           <table>
-            <tr><th>رقم التتبع</th><td>${ticket.id}</td></tr>
             <tr><th>الاسم الكامل</th><td>${ticket.fullName}</td></tr>
-            <tr><th>البريد الإلكتروني</th><td>${ticket.email || 'غير متوفر'}</td></tr>
             <tr><th>رقم الهاتف</th><td>${ticket.phone}</td></tr>
-            <tr><th>الرقم الوطني</th><td>${ticket.nationalId}</td></tr>
+            <tr><th>البريد الإلكتروني</th><td>${ticket.email || 'غير متوفر'}</td></tr>
             <tr><th>نوع الطلب</th><td>${ticket.requestType}</td></tr>
             <tr><th>القسم المعني</th><td>${ticket.department}</td></tr>
             <tr><th>تاريخ التقديم</th><td>${ticket.submissionDate.toLocaleDateString('ar-SY')}</td></tr>
-            <tr><th>الحالة الحالية</th><td>${ticket.status}</td></tr>
+            <tr><th>الحالة</th><td>${ticket.status}</td></tr>
             <tr><th>تفاصيل الطلب</th><td class="details">${ticket.details}</td></tr>
           </table>
+          <script>
+            (function(){
+              function waitForImage(img){
+                return new Promise(function(resolve){
+                  if(!img) return resolve();
+                  if(img.complete) return resolve();
+                  img.addEventListener('load', function(){ resolve(); }, { once: true });
+                  img.addEventListener('error', function(){ resolve(); }, { once: true });
+                });
+              }
+              function waitForFonts(){
+                if (document.fonts && document.fonts.ready) { return document.fonts.ready.catch(function(){}) } 
+                return Promise.resolve();
+              }
+              window.addEventListener('load', function(){
+                Promise.all([waitForImage(document.getElementById('pdf-logo')), waitForFonts()])
+                  .then(function(){ setTimeout(function(){ window.print(); window.close(); }, 150); });
+              });
+            })();
+          </script>
         </body>
       </html>
     `;
-    
     const printWindow = window.open('', '_blank');
     if (printWindow) {
-        printWindow.document.open();
-        printWindow.document.write(pdfContent);
-        printWindow.document.close();
-        setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-        }, 250);
+      printWindow.document.open();
+      printWindow.document.write(pdfContent);
+      printWindow.document.close();
     }
   };
 
@@ -397,10 +455,11 @@ const TrackRequestPage: React.FC = () => {
       if (file.type === 'application/pdf') {
         // Render up to first 5 pages to canvas using pdfjs, then decode via robust image trials
         const ab = await file.arrayBuffer();
-  const pdfDoc = await pdfjs.getDocument({ data: ab }).promise;
+        const pdfDoc = await pdfjs.getDocument({ data: ab }).promise;
         const maxPages = Math.min(5, pdfDoc.numPages || 1);
         const tryPages = Array.from({ length: maxPages }, (_, i) => i + 1);
         const scales = [6, 5, 4, 3, 2];
+        let foundId = null;
         for (const p of tryPages) {
           const page = await pdfDoc.getPage(p);
           let ocrTriedThisPage = false;
@@ -410,63 +469,80 @@ const TrackRequestPage: React.FC = () => {
             const ctx = canvas.getContext('2d');
             if (!ctx) continue;
             canvas.width = viewport.width; canvas.height = viewport.height;
-            await page.render({ canvasContext: ctx as any, viewport }).promise;
+            await page.render({ canvasContext: ctx, viewport }).promise;
             const imgUrl = canvas.toDataURL('image/png');
             const img = await loadImage(imgUrl);
+            // 1. Try robust decode
             const decodedText = await decodeFromImageElRobust(img);
             if (decodedText) {
               const id = extractTrackingId(decodedText);
               if (id) {
-                setTrackingId(id);
-                setDecodeMsg(null);
-                handleSearch(id);
-                return;
+                foundId = id;
+                break;
               }
             }
-            // OCR fallback once per page (try on the highest scale attempted first)
+            // 2. OCR fallback once per page (try on the highest scale attempted first)
             if (!ocrTriedThisPage && scale >= 5) {
               setDecodeMsg('نحاول التعرف الضوئي على النص (OCR)...');
               const ocrId = await ocrExtractTrackingIdFromImageEl(img);
               if (ocrId) {
-                setTrackingId(ocrId);
-                setDecodeMsg(null);
-                handleSearch(ocrId);
-                return;
+                foundId = ocrId;
+                break;
               }
               ocrTriedThisPage = true;
             }
           }
+          if (foundId) break;
         }
-        // Fallback: extract text content from PDF pages and parse the tracking ID
-        for (const p of tryPages) {
-          const page = await pdfDoc.getPage(p);
-          const textContent = await page.getTextContent();
-          const pageText = (textContent.items as any[]).map((it) => it.str).join(' ');
-          const id = extractTrackingId(pageText);
-          if (id) {
-            setTrackingId(id);
-            setDecodeMsg(null);
-            handleSearch(id);
-            return;
+        // 3. Fallback: extract text content from PDF pages and parse the tracking ID
+        if (!foundId) {
+          for (const p of tryPages) {
+            const page = await pdfDoc.getPage(p);
+            const textContent = await page.getTextContent();
+            const pageText = (textContent.items as any[]).map((it) => it.str).join(' ');
+            const id = extractTrackingId(pageText);
+            if (id) {
+              foundId = id;
+              break;
+            }
           }
         }
-        // If we rendered any page, offer manual crop on first page at decent scale
-        try {
-          const firstPage = await pdfDoc.getPage(1);
-          const viewport = firstPage.getViewport({ scale: 4 });
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            canvas.width = viewport.width; canvas.height = viewport.height;
-            await firstPage.render({ canvasContext: ctx as any, viewport }).promise;
-            const fallbackUrl = canvas.toDataURL('image/png');
-            setCropImgUrl(fallbackUrl);
-            setCropMode(true);
-            setDecodeMsg('لم نعثر على كود تلقائياً. حدد منطقة الكود وحاول القراءة.');
-            return;
-          }
-        } catch {}
-        setDecodeMsg('لم نعثر على كود صالح في صفحات ملف PDF.');
+        // 4. Try extracting text from PDF using pdfjs's getTextContent (for scanned PDFs)
+        if (!foundId && pdfDoc.getMetadata) {
+          try {
+            const meta = await pdfDoc.getMetadata();
+            if (meta && meta.info && typeof meta.info === 'object') {
+              const metaText = Object.values(meta.info).join(' ');
+              const id = extractTrackingId(metaText);
+              if (id) foundId = id;
+            }
+          } catch {}
+        }
+        // 5. If we rendered any page, offer manual crop on first page at decent scale
+        if (!foundId) {
+          try {
+            const firstPage = await pdfDoc.getPage(1);
+            const viewport = firstPage.getViewport({ scale: 4 });
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              canvas.width = viewport.width; canvas.height = viewport.height;
+              await firstPage.render({ canvasContext: ctx, viewport }).promise;
+              const fallbackUrl = canvas.toDataURL('image/png');
+              setCropImgUrl(fallbackUrl);
+              setCropMode(true);
+              setDecodeMsg('لم يتم العثور على رقم التتبع تلقائياً في ملف PDF المرفوع. يرجى تحديد منطقة الكود (QR أو باركود) يدوياً في الصورة أدناه، أو التأكد من أن الكود واضح وكبير بما يكفي للقراءة.');
+              return;
+            }
+          } catch {}
+        }
+        if (foundId) {
+          setTrackingId(foundId);
+          setDecodeMsg(null);
+          handleSearch(foundId);
+          return;
+        }
+        setDecodeMsg('تعذر العثور على رقم التتبع في ملف PDF. تأكد من أن الملف يحتوي كود QR أو باركود واضح، أو استخدم أداة التحديد اليدوي لتجربة القراءة من منطقة محددة.');
       } else if (file.type.startsWith('image/')) {
         // Decode from image element with robust retries (scales, rotations, tiles)
         const url = URL.createObjectURL(file);
@@ -573,9 +649,10 @@ const TrackRequestPage: React.FC = () => {
 
   return (
     <Card>
-      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-1">متابعة حالة طلب</h2>
-      <p className="text-gray-600 dark:text-gray-400 mb-6">أدخل رقم التتبع الخاص بطلبك للاستعلام عن حالته.</p>
-      
+        <img src="https://syrian.zone/syid/materials/logo.ai.svg" alt="Syrian Zone Logo" className="mb-4 w-32 mx-auto" />
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-1">متابعة حالة طلب</h2>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">أدخل رقم التتبع الخاص بطلبك للاستعلام عن حالته.</p>
+        
   <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
   <div className="flex-grow w-full">
           <div className="relative">
@@ -632,7 +709,8 @@ const TrackRequestPage: React.FC = () => {
 
       {decodeMsg && <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{decodeMsg}</p>}
 
-      {error && <p className="text-red-500 mt-4 text-sm">{error}</p>}
+      {error && <p className="text-red-500 mt-4 text-sm">{error}</p>
+      }
       
       {ticket && (
         <div className="mt-8 border-t dark:border-gray-700 pt-6">

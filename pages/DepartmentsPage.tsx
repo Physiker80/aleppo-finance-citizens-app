@@ -251,6 +251,10 @@ const DepartmentsPage: React.FC = () => {
   const [stats, setStats] = useState({ totalEmployees: 280, mainDepartments: 10, subUnits: 126, yearsOfService: 75 });
   const [editingAbout, setEditingAbout] = useState(false);
   const [aboutDraft, setAboutDraft] = useState('');
+  const [editingLeader, setEditingLeader] = useState(false);
+  const [leaderDraft, setLeaderDraft] = useState({ name: '', title: '' });
+  const [editingStats, setEditingStats] = useState(false);
+  const [statsDraft, setStatsDraft] = useState({ totalEmployees: 280, mainDepartments: 10, subUnits: 126, yearsOfService: 75 });
 
   // Read optional overrides from localStorage
   useEffect(() => {
@@ -308,6 +312,48 @@ const DepartmentsPage: React.FC = () => {
     } catch {
       alert('تعذر حفظ النبذة.');
     }
+  };
+  const saveLeader = () => {
+    try {
+      const name = (leaderDraft.name || leaderName).trim();
+      const title = (leaderDraft.title || leaderTitle).trim();
+      const payload = { name, title };
+      localStorage.setItem('departmentsLeader', JSON.stringify(payload));
+      setLeaderName(name);
+      setLeaderTitle(title);
+      setEditingLeader(false);
+    } catch {
+      alert('تعذر حفظ بيانات القيادة.');
+    }
+  };
+  const resetLeader = () => {
+    if (!confirm('سيتم استعادة بيانات القيادة الافتراضية. متابعة؟')) return;
+    try { localStorage.removeItem('departmentsLeader'); } catch { /* noop */ }
+    setLeaderName('السيد أحمد محمد الأحمد');
+    setLeaderTitle('المسؤول الأول عن إدارة الشؤون المالية للمحافظة');
+    setEditingLeader(false);
+  };
+
+  const saveStatsDraft = () => {
+    try {
+      const normalized = {
+        totalEmployees: Number(statsDraft.totalEmployees) || 0,
+        mainDepartments: Number(statsDraft.mainDepartments) || 0,
+        subUnits: Number(statsDraft.subUnits) || 0,
+        yearsOfService: Number(statsDraft.yearsOfService) || 0,
+      };
+      localStorage.setItem('departmentsStats', JSON.stringify(normalized));
+      setStats(normalized);
+      setEditingStats(false);
+    } catch {
+      alert('تعذر حفظ الإحصائيات.');
+    }
+  };
+  const resetStats = () => {
+    if (!confirm('سيتم استعادة الإحصائيات الافتراضية. متابعة؟')) return;
+    try { localStorage.removeItem('departmentsStats'); } catch { /* noop */ }
+    setStats({ totalEmployees: 280, mainDepartments: 10, subUnits: 126, yearsOfService: 75 });
+    setEditingStats(false);
   };
   const resetAbout = () => {
     if (!confirm('سيتم استعادة النبذة الافتراضية. متابعة؟')) return;
@@ -613,13 +659,38 @@ const DepartmentsPage: React.FC = () => {
               <div className="mx-auto w-14 h-14 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-2xl text-amber-600 mb-3">
                 <FaCrown />
               </div>
-              <div className="text-xl font-bold text-gray-900 dark:text-white mb-1">{leaderName}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">{leaderTitle}</div>
-              <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">الإدارة العليا</div>
+              {!editingLeader ? (
+                <>
+                  <div className="text-xl font-bold text-gray-900 dark:text-white mb-1">{leaderName}</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">{leaderTitle}</div>
+                  <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">الإدارة العليا</div>
+                  {allowManage && (
+                    <div className="mt-3">
+                      <button onClick={() => { setLeaderDraft({ name: leaderName, title: leaderTitle }); setEditingLeader(true); }} className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 bg-white/70 dark:bg-gray-800/70">تحرير</button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-left" dir="rtl">
+                  <div className="grid md:grid-cols-2 gap-3 text-right">
+                    <label className="text-sm">الاسم
+                      <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={leaderDraft.name} onChange={(e) => setLeaderDraft((d) => ({ ...d, name: e.target.value }))} />
+                    </label>
+                    <label className="text-sm">المنصب/الصفة
+                      <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={leaderDraft.title} onChange={(e) => setLeaderDraft((d) => ({ ...d, title: e.target.value }))} />
+                    </label>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button onClick={saveLeader} className="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">حفظ</button>
+                    <button onClick={() => setEditingLeader(false)} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">إلغاء</button>
+                    <button onClick={resetLeader} className="px-4 py-2 rounded border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:bg-amber-900/30 text-sm">استعادة الافتراضي</button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Stats tiles */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-3">
               <div className="rounded-xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-5 text-center">
                 <div className="text-2xl font-extrabold text-emerald-500">+{stats.totalEmployees}</div>
                 <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">إجمالي الموظفين</div>
@@ -637,6 +708,34 @@ const DepartmentsPage: React.FC = () => {
                 <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">سنوات الخدمة</div>
               </div>
             </div>
+            {allowManage && !editingStats && (
+              <div className="mb-5 text-center">
+                <button onClick={() => { setStatsDraft(stats); setEditingStats(true); }} className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-gray-600 bg-white/70 dark:bg-gray-800/70">تحرير الإحصائيات</button>
+              </div>
+            )}
+            {allowManage && editingStats && (
+              <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-4 shadow-sm mb-5">
+                <div className="grid md:grid-cols-4 gap-3">
+                  <label className="text-sm">الموظفون
+                    <input type="number" className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={statsDraft.totalEmployees} onChange={(e) => setStatsDraft((s) => ({ ...s, totalEmployees: Number(e.target.value) }))} />
+                  </label>
+                  <label className="text-sm">الأقسام الرئيسية
+                    <input type="number" className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={statsDraft.mainDepartments} onChange={(e) => setStatsDraft((s) => ({ ...s, mainDepartments: Number(e.target.value) }))} />
+                  </label>
+                  <label className="text-sm">الوحدات الفرعية
+                    <input type="number" className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={statsDraft.subUnits} onChange={(e) => setStatsDraft((s) => ({ ...s, subUnits: Number(e.target.value) }))} />
+                  </label>
+                  <label className="text-sm">سنوات الخدمة
+                    <input type="number" className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={statsDraft.yearsOfService} onChange={(e) => setStatsDraft((s) => ({ ...s, yearsOfService: Number(e.target.value) }))} />
+                  </label>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button onClick={saveStatsDraft} className="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">حفظ</button>
+                  <button onClick={() => setEditingStats(false)} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">إلغاء</button>
+                  <button onClick={resetStats} className="px-4 py-2 rounded border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:bg-amber-900/30 text-sm">استعادة الافتراضي</button>
+                </div>
+              </div>
+            )}
 
             {/* About */}
             <div className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-5 shadow-sm">
@@ -781,6 +880,14 @@ const DepartmentsPage: React.FC = () => {
                               <div className="flex gap-2">
                                 <button onClick={() => startEdit(i)} className="text-blue-600 dark:text-blue-400 hover:underline">تعديل</button>
                                 <button onClick={() => removeItem(i)} className="text-red-600 dark:text-red-400 hover:underline">حذف</button>
+                                <button onClick={() => {
+                                  if (i === 0) return; const next = [...departments];
+                                  const tmp = next[i-1]; next[i-1] = next[i]; next[i] = tmp; persistDepartments(next);
+                                }} className="text-gray-600 dark:text-gray-300 hover:underline" title="تحريك للأعلى">▲</button>
+                                <button onClick={() => {
+                                  if (i === departments.length - 1) return; const next = [...departments];
+                                  const tmp = next[i+1]; next[i+1] = next[i]; next[i] = tmp; persistDepartments(next);
+                                }} className="text-gray-600 dark:text-gray-300 hover:underline" title="تحريك للأسفل">▼</button>
                               </div>
                             </td>
                           </tr>
