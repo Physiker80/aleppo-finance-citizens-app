@@ -98,7 +98,7 @@ const PrivacyPage: React.FC = () => {
             <a href="mailto:privacy@mofa.gov.sy" className="text-blue-600 dark:text-blue-400 hover:underline">privacy@mofa.gov.sy</a>
           </p>
 
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-6">آخر تحديث: {new Date().toLocaleDateString('ar-SY')}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-6">آخر تحديث: {new Date().toLocaleDateString('ar-SY-u-nu-latn')}</p>
         </div>
         )}
       </div>

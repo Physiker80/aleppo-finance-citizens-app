@@ -416,7 +416,7 @@ const ConfirmationPage: React.FC = () => {
                                 border: '1px solid #2c1810', 
                                 color: '#333',
                                 backgroundColor: '#ffffff'
-                            }}>{ticket?.submissionDate?.toLocaleDateString('ar-SY') || 'غير محدد'}</td>
+                            }}>{ticket?.submissionDate?.toLocaleDateString('ar-SY-u-nu-latn') || 'غير محدد'}</td>
                         </tr>
                         <tr>
                             <td style={{ 

@@ -322,7 +322,7 @@ const RequestsPage: React.FC = () => {
               {tickets.map((ticket) => (
                 <tr key={ticket.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">{ticket.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{ticket.submissionDate.toLocaleDateString('ar-SY')}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{ticket.submissionDate.toLocaleDateString('ar-SY-u-nu-latn')}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <div className="text-gray-900 dark:text-gray-100 font-medium">{ticket.fullName}</div>
                     {ticket.email && <div className="text-gray-500 dark:text-gray-400">{ticket.email}</div>}

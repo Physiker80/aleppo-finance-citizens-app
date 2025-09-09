@@ -132,7 +132,7 @@ const EmployeeManagementPage: React.FC = () => {
         emp.name,
         emp.department,
         emp.role,
-        emp.lastLogin ? new Date(emp.lastLogin).toLocaleString('ar-SY') : 'لم يدخل بعد'
+  emp.lastLogin ? new Date(emp.lastLogin).toLocaleString('ar-SY-u-nu-latn') : 'لم يدخل بعد'
       ])
     ];
 
@@ -368,7 +368,7 @@ const EmployeeManagementPage: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {employee.lastLogin ? new Date(employee.lastLogin).toLocaleString('ar-SY') : 'لم يدخل بعد'}
+                    {employee.lastLogin ? new Date(employee.lastLogin).toLocaleString('ar-SY-u-nu-latn') : 'لم يدخل بعد'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2 rtl:space-x-reverse">

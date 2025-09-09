@@ -374,7 +374,7 @@ const ConfirmationPage: React.FC = () => {
                         </tr>
                         <tr>
                             <td style={{ padding: '15px', border: '1px solid #e0e0e0', fontWeight: 'bold', color: '#0f3c35' }}>تاريخ التقديم</td>
-                            <td style={{ padding: '15px', border: '1px solid #e0e0e0', color: '#333' }}>{ticket?.submissionDate?.toLocaleDateString('ar-SY') || 'غير محدد'}</td>
+                            <td style={{ padding: '15px', border: '1px solid #e0e0e0', color: '#333' }}>{ticket?.submissionDate?.toLocaleDateString('ar-SY-u-nu-latn') || 'غير محدد'}</td>
                         </tr>
                         <tr style={{ backgroundColor: '#f8f9fa' }}>
                             <td style={{ padding: '15px', border: '1px solid #e0e0e0', fontWeight: 'bold', color: '#0f3c35' }}>الحالة</td>

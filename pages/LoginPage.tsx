@@ -113,7 +113,7 @@ const LoginPage: React.FC = () => {
         emp.name,
         emp.department,
         emp.role,
-        emp.lastLogin ? new Date(emp.lastLogin).toLocaleString('ar-SY') : 'لم يدخل بعد'
+  emp.lastLogin ? new Date(emp.lastLogin).toLocaleString('ar-SY-u-nu-latn') : 'لم يدخل بعد'
       ])
     ];
 

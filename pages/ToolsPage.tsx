@@ -336,7 +336,7 @@ const LegalEditor: React.FC<{
 
 // نموذج إضافة خبر فقط
 const NewsAddForm: React.FC<{ onAdded?: () => void; onSwitchToManage?: () => void }> = ({ onAdded, onSwitchToManage }) => {
-  const [draft, setDraft] = useState<NewsItem>({ title: '', date: new Date().toLocaleDateString('ar-SY'), content: '' });
+  const [draft, setDraft] = useState<NewsItem>({ title: '', date: new Date().toLocaleDateString('ar-SY-u-nu-latn'), content: '' });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -349,7 +349,7 @@ const NewsAddForm: React.FC<{ onAdded?: () => void; onSwitchToManage?: () => voi
       list.unshift({ ...draft });
       localStorage.setItem('newsItems', JSON.stringify(list));
       setMessage('تمت إضافة الخبر بنجاح.');
-      setDraft({ title: '', date: new Date().toLocaleDateString('ar-SY'), content: '' });
+  setDraft({ title: '', date: new Date().toLocaleDateString('ar-SY-u-nu-latn'), content: '' });
       onAdded?.();
     } finally {
       setSaving(false);
@@ -386,7 +386,7 @@ const NewsAddForm: React.FC<{ onAdded?: () => void; onSwitchToManage?: () => voi
 const NewsManager: React.FC<{ onChanged?: () => void; onSwitchToAdd?: () => void }> = ({ onChanged, onSwitchToAdd }) => {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [draft, setDraft] = useState<NewsItem>({ title: '', date: new Date().toLocaleDateString('ar-SY'), content: '' });
+  const [draft, setDraft] = useState<NewsItem>({ title: '', date: new Date().toLocaleDateString('ar-SY-u-nu-latn'), content: '' });
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -772,7 +772,7 @@ const ToolsPage: React.FC = () => {
                   <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-800 dark:bg-gray-700/40 dark:text-gray-200">آخر نوع {ocrStats.lastKind === 'image' ? 'صور' : ocrStats.lastKind === 'pdf' ? 'PDF' : ocrStats.lastKind === 'docx' ? 'Word' : 'أخرى'}</span>
                 )}
                 {ocrStats?.lastDateISO && (
-                  <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">آخر مرة {new Date(ocrStats.lastDateISO).toLocaleString('ar-SY')}</span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">آخر مرة {new Date(ocrStats.lastDateISO).toLocaleString('ar-SY-u-nu-latn')}</span>
                 )}
               </div>
             </div>

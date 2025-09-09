@@ -57,7 +57,7 @@ const ContactMessagesPage: React.FC = () => {
               {contactMessages.map((m) => (
                 <tr key={m.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">{m.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{m.submissionDate.toLocaleDateString('ar-SY')}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{m.submissionDate.toLocaleDateString('ar-SY-u-nu-latn')}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{m.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{m.email || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{m.type}</td>

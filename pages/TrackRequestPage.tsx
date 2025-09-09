@@ -22,40 +22,45 @@ const StatusStep: React.FC<{
   isActive: boolean;
   isCompleted: boolean;
 }> = ({ status, isActive, isCompleted }) => {
-  const baseCircleClasses = "w-8 h-8 rounded-full flex items-center justify-center font-bold transition-all duration-300";
-  const activeCircleClasses = "bg-blue-600 text-white";
-  const completedCircleClasses = "bg-green-500 text-white";
-  const inactiveCircleClasses = "bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400";
+  const activeCircleClasses = 'bg-blue-600 text-white';
+  const completedCircleClasses = 'bg-green-500 text-white';
+  const inactiveCircleClasses = 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400';
 
   let circleClass = inactiveCircleClasses;
-  if(isActive) circleClass = activeCircleClasses;
-  if(isCompleted) circleClass = completedCircleClasses;
+  if (isActive) circleClass = activeCircleClasses;
+  if (isCompleted) circleClass = completedCircleClasses;
 
   return (
-    <div className="flex-1 flex flex-col items-center">
-        <div className={circleClass}>
-            {isCompleted ? '✓' : '•'}
-        </div>
-        <p className={`mt-2 text-sm text-center ${isActive || isCompleted ? 'font-semibold text-gray-800 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}>{status}</p>
+    <div className="flex flex-col items-center">
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${circleClass}`}>
+        {isCompleted ? '✓' : '•'}
+      </div>
+      <p className={`mt-2 text-sm text-center ${isActive || isCompleted ? 'font-semibold text-gray-800 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}>{status}</p>
     </div>
   );
 };
 
 const TrackRequestPage: React.FC = () => {
   const appContext = useContext(AppContext);
-  const [trackingId, setTrackingId] = useState('');
-  // Multi-tracking state
-  const [trackedIds, setTrackedIds] = useState<string[]>([]);
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [notFound, setNotFound] = useState<string[]>([]);
+
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [decodeMsg, setDecodeMsg] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const trackingInputRef = React.useRef<HTMLInputElement | null>(null);
+  const trackingTextAreaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const multiLabelRef = React.useRef<HTMLLabelElement | null>(null);
   const [controlHeight, setControlHeight] = useState<number | null>(null);
+  const [labelOffset, setLabelOffset] = useState<number>(0);
+  const singleLabelRef = React.useRef<HTMLLabelElement | null>(null);
   const [copied, setCopied] = useState(false);
-  const [multiMode, setMultiMode] = useState(true); // تسهيل إدخال عدة أرقام افتراضياً
+  const [multiMode, setMultiMode] = useState(true); // إدخال متعدد افتراضياً
+
+  const [trackingId, setTrackingId] = useState('');
+  const [trackedIds, setTrackedIds] = useState<string[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [notFound, setNotFound] = useState<string[]>([]);
+
   // Manual crop fallback state
   const [cropMode, setCropMode] = useState(false);
   const [cropImgUrl, setCropImgUrl] = useState<string | null>(null);
@@ -100,7 +105,38 @@ const TrackRequestPage: React.FC = () => {
     }
     if (idFromQR) setTrackingId(idFromQR);
   }, [appContext]);
-  
+
+  // Sync upload button height with active control height (observes resize/content changes)
+  React.useEffect(() => {
+    const target = multiMode ? trackingTextAreaRef.current : trackingInputRef.current;
+    if (!target) return;
+    const sync = () => setControlHeight(target.clientHeight);
+    sync();
+    window.addEventListener('resize', sync);
+    let ro: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => sync());
+      ro.observe(target);
+    }
+    return () => {
+      window.removeEventListener('resize', sync);
+      if (ro) ro.disconnect();
+    };
+  }, [multiMode, trackingId]);
+
+  // In multi mode, align the upload button top with the textarea top by offsetting the label height
+  React.useEffect(() => {
+    const compute = () => {
+      const el = multiMode ? multiLabelRef.current : singleLabelRef.current;
+      if (!el) { setLabelOffset(0); return; }
+      const mb = parseFloat(getComputedStyle(el).marginBottom || '0') || 0;
+      setLabelOffset(el.clientHeight + mb);
+    };
+    compute();
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
+  }, [multiMode]);
+
   const addIdsToTracked = (ids: string[]) => {
     if (!ids.length) return;
     setIsLoading(true);
@@ -148,12 +184,6 @@ const TrackRequestPage: React.FC = () => {
     }
   };
 
-  const prettyTrackingId = (id: string) => {
-    if (!id) return '';
-    // Add thin spacing around dashes for readability and keep LTR rendering
-    return id.replace(/-/g, ' - ').replace(/\s\s+/g, ' - ');
-  };
-
   const copyText = async (text: string) => {
     try {
       if (navigator.clipboard?.writeText) {
@@ -161,6 +191,8 @@ const TrackRequestPage: React.FC = () => {
       } else {
         const ta = document.createElement('textarea');
         ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
         document.body.appendChild(ta);
         ta.select();
         document.execCommand('copy');
@@ -171,53 +203,21 @@ const TrackRequestPage: React.FC = () => {
     } catch {}
   };
 
-  // Build QR as data URL (tries qrcodejs then qrcode-generator)
+  // Build QR as data URL (lightweight: returns external URL suitable for <img src>)
   const buildQRDataUrl = async (text: string, size = 160): Promise<string | null> => {
     try {
-      const QRCodeAny = (window as any).QRCode;
-      if (QRCodeAny) {
-        const tmpDiv = document.createElement('div');
-        new QRCodeAny(tmpDiv, { text, width: size, height: size, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCodeAny.CorrectLevel.M });
-        const c = tmpDiv.querySelector('canvas') as HTMLCanvasElement | null;
-        const im = tmpDiv.querySelector('img') as HTMLImageElement | null;
-        if (c) return c.toDataURL('image/png');
-        if (im && im.src) return im.src;
-      }
-    } catch {}
-    try {
-      const qrcodeFactory = (window as any).qrcode;
-      if (qrcodeFactory) {
-        const qr = qrcodeFactory(4, 'M');
-        qr.addData(text);
-        qr.make();
-        const gifUrl = qr.createDataURL(8, 0);
-        // Convert GIF to PNG to embed cleanly
-        return await new Promise<string>((resolve) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => {
-            const oc = document.createElement('canvas');
-            oc.width = size; oc.height = size;
-            const ctx = oc.getContext('2d');
-            if (ctx) {
-              ctx.fillStyle = '#ffffff';
-              ctx.fillRect(0, 0, size, size);
-              ctx.drawImage(img, 0, 0, size, size);
-              resolve(oc.toDataURL('image/png'));
-            } else {
-              resolve(gifUrl);
-            }
-          };
-          img.onerror = () => resolve(gifUrl);
-          img.src = gifUrl;
-        });
-      }
-    } catch {}
-    return null;
+      const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(text)}`;
+      return url;
+    } catch {
+      return null;
+    }
   };
 
   // Build CODE128 barcode as PNG data URL via JsBarcode
-  const buildBarcodeDataUrl = async (text: string, opts?: { width?: number; height?: number; displayValue?: boolean; fontSize?: number; }): Promise<string | null> => {
+  const buildBarcodeDataUrl = async (
+    text: string,
+    opts?: { width?: number; height?: number; displayValue?: boolean; fontSize?: number }
+  ): Promise<string | null> => {
     try {
       const JsBarcodeAny = (window as any).JsBarcode;
       if (!JsBarcodeAny) return null;
@@ -407,7 +407,6 @@ const TrackRequestPage: React.FC = () => {
   };
 
   const extractTrackingId = (text: string): string | null => {
-    // Try direct id, or find ALF-like pattern
     const trimmed = (text || '').trim();
     if (!trimmed) return null;
     // Accept exact ID or hash URL like ...#/track?id=XYZ
@@ -437,10 +436,8 @@ const TrackRequestPage: React.FC = () => {
       BarcodeFormat.AZTEC,
       BarcodeFormat.DATA_MATRIX,
     ]);
-  return new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 500 });
+    return new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 500 });
   };
-
-  // no-op
 
   const loadImage = (src: string): Promise<HTMLImageElement> =>
     new Promise((resolve, reject) => {
@@ -488,75 +485,13 @@ const TrackRequestPage: React.FC = () => {
     return await loadImage(url);
   };
 
-  const decodeFromImageElRobust = async (baseImg: HTMLImageElement): Promise<string | null> => {
-    const scales = [1, 1.5, 2, 3, 4];
-    const angles = [0, 90, 180, 270];
-    const tryDecode = async (el: HTMLImageElement): Promise<string | null> => {
-      try {
-        const result = await newReader().decodeFromImageElement(el);
-        return (result as any).getText?.() ?? null;
-      } catch {
-        // try preprocessed variants
-        const variants = await preprocessVariants(el);
-        for (const v of variants) {
-          try {
-            const result = await newReader().decodeFromImageElement(v);
-            return (result as any).getText?.() ?? null;
-          } catch {}
-        }
-        // jsQR fallback on original and variants
-        const qrText = await tryJsQr(el);
-        if (qrText) return qrText;
-        for (const v of variants) {
-          const t = await tryJsQr(v);
-          if (t) return t;
-        }
-        return null;
-      }
-    };
-    // Try full image first (all scales/rotations)
-    for (const s of scales) {
-      let img = await scaleImageEl(baseImg, s);
-      for (const a of angles) {
-        const el = await rotateImageEl(img, a);
-        const text = await tryDecode(el);
-        if (text) return text;
-      }
-    }
-    // Try tiled crops (2x2 and 3x3) with slight overlaps
-    const grids = [2, 3];
-    for (const g of grids) {
-      const overlap = 0.1; // 10% overlap
-      const tileW = Math.floor(baseImg.width / g);
-      const tileH = Math.floor(baseImg.height / g);
-      for (let row = 0; row < g; row++) {
-        for (let col = 0; col < g; col++) {
-          const sx = Math.max(0, Math.floor(col * tileW - tileW * overlap));
-          const sy = Math.max(0, Math.floor(row * tileH - tileH * overlap));
-          const sw = Math.min(baseImg.width - sx, Math.floor(tileW * (1 + 2 * overlap)));
-          const sh = Math.min(baseImg.height - sy, Math.floor(tileH * (1 + 2 * overlap)));
-          const tile = await cropTileEl(baseImg, sx, sy, sw, sh);
-          for (const s of [1, 1.5, 2, 3]) {
-            const scaled = await scaleImageEl(tile, s);
-            for (const a of angles) {
-              const el = await rotateImageEl(scaled, a);
-              const text = await tryDecode(el);
-              if (text) return text;
-            }
-          }
-        }
-      }
-    }
-    return null;
-  };
-
   const tryJsQr = async (img: HTMLImageElement): Promise<string | null> => {
     const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
     const ctx = c.getContext('2d'); if (!ctx) return null;
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(img, 0, 0, img.width, img.height);
     const { data, width, height } = ctx.getImageData(0, 0, img.width, img.height);
-  const res = jsQR(data, width, height, { inversionAttempts: 'attemptBoth' as const });
+    const res = jsQR(data, width, height, { inversionAttempts: 'attemptBoth' as const });
     return res?.data ?? null;
   };
 
@@ -581,7 +516,7 @@ const TrackRequestPage: React.FC = () => {
     }
   };
 
-  // Focused OCR: isolate magenta/pink text (e.g., the red tracking number in the receipt box), then OCR
+  // Focused OCR: isolate magenta/pink text then OCR
   const ocrExtractTrackingIdFromImageElRedMask = async (img: HTMLImageElement): Promise<string | null> => {
     try {
       const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
@@ -590,21 +525,17 @@ const TrackRequestPage: React.FC = () => {
       ctx.drawImage(img, 0, 0, img.width, img.height);
       const imgData = ctx.getImageData(0, 0, img.width, img.height);
       const data = imgData.data;
-      // Build a binary mask that keeps only magenta/pink-ish pixels as black text on white background
-      // Targeting colors similar to #d63384 used for tracking ID in the receipt template
+      // Keep only magenta/pink-ish as black on white
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i], g = data[i + 1], b = data[i + 2];
         const isMagenta = (r > 150) && (b > 70) && (g < 140) && (r - g > 40) && (b - g > 10) && (r >= b);
         if (isMagenta) {
-          // black text
-          data[i] = 0; data[i + 1] = 0; data[i + 2] = 0; data[i + 3] = 255;
+          data[i] = 0; data[i + 1] = 0; data[i + 2] = 0; data[i + 3] = 255; // black
         } else {
-          // white background
-          data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; data[i + 3] = 255;
+          data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; data[i + 3] = 255; // white
         }
       }
       ctx.putImageData(imgData, 0, 0);
-      // Optional: light dilation to connect characters (skip for performance for now)
       const result: any = await (Tesseract as any).recognize(c, 'ara+eng', {
         // @ts-ignore
         tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_#=?&',
@@ -673,13 +604,75 @@ const TrackRequestPage: React.FC = () => {
     return out;
   };
 
+  const decodeFromImageElRobust = async (baseImg: HTMLImageElement): Promise<string | null> => {
+    const scales = [1, 1.5, 2, 3, 4];
+    const angles = [0, 90, 180, 270];
+    const tryDecode = async (el: HTMLImageElement): Promise<string | null> => {
+      try {
+        const result = await newReader().decodeFromImageElement(el);
+        return (result as any).getText?.() ?? null;
+      } catch {
+        // try preprocessed variants
+        const variants = await preprocessVariants(el);
+        for (const v of variants) {
+          try {
+            const result = await newReader().decodeFromImageElement(v);
+            return (result as any).getText?.() ?? null;
+          } catch {}
+        }
+        // jsQR fallback on original and variants
+        const qrText = await tryJsQr(el);
+        if (qrText) return qrText;
+        for (const v of variants) {
+          const t = await tryJsQr(v);
+          if (t) return t;
+        }
+        return null;
+      }
+    };
+    // Try full image first (all scales/rotations)
+    for (const s of scales) {
+      let img = await scaleImageEl(baseImg, s);
+      for (const a of angles) {
+        const el = await rotateImageEl(img, a);
+        const text = await tryDecode(el);
+        if (text) return text;
+      }
+    }
+    // Try tiled crops (2x2 and 3x3) with slight overlaps
+    const grids = [2, 3];
+    for (const g of grids) {
+      const overlap = 0.1; // 10% overlap
+      const tileW = Math.floor(baseImg.width / g);
+      const tileH = Math.floor(baseImg.height / g);
+      for (let row = 0; row < g; row++) {
+        for (let col = 0; col < g; col++) {
+          const sx = Math.max(0, Math.floor(col * tileW - tileW * overlap));
+          const sy = Math.max(0, Math.floor(row * tileH - tileH * overlap));
+          const sw = Math.min(baseImg.width - sx, Math.floor(tileW * (1 + 2 * overlap)));
+          const sh = Math.min(baseImg.height - sy, Math.floor(tileH * (1 + 2 * overlap)));
+          const tile = await cropTileEl(baseImg, sx, sy, sw, sh);
+          for (const s of [1, 1.5, 2, 3]) {
+            const scaled = await scaleImageEl(tile, s);
+            for (const a of angles) {
+              const el = await rotateImageEl(scaled, a);
+              const text = await tryDecode(el);
+              if (text) return text;
+            }
+          }
+        }
+      }
+    }
+    return null;
+  };
+
   const decodeUploadedFile = async (file: File) => {
     setDecodeMsg('جاري تحليل الملف...');
     try {
       if (file.type === 'application/pdf') {
         // Render up to first 5 pages to canvas using pdfjs, then decode via robust image trials
         const ab = await file.arrayBuffer();
-  const pdfDoc = await pdfjs.getDocument({ data: ab }).promise;
+        const pdfDoc = await pdfjs.getDocument({ data: ab }).promise;
         const maxPages = Math.min(5, pdfDoc.numPages || 1);
         const tryPages = Array.from({ length: maxPages }, (_, i) => i + 1);
         const scales = [6, 5, 4, 3, 2];
@@ -765,12 +758,12 @@ const TrackRequestPage: React.FC = () => {
         const baseImg = await loadImage(url);
         try {
           const decodedText = await decodeFromImageElRobust(baseImg);
-      if (decodedText) {
+          if (decodedText) {
             const id = extractTrackingId(decodedText);
             if (id) {
-        setTrackingId(id);
-        setDecodeMsg(null);
-        addIdsToTracked([id]);
+              setTrackingId(id);
+              setDecodeMsg(null);
+              addIdsToTracked([id]);
               URL.revokeObjectURL(url);
               return;
             }
@@ -860,7 +853,7 @@ const TrackRequestPage: React.FC = () => {
     }
     setDecodeMsg('تعذر قراءة المنطقة المحددة. حاول تحديد منطقة أوضح.');
   };
-  
+
   const statusOrder = [RequestStatus.New, RequestStatus.InProgress, RequestStatus.Answered, RequestStatus.Closed];
 
   const removeTracked = (id: string) => {
@@ -887,7 +880,7 @@ const TrackRequestPage: React.FC = () => {
       </div>
       <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-1">متابعة حالة طلب</h2>
       <p className="text-gray-600 dark:text-gray-400 mb-6">أدخل رقم التتبع الخاص بطلبك للاستعلام عن حالته.</p>
-      
+
       <div className="flex items-center justify-between mb-1">
         <div className="text-xs text-gray-500 dark:text-gray-400"></div>
         <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">
@@ -900,7 +893,7 @@ const TrackRequestPage: React.FC = () => {
         <div className="flex-grow w-full">
           {multiMode ? (
             <div>
-              <label htmlFor="trackingIdMulti" className="block font-medium text-gray-700 dark:text-gray-300 mb-1 text-base md:text-lg">أرقام التتبع</label>
+              <label ref={multiLabelRef} htmlFor="trackingIdMulti" className="block font-medium text-gray-700 dark:text-gray-300 mb-1 text-base md:text-lg">أرقام التتبع</label>
               <TextArea
                 id="trackingIdMulti"
                 rows={3}
@@ -909,15 +902,24 @@ const TrackRequestPage: React.FC = () => {
                 value={trackingId}
                 onChange={(e) => setTrackingId(e.target.value)}
                 onKeyDown={onInputKeyDown}
+                ref={trackingTextAreaRef}
+                endAdornment={
+                  <Button
+                    onClick={() => handleSearch()}
+                    isLoading={isLoading}
+                    className="!py-1.5 !px-3 !bg-transparent !text-gray-600 !hover:bg-transparent !shadow-none !ring-0 !focus:ring-0 !focus:ring-offset-0 !border-0 !rounded-md dark:!text-gray-300"
+                    aria-label="بحث"
+                    title="بحث"
+                  >
+                    {!isLoading && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
+                    )}
+                    {isLoading ? 'جاري...' : 'بحث'}
+                  </Button>
+                }
               />
               <div className="mt-2 flex items-center justify-between">
                 <div className="text-xs text-gray-500 dark:text-gray-400">سيتم إضافة {splitIds(trackingId).length} رقم</div>
-                <Button onClick={() => handleSearch()} isLoading={isLoading} className="!py-1.5 !px-4" title="بحث عن الأرقام">
-                  {!isLoading && (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
-                  )}
-                  {isLoading ? 'جاري...' : 'بحث'}
-                </Button>
               </div>
             </div>
           ) : (
@@ -926,6 +928,7 @@ const TrackRequestPage: React.FC = () => {
                 id="trackingId"
                 label="رقم التتبع"
                 labelClassName="text-base md:text-lg"
+                labelRef={singleLabelRef}
                 placeholder="مثال: ALF-20240815-ABC123"
                 value={trackingId}
                 onChange={(e) => setTrackingId(e.target.value)}
@@ -950,7 +953,7 @@ const TrackRequestPage: React.FC = () => {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+  <div className="flex items-center gap-2 flex-shrink-0 self-start">
           <input
             ref={fileInputRef}
             type="file"
@@ -966,8 +969,11 @@ const TrackRequestPage: React.FC = () => {
           <Button
             onClick={() => fileInputRef.current?.click()}
             variant="primary"
-            className="whitespace-nowrap flex-shrink-0 min-w-[108px] !py-2 !px-4"
-            style={!multiMode && controlHeight ? { height: `${controlHeight}px` } : undefined}
+            className="whitespace-nowrap flex-shrink-0 min-w-[108px] !py-2 !px-4 !rounded-lg"
+            style={{
+              ...(controlHeight ? { height: `${controlHeight}px` } : {}),
+              ...(labelOffset ? { marginTop: `${labelOffset}px` } : {})
+            }}
             title="رفع صورة/‏PDF للباركود أو QR"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12" /><path d="M7 8l5-5 5 5" /><path d="M5 21h14" /></svg>
@@ -1018,7 +1024,7 @@ const TrackRequestPage: React.FC = () => {
                   <div className="mb-6 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-3">
                     <div className="dark:text-gray-300"><strong className="block text-gray-500 dark:text-gray-400">الاسم:</strong> {t.fullName}</div>
                     {t.email && <div className="dark:text-gray-300"><strong className="block text-gray-500 dark:text-gray-400">البريد الإلكتروني:</strong> {t.email}</div>}
-                    <div className="dark:text-gray-300"><strong className="block text-gray-500 dark:text-gray-400">تاريخ التقديم:</strong> {t.submissionDate.toLocaleDateString('ar-SY')}</div>
+                    <div className="dark:text-gray-300"><strong className="block text-gray-500 dark:text-gray-400">تاريخ التقديم:</strong> {t.submissionDate.toLocaleDateString('ar-SY-u-nu-latn')}</div>
                   </div>
                   <div className="flex items-start gap-3">
                     {statusOrder.map((status, index) => (
@@ -1067,18 +1073,6 @@ const TrackRequestPage: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Sync upload button height with input height */}
-      {React.useEffect(() => {
-        const sync = () => {
-          if (trackingInputRef.current) {
-            setControlHeight(trackingInputRef.current.clientHeight);
-          }
-        };
-        sync();
-        window.addEventListener('resize', sync);
-        return () => window.removeEventListener('resize', sync);
-      }, [])}
     </Card>
   );
 };
