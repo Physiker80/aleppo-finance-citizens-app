@@ -69,3 +69,32 @@ To push the tag to remote:
 ```bash
 git push origin restore-20250910-200300
 ```
+
+## Latest Restore Point (2025-09-10 21:00)
+
+Created tag:
+
+```
+restore-20250910-210000
+```
+
+Contents include:
+- Complete monitoring dashboard with AI analysis.
+- Configurable ticket ID generator with manual override.
+- Contact page QR + PDF export (unified layout).
+- Duplicate ID validation for manual entries.
+- Latin numeral system in analytics (ar-SY-u-nu-latn).
+- Tools page ID configuration interface.
+- Unified PDF receipt layouts across contact & ticket pages.
+
+To restore to this snapshot:
+
+```bash
+git checkout restore-20250910-210000
+```
+
+To push the tag to remote:
+
+```bash
+git push origin restore-20250910-210000
+```
