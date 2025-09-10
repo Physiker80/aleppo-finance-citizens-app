@@ -11,6 +11,7 @@ import { useDepartmentNames } from '../utils/departments';
 declare const jspdf: any;
 declare const html2canvas: any;
 declare const QRCode: any;
+declare const JsBarcode: any;
 
 const ContactPage: React.FC = () => {
   const [name, setName] = useState('');
@@ -29,21 +30,33 @@ const ContactPage: React.FC = () => {
 
   // توليد QR بعد الإرسال
   useEffect(() => {
-    if (sent && createdId && typeof QRCode !== 'undefined') {
-      try {
-        const container = document.getElementById('contact-qr');
-        if (container) {
-          container.innerHTML = '';
-          new QRCode(container, {
-            text: createdId,
-            width: 140,
-            height: 140,
-            colorDark: '#000000',
-            colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.M,
-          });
-        }
-      } catch (e) { /* ignore */ }
+    if (sent && createdId) {
+      // QR
+      if (typeof QRCode !== 'undefined') {
+        try {
+          const container = document.getElementById('contact-qr');
+          if (container) {
+            container.innerHTML = '';
+            new QRCode(container, {
+              text: createdId,
+              width: 140,
+              height: 140,
+              colorDark: '#000000',
+              colorLight: '#ffffff',
+              correctLevel: QRCode.CorrectLevel.M,
+            });
+          }
+        } catch {}
+      }
+      // Barcode (on-screen)
+      if (typeof JsBarcode !== 'undefined') {
+        try {
+          const bc = document.getElementById('contact-barcode') as HTMLCanvasElement | null;
+          if (bc) {
+            JsBarcode(bc, createdId, { format: 'CODE128', lineColor: '#000', width: 2, height: 70, displayValue: true, fontSize: 14, margin: 8, background: '#ffffff' });
+          }
+        } catch {}
+      }
     }
   }, [sent, createdId]);
 
@@ -69,27 +82,34 @@ const ContactPage: React.FC = () => {
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   };
 
-  const ensurePdfQr = async (id: string) => {
+  const ensurePdfVisuals = async (id: string) => {
+    // QR
     const pdfQrContainer = document.getElementById('contact-pdf-qr');
-    if (!pdfQrContainer) return;
-    pdfQrContainer.innerHTML = '';
-    try {
-      if (typeof QRCode !== 'undefined') {
-        const tmpDiv = document.createElement('div');
-        new QRCode(tmpDiv, { text: id, width: 160, height: 160, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
-        const c = tmpDiv.querySelector('canvas') as HTMLCanvasElement | null;
-        const im = tmpDiv.querySelector('img') as HTMLImageElement | null;
-        if (c) {
-          const img = document.createElement('img');
-          img.src = c.toDataURL('image/png');
-          img.width = 160; img.height = 160; img.style.display = 'block';
-          pdfQrContainer.appendChild(img);
-          return;
-        } else if (im) {
-          im.width = 160; im.height = 160; im.style.display = 'block';
-          pdfQrContainer.appendChild(im);
-          return;
+    if (pdfQrContainer) {
+      pdfQrContainer.innerHTML = '';
+      try {
+        if (typeof QRCode !== 'undefined') {
+          const tmpDiv = document.createElement('div');
+            new QRCode(tmpDiv, { text: id, width: 160, height: 160, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+            const c = tmpDiv.querySelector('canvas') as HTMLCanvasElement | null;
+            const im = tmpDiv.querySelector('img') as HTMLImageElement | null;
+            if (c) {
+              const img = document.createElement('img');
+              img.src = c.toDataURL('image/png');
+              img.width = 160; img.height = 160; img.style.display = 'block';
+              pdfQrContainer.appendChild(img);
+            } else if (im) {
+              im.width = 160; im.height = 160; im.style.display = 'block';
+              pdfQrContainer.appendChild(im);
+            }
         }
+      } catch {}
+    }
+    // Barcode for PDF (canvas inside visible area for capture)
+    try {
+      const pdfBarcode = document.getElementById('contact-pdf-barcode') as HTMLCanvasElement | null;
+      if (pdfBarcode && typeof JsBarcode !== 'undefined') {
+        JsBarcode(pdfBarcode, id, { format: 'CODE128', lineColor: '#000', width: 2.4, height: 80, displayValue: true, fontSize: 14, margin: 10, background: '#ffffff' });
       }
     } catch {}
   };
@@ -102,7 +122,7 @@ const ContactPage: React.FC = () => {
       return;
     }
     try {
-      await ensurePdfQr(createdId);
+      await ensurePdfVisuals(createdId);
       const qrImg = content.querySelector('#contact-pdf-qr img') as HTMLImageElement | null;
       if (qrImg && !qrImg.complete) {
         await new Promise<void>(res => { qrImg.onload = () => res(); qrImg.onerror = () => res(); });
@@ -157,28 +177,51 @@ const ContactPage: React.FC = () => {
     return (
       <Card>
         <h2 className="text-2xl font-bold mb-2">تم إرسال رسالتك بنجاح</h2>
-        <p className="text-gray-600 dark:text-gray-400 mb-4">معرّف الرسالة: <span className="font-mono font-semibold text-blue-700 dark:text-blue-300">{createdId}</span></p>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">احتفظ بالمعرّف للمتابعة الداخلية.</p>
         <div className="flex flex-col md:flex-row gap-6">
           <div className="space-y-3 flex-1">
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4" ref={pdfContentRef} id="contact-pdf-area" dir="rtl">
-              <h3 className="text-lg font-bold mb-2">ملخص الرسالة</h3>
-              <p className="text-sm"><span className="font-semibold">المعرف:</span> {createdId}</p>
-              <p className="text-sm"><span className="font-semibold">الاسم:</span> {name || '—'}</p>
-              <p className="text-sm"><span className="font-semibold">البريد:</span> {email || '—'}</p>
-              <p className="text-sm"><span className="font-semibold">النوع:</span> {type}</p>
-              <p className="text-sm"><span className="font-semibold">القسم:</span> {department || '—'}</p>
-              <p className="text-sm"><span className="font-semibold">التاريخ:</span> {formatDateTime(submittedAt)}</p>
-              <p className="text-sm"><span className="font-semibold">الموضوع:</span> {subject || '—'}</p>
-              <div className="mt-3">
-                <div className="text-sm font-semibold mb-1">نص الرسالة:</div>
-                <div className="whitespace-pre-wrap text-sm leading-relaxed bg-gray-50 dark:bg-gray-800 rounded p-3 border border-gray-200 dark:border-gray-700 min-h-[80px]">{message}</div>
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 relative bg-white dark:bg-gray-900" ref={pdfContentRef} id="contact-pdf-area" dir="rtl">
+              {/* Header with logo */}
+              <div className="flex items-center justify-between mb-4">
+                <img id="ministry-logo" src="https://syrian.zone/syid/materials/logo.ai.svg" alt="Logo" className="h-16 object-contain" />
+                <div className="text-center flex-1">
+                  <h3 className="text-xl font-bold">إيصال رسالة تواصل</h3>
+                  <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">سجل داخلي غير رسمي للاختبار</div>
+                </div>
               </div>
-              <div className="mt-4 flex flex-col items-center">
-                <div id="contact-qr" className="mb-2" />
-                <small className="text-gray-500 dark:text-gray-400">رمز QR يحتوي على المعرف</small>
+              {/* ID prominently */}
+              <div className="text-center my-3">
+                <div className="text-sm text-gray-500 dark:text-gray-400">المعرف</div>
+                <div className="text-2xl font-extrabold tracking-wider text-blue-700 dark:text-blue-300 font-mono select-all">{createdId}</div>
               </div>
-              {/* منفذ QR الخاص بالـ PDF */}
-              <div id="contact-pdf-qr" style={{ width: 160, height: 160, position: 'absolute', left: -9999, top: -9999 }} />
+              {/* QR + Barcode row */}
+              <div className="flex flex-col md:flex-row items-center justify-center gap-8 my-4">
+                <div className="flex flex-col items-center">
+                  <div id="contact-qr" className="bg-white p-2 rounded border border-gray-200 dark:border-gray-700" />
+                  <span className="text-[11px] mt-1 text-gray-500 dark:text-gray-400">QR</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <canvas id="contact-barcode" className="bg-white p-2 rounded border border-gray-200 dark:border-gray-700" />
+                  <span className="text-[11px] mt-1 text-gray-500 dark:text-gray-400">Barcode</span>
+                </div>
+              </div>
+              {/* Details */}
+              <div className="grid md:grid-cols-2 gap-3 text-sm mt-2">
+                <div><span className="font-semibold">الاسم:</span> {name || '—'}</div>
+                <div><span className="font-semibold">البريد:</span> {email || '—'}</div>
+                <div><span className="font-semibold">النوع:</span> {type}</div>
+                <div><span className="font-semibold">القسم:</span> {department || '—'}</div>
+                <div><span className="font-semibold">التاريخ:</span> {formatDateTime(submittedAt)}</div>
+                <div><span className="font-semibold">الموضوع:</span> {subject || '—'}</div>
+              </div>
+              <div className="mt-4">
+                <div className="text-sm font-semibold mb-1">نص الرسالة</div>
+                <div className="whitespace-pre-wrap text-sm leading-relaxed bg-gray-50 dark:bg-gray-800 rounded p-3 border border-gray-200 dark:border-gray-700 min-h-[90px]">{message}</div>
+              </div>
+              {/* Hidden containers for PDF ensuring crisp capture */}
+              <div id="contact-pdf-qr" style={{ width:160, height:160, position:'absolute', left:-9999, top:-9999 }} />
+              <canvas id="contact-pdf-barcode" style={{ position:'absolute', left:-9999, top:-9999 }} />
+              <div className="mt-6 text-[10px] text-center text-gray-500 dark:text-gray-500 border-t pt-2">تم إنشاء هذا الإيصال محلياً لغرض التحقق والتجربة.</div>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={handleDownloadPdf}>تنزيل PDF</Button>
