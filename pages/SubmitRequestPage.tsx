@@ -29,6 +29,7 @@ const SubmitRequestPage: React.FC = () => {
   });
 
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [manualId, setManualId] = useState('');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [viewerLoading, setViewerLoading] = useState<boolean>(false);
   const [viewerCanceled, setViewerCanceled] = useState<boolean>(false);
@@ -102,6 +103,11 @@ const SubmitRequestPage: React.FC = () => {
     setError(null);
     setIsSubmitting(true);
 
+    // تخزين المعرف اليدوي مؤقتاً إذا أدخله المدير
+    if (manualId.trim()) {
+      try { localStorage.setItem('manualTicketId', manualId.trim().toUpperCase()); } catch {}
+    }
+
     setTimeout(() => {
       const newTicketId = appContext?.addTicket({
         ...formData,
@@ -152,6 +158,17 @@ const SubmitRequestPage: React.FC = () => {
         </div>
 
         <TextArea id="details" label="تفاصيل الطلب *" value={formData.details} onChange={handleChange} required />
+
+        {appContext?.isEmployeeLoggedIn && appContext?.currentEmployee?.role === 'مدير' && (
+          <Input
+            id="manualTicketId"
+            label="معرّف مخصص (اختياري - للمدير)"
+            placeholder="مثال: ALF-20250910-0001"
+            value={manualId}
+            onChange={(e) => setManualId(e.target.value)}
+            helperText="عند تعبئته سيتم استخدامه بدلاً من التوليد التلقائي (مرة واحدة)."
+          />
+        )}
 
         <FileInput
           id="attachments"

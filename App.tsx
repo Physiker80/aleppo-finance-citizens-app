@@ -29,6 +29,7 @@ import TermsPage from './pages/TermsPage';
 import DepartmentsPage from './pages/DepartmentsPage';
 import AdminMonitorPage from './pages/AdminMonitorPage';
 import { Ticket, Employee, ContactMessage, ContactMessageStatus, ContactMessageType, Department, DepartmentNotification } from './types';
+import { generateTicketId } from './utils/idGenerator';
 import { RequestStatus } from './types';
 
 type Theme = 'light' | 'dark';
@@ -185,17 +186,25 @@ const App: React.FC = () => {
   }, [handleHashChange]);
 
   const addTicket = (ticketData: Omit<Ticket, 'id' | 'status'>) => {
-    const now = new Date();
-    const datePart = now.toISOString().slice(0, 10).replace(/-/g, "");
-    const uniquePart = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const newId = `ALF-${datePart}-${uniquePart}`;
+    // السماح بإدخال معرف يدوي مخزّن مؤقتاً في localStorage (مفتاح manualTicketId)
+    // إذا وُجد وأصبح يستخدم الآن سيتم استهلاكه وحذفه لعدم التكرار.
+    let manualId: string | null = null;
+    try {
+      const rawManual = localStorage.getItem('manualTicketId');
+      if (rawManual) {
+        manualId = rawManual.trim();
+        // مسح بعد الاستهلاك
+        localStorage.removeItem('manualTicketId');
+      }
+    } catch {}
+    const newId = (manualId && manualId.length > 3) ? manualId : generateTicketId();
 
     const newTicket: Ticket = {
       id: newId,
       status: RequestStatus.New,
       ...ticketData,
     };
-    setTickets(prevTickets => [...prevTickets, newTicket]);
+  setTickets(prevTickets => [...prevTickets, newTicket]);
     // Notify target department of new ticket
     try {
       const dep = ticketData.department;
