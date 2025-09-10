@@ -131,12 +131,13 @@ const AdminMonitorPage: React.FC = () => {
   }, [rangedTickets]);
 
   // آخر 14 يوم
+  const LATN_LOCALE = 'ar-SY-u-nu-latn';
   const last14DaysChart = useMemo(() => {
     const arr: { label: string; value: number; date: string; }[] = [];
     const now = new Date();
     for (let i=13;i>=0;i--) {
       const d = addDays(now, -i);
-      const label = d.toLocaleDateString('ar-SY', { month: 'numeric', day: 'numeric' });
+      const label = d.toLocaleDateString(LATN_LOCALE, { month: 'numeric', day: 'numeric' });
       const iso = d.toISOString().slice(0,10);
       const v = tickets.filter(t => t.submissionDate.toISOString().slice(0,10) === iso).length;
       arr.push({ label, value: v, date: iso });
@@ -369,7 +370,7 @@ const AdminMonitorPage: React.FC = () => {
             <ul className="space-y-2 text-xs max-h-48 overflow-auto pr-1">
               {rangedMessages.slice().sort((a,b)=> b.submissionDate.getTime() - a.submissionDate.getTime()).slice(0,5).map(m => (
                 <li key={m.id} className="p-2 rounded bg-white/60 dark:bg-gray-800/60 border border-white/30 dark:border-gray-700/40">
-                  <div className="flex justify-between"><span className="font-medium truncate" title={m.subject || m.type}>{m.subject || m.type}</span><span className="text-gray-500 dark:text-gray-400 ml-2 rtl:ml-0 rtl:mr-2">{m.submissionDate.toLocaleDateString('ar-SY', { month: 'short', day: 'numeric'})}</span></div>
+                  <div className="flex justify-between"><span className="font-medium truncate" title={m.subject || m.type}>{m.subject || m.type}</span><span className="text-gray-500 dark:text-gray-400 ml-2 rtl:ml-0 rtl:mr-2">{m.submissionDate.toLocaleDateString(LATN_LOCALE, { month: 'short', day: 'numeric'})}</span></div>
                   <div className="mt-1 line-clamp-2 text-gray-600 dark:text-gray-400" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>{m.message}</div>
                 </li>
               ))}
@@ -411,10 +412,10 @@ const AdminMonitorPage: React.FC = () => {
                     <td className="px-3 py-1.5 whitespace-nowrap max-w-[140px] truncate" title={t.fullName}>{t.fullName}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap max-w-[120px] truncate" title={t.department}>{t.department}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap"><StatusBadge status={t.status} /></td>
-                    <td className="px-3 py-1.5 whitespace-nowrap" title={t.submissionDate.toLocaleString()}>{t.submissionDate.toLocaleDateString('ar-SY',{month:'short',day:'numeric'})}</td>
-                    <td className="px-3 py-1.5 whitespace-nowrap" title={t.startedAt?.toLocaleString() || ''}>{t.startedAt ? t.startedAt.toLocaleDateString('ar-SY',{month:'short',day:'numeric'}) : '—'}</td>
-                    <td className="px-3 py-1.5 whitespace-nowrap" title={t.answeredAt?.toLocaleString() || ''}>{t.answeredAt ? t.answeredAt.toLocaleDateString('ar-SY',{month:'short',day:'numeric'}) : '—'}</td>
-                    <td className="px-3 py-1.5 whitespace-nowrap" title={t.closedAt?.toLocaleString() || ''}>{t.closedAt ? t.closedAt.toLocaleDateString('ar-SY',{month:'short',day:'numeric'}) : '—'}</td>
+                    <td className="px-3 py-1.5 whitespace-nowrap" title={t.submissionDate.toLocaleString()}>{t.submissionDate.toLocaleDateString(LATN_LOCALE,{month:'short',day:'numeric'})}</td>
+                    <td className="px-3 py-1.5 whitespace-nowrap" title={t.startedAt?.toLocaleString() || ''}>{t.startedAt ? t.startedAt.toLocaleDateString(LATN_LOCALE,{month:'short',day:'numeric'}) : '—'}</td>
+                    <td className="px-3 py-1.5 whitespace-nowrap" title={t.answeredAt?.toLocaleString() || ''}>{t.answeredAt ? t.answeredAt.toLocaleDateString(LATN_LOCALE,{month:'short',day:'numeric'}) : '—'}</td>
+                    <td className="px-3 py-1.5 whitespace-nowrap" title={t.closedAt?.toLocaleString() || ''}>{t.closedAt ? t.closedAt.toLocaleDateString(LATN_LOCALE,{month:'short',day:'numeric'}) : '—'}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{firstAns}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{closureDur}</td>
                   </tr>
