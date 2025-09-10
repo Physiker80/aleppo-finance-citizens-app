@@ -32,9 +32,9 @@ const ContactPage: React.FC = () => {
   useEffect(() => {
     if (sent && createdId) {
       // QR
-      if (typeof QRCode !== 'undefined') {
+    if (typeof QRCode !== 'undefined') {
         try {
-          const container = document.getElementById('contact-qr');
+      const container = document.getElementById('main-qr');
           if (container) {
             container.innerHTML = '';
             new QRCode(container, {
@@ -49,9 +49,9 @@ const ContactPage: React.FC = () => {
         } catch {}
       }
       // Barcode (on-screen)
-      if (typeof JsBarcode !== 'undefined') {
+    if (typeof JsBarcode !== 'undefined') {
         try {
-          const bc = document.getElementById('contact-barcode') as HTMLCanvasElement | null;
+      const bc = document.getElementById('main-barcode') as HTMLCanvasElement | null;
           if (bc) {
             JsBarcode(bc, createdId, { format: 'CODE128', lineColor: '#000', width: 2, height: 70, displayValue: true, fontSize: 14, margin: 8, background: '#ffffff' });
           }
@@ -84,7 +84,7 @@ const ContactPage: React.FC = () => {
 
   const ensurePdfVisuals = async (id: string) => {
     // QR
-    const pdfQrContainer = document.getElementById('contact-pdf-qr');
+  const pdfQrContainer = document.getElementById('pdf-qr');
     if (pdfQrContainer) {
       pdfQrContainer.innerHTML = '';
       try {
@@ -107,7 +107,7 @@ const ContactPage: React.FC = () => {
     }
     // Barcode for PDF (canvas inside visible area for capture)
     try {
-      const pdfBarcode = document.getElementById('contact-pdf-barcode') as HTMLCanvasElement | null;
+  const pdfBarcode = document.getElementById('pdf-barcode') as HTMLCanvasElement | null;
       if (pdfBarcode && typeof JsBarcode !== 'undefined') {
         JsBarcode(pdfBarcode, id, { format: 'CODE128', lineColor: '#000', width: 2.4, height: 80, displayValue: true, fontSize: 14, margin: 10, background: '#ffffff' });
       }
@@ -190,18 +190,17 @@ const ContactPage: React.FC = () => {
                 </div>
               </div>
               {/* ID prominently */}
-              <div className="text-center my-3">
-                <div className="text-sm text-gray-500 dark:text-gray-400">المعرف</div>
-                <div className="text-2xl font-extrabold tracking-wider text-blue-700 dark:text-blue-300 font-mono select-all">{createdId}</div>
+              <div className="text-center my-4">
+                <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">معرّف الرسالة</div>
+                <div className="text-3xl font-extrabold tracking-wide text-blue-700 dark:text-blue-300 font-mono select-all">{createdId}</div>
               </div>
-              {/* QR + Barcode row */}
-              <div className="flex flex-col md:flex-row items-center justify-center gap-8 my-4">
+              <div className="flex flex-col md:flex-row items-start justify-center gap-8 my-6">
                 <div className="flex flex-col items-center">
-                  <div id="contact-qr" className="bg-white p-2 rounded border border-gray-200 dark:border-gray-700" />
+                  <div id="main-qr" className="flex items-center justify-center bg-white p-2 rounded border border-gray-200 dark:border-gray-700" />
                   <span className="text-[11px] mt-1 text-gray-500 dark:text-gray-400">QR</span>
                 </div>
                 <div className="flex flex-col items-center">
-                  <canvas id="contact-barcode" className="bg-white p-2 rounded border border-gray-200 dark:border-gray-700" />
+                  <canvas id="main-barcode" className="max-w-[320px] max-h-[90px] bg-white p-2 rounded border border-gray-200 dark:border-gray-700" />
                   <span className="text-[11px] mt-1 text-gray-500 dark:text-gray-400">Barcode</span>
                 </div>
               </div>
@@ -219,8 +218,8 @@ const ContactPage: React.FC = () => {
                 <div className="whitespace-pre-wrap text-sm leading-relaxed bg-gray-50 dark:bg-gray-800 rounded p-3 border border-gray-200 dark:border-gray-700 min-h-[90px]">{message}</div>
               </div>
               {/* Hidden containers for PDF ensuring crisp capture */}
-              <div id="contact-pdf-qr" style={{ width:160, height:160, position:'absolute', left:-9999, top:-9999 }} />
-              <canvas id="contact-pdf-barcode" style={{ position:'absolute', left:-9999, top:-9999 }} />
+              <div id="pdf-qr" style={{ width:160, height:160, position:'absolute', left:-9999, top:-9999 }} />
+              <canvas id="pdf-barcode" style={{ position:'absolute', left:-9999, top:-9999 }} />
               <div className="mt-6 text-[10px] text-center text-gray-500 dark:text-gray-500 border-t pt-2">تم إنشاء هذا الإيصال محلياً لغرض التحقق والتجربة.</div>
             </div>
             <div className="flex flex-wrap gap-2">
