@@ -197,7 +197,11 @@ const App: React.FC = () => {
         localStorage.removeItem('manualTicketId');
       }
     } catch {}
-    const newId = (manualId && manualId.length > 3) ? manualId : generateTicketId();
+    let newId = (manualId && manualId.length > 3) ? manualId : generateTicketId();
+    // في حال حدث تكرار (مثلاً نسيان التحقق في واجهة الإرسال) نولد معرفاً جديداً آلياً
+    if (tickets.some(t => t.id.toUpperCase() === newId.toUpperCase())) {
+      newId = generateTicketId();
+    }
 
     const newTicket: Ticket = {
       id: newId,

@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { AppContext } from '../App';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
@@ -10,6 +10,7 @@ import { REQUEST_TYPES } from '../constants';
 import { Department, RequestType } from '../types';
 import { useDepartmentNames } from '../utils/departments';
 import { useFilePreviews } from '../hooks/useFilePreview';
+import { isTicketIdUsed } from '../utils/idGenerator';
 
 // يدعم رفع عدة ملفات (حتى 5) مع معاينات PDF بالـ iframe والصور عبر <img>
 const SubmitRequestPage: React.FC = () => {
@@ -30,6 +31,7 @@ const SubmitRequestPage: React.FC = () => {
 
   const [attachments, setAttachments] = useState<File[]>([]);
   const [manualId, setManualId] = useState('');
+  const [manualIdError, setManualIdError] = useState<string | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [viewerLoading, setViewerLoading] = useState<boolean>(false);
   const [viewerCanceled, setViewerCanceled] = useState<boolean>(false);
@@ -100,6 +102,14 @@ const SubmitRequestPage: React.FC = () => {
       setError('يرجى ملء جميع الحقول الإلزامية.');
       return;
     }
+    // تحقق من تكرار المعرف اليدوي (إن وجد)
+    if (manualId.trim()) {
+      const exists = isTicketIdUsed(appContext?.tickets?.map(t=>t.id)||[], manualId.trim());
+      if (exists) {
+        setManualIdError('المعرف المدخل مستخدم مسبقاً، الرجاء اختيار معرف آخر.');
+        return;
+      }
+    }
     setError(null);
     setIsSubmitting(true);
 
@@ -165,8 +175,18 @@ const SubmitRequestPage: React.FC = () => {
             label="معرّف مخصص (اختياري - للمدير)"
             placeholder="مثال: ALF-20250910-0001"
             value={manualId}
-            onChange={(e) => setManualId(e.target.value)}
-            helperText="عند تعبئته سيتم استخدامه بدلاً من التوليد التلقائي (مرة واحدة)."
+            onChange={(e) => {
+              const v = e.target.value.toUpperCase().trimStart();
+              setManualId(v);
+              if (v) {
+                const exists = isTicketIdUsed(appContext?.tickets?.map(t=>t.id)||[], v);
+                setManualIdError(exists ? 'المعرف مستخدم مسبقاً.' : null);
+              } else {
+                setManualIdError(null);
+              }
+            }}
+            helperText={manualIdError ? manualIdError : 'عند تعبئته سيتم استخدامه بدلاً من التوليد التلقائي (مرة واحدة).'}
+            error={!!manualIdError}
           />
         )}
 
