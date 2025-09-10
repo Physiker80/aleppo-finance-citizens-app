@@ -2,10 +2,10 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   server: {
-  port: 5199,
-  host: true,
-  strictPort: false,
-  open: false
+    port: 3000,
+    host: '0.0.0.0',
+    strictPort: false,
+    open: false
   },
   resolve: {
     alias: {
