@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useRef, useEffect } from 'react';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
@@ -7,6 +7,10 @@ import Button from '../components/ui/Button';
 import { AppContext } from '../App';
 import { ContactMessageType } from '../types';
 import { useDepartmentNames } from '../utils/departments';
+
+declare const jspdf: any;
+declare const html2canvas: any;
+declare const QRCode: any;
 
 const ContactPage: React.FC = () => {
   const [name, setName] = useState('');
@@ -17,8 +21,116 @@ const ContactPage: React.FC = () => {
   const [department, setDepartment] = useState('');
   const [sent, setSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const [submittedAt, setSubmittedAt] = useState<Date | null>(null);
+  const pdfContentRef = useRef<HTMLDivElement | null>(null);
   const app = useContext(AppContext);
   const departmentNames = useDepartmentNames();
+
+  // توليد QR بعد الإرسال
+  useEffect(() => {
+    if (sent && createdId && typeof QRCode !== 'undefined') {
+      try {
+        const container = document.getElementById('contact-qr');
+        if (container) {
+          container.innerHTML = '';
+          new QRCode(container, {
+            text: createdId,
+            width: 140,
+            height: 140,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M,
+          });
+        }
+      } catch (e) { /* ignore */ }
+    }
+  }, [sent, createdId]);
+
+  const formatDateTime = (d?: Date | null) => {
+    if (!d) return '—';
+    try {
+      return new Intl.DateTimeFormat('ar-SY-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
+    } catch { return d.toLocaleString(); }
+  };
+
+  const handleDownloadQr = () => {
+    const container = document.getElementById('contact-qr');
+    if (!container) return;
+    const canvas = container.querySelector('canvas') as HTMLCanvasElement | null;
+    const img = container.querySelector('img') as HTMLImageElement | null;
+    let dataUrl: string | null = null;
+    if (canvas) dataUrl = canvas.toDataURL('image/png');
+    else if (img?.src) dataUrl = img.src;
+    if (!dataUrl) return;
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `contact-${createdId || 'qr'}.png`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  };
+
+  const ensurePdfQr = async (id: string) => {
+    const pdfQrContainer = document.getElementById('contact-pdf-qr');
+    if (!pdfQrContainer) return;
+    pdfQrContainer.innerHTML = '';
+    try {
+      if (typeof QRCode !== 'undefined') {
+        const tmpDiv = document.createElement('div');
+        new QRCode(tmpDiv, { text: id, width: 160, height: 160, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+        const c = tmpDiv.querySelector('canvas') as HTMLCanvasElement | null;
+        const im = tmpDiv.querySelector('img') as HTMLImageElement | null;
+        if (c) {
+          const img = document.createElement('img');
+          img.src = c.toDataURL('image/png');
+          img.width = 160; img.height = 160; img.style.display = 'block';
+          pdfQrContainer.appendChild(img);
+          return;
+        } else if (im) {
+          im.width = 160; im.height = 160; im.style.display = 'block';
+          pdfQrContainer.appendChild(im);
+          return;
+        }
+      }
+    } catch {}
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!createdId) return;
+    const content = pdfContentRef.current;
+    if (!content || typeof html2canvas === 'undefined' || typeof jspdf === 'undefined') {
+      alert('المكتبات اللازمة غير محمّلة.');
+      return;
+    }
+    try {
+      await ensurePdfQr(createdId);
+      const qrImg = content.querySelector('#contact-pdf-qr img') as HTMLImageElement | null;
+      if (qrImg && !qrImg.complete) {
+        await new Promise<void>(res => { qrImg.onload = () => res(); qrImg.onerror = () => res(); });
+      }
+      await new Promise(r => setTimeout(r, 150));
+      const canvas = await html2canvas(content, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      const { jsPDF } = jspdf;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const aspectRatio = canvas.height / canvas.width;
+      let finalWidth = pdfWidth - 20;
+      let finalHeight = finalWidth * aspectRatio;
+      if (finalHeight > pdfHeight - 20) {
+        finalHeight = pdfHeight - 20;
+        finalWidth = finalHeight / aspectRatio;
+      }
+      const x = (pdfWidth - finalWidth) / 2;
+      const y = 10;
+      pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight);
+      pdf.setProperties({ title: `رسالة تواصل ${createdId}`, subject: 'تأكيد رسالة تواصل', author: 'نظام الاستعلامات والشكاوى', creator: 'نظام الاستعلامات والشكاوى' });
+      pdf.save(`contact-${createdId}.pdf`);
+    } catch (e) {
+      console.error(e);
+      alert('حدث خطأ في إنشاء ملف PDF');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +147,8 @@ const ContactPage: React.FC = () => {
         department: department || undefined,
       }) : null;
       setIsLoading(false);
+      setCreatedId(id || null);
+      setSubmittedAt(new Date());
       setSent(true);
     }, 500);
   };
@@ -42,9 +156,38 @@ const ContactPage: React.FC = () => {
   if (sent) {
     return (
       <Card>
-        <h2 className="text-2xl font-bold mb-2">تم إرسال رسالتك</h2>
-        <p className="text-gray-600 dark:text-gray-400">شكرًا لتواصلك معنا. سنقوم بالرد في أقرب وقت ممكن.</p>
-        <Button className="mt-4" onClick={() => setSent(false)}>إرسال رسالة جديدة</Button>
+        <h2 className="text-2xl font-bold mb-2">تم إرسال رسالتك بنجاح</h2>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">معرّف الرسالة: <span className="font-mono font-semibold text-blue-700 dark:text-blue-300">{createdId}</span></p>
+        <div className="flex flex-col md:flex-row gap-6">
+          <div className="space-y-3 flex-1">
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4" ref={pdfContentRef} id="contact-pdf-area" dir="rtl">
+              <h3 className="text-lg font-bold mb-2">ملخص الرسالة</h3>
+              <p className="text-sm"><span className="font-semibold">المعرف:</span> {createdId}</p>
+              <p className="text-sm"><span className="font-semibold">الاسم:</span> {name || '—'}</p>
+              <p className="text-sm"><span className="font-semibold">البريد:</span> {email || '—'}</p>
+              <p className="text-sm"><span className="font-semibold">النوع:</span> {type}</p>
+              <p className="text-sm"><span className="font-semibold">القسم:</span> {department || '—'}</p>
+              <p className="text-sm"><span className="font-semibold">التاريخ:</span> {formatDateTime(submittedAt)}</p>
+              <p className="text-sm"><span className="font-semibold">الموضوع:</span> {subject || '—'}</p>
+              <div className="mt-3">
+                <div className="text-sm font-semibold mb-1">نص الرسالة:</div>
+                <div className="whitespace-pre-wrap text-sm leading-relaxed bg-gray-50 dark:bg-gray-800 rounded p-3 border border-gray-200 dark:border-gray-700 min-h-[80px]">{message}</div>
+              </div>
+              <div className="mt-4 flex flex-col items-center">
+                <div id="contact-qr" className="mb-2" />
+                <small className="text-gray-500 dark:text-gray-400">رمز QR يحتوي على المعرف</small>
+              </div>
+              {/* منفذ QR الخاص بالـ PDF */}
+              <div id="contact-pdf-qr" style={{ width: 160, height: 160, position: 'absolute', left: -9999, top: -9999 }} />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" onClick={handleDownloadPdf}>تنزيل PDF</Button>
+              <Button type="button" onClick={handleDownloadQr} variant="secondary">تنزيل QR</Button>
+              <Button type="button" onClick={() => setSent(false)} variant="secondary">رسالة جديدة</Button>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">يتم حفظ الرسائل محلياً حالياً لأغراض الاختبار. احتفظ بالمعرّف للمتابعة الداخلية.</p>
+          </div>
+        </div>
       </Card>
     );
   }
