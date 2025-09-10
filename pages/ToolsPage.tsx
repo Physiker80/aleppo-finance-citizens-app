@@ -706,12 +706,20 @@ const FaqManager: React.FC<{ onChanged?: () => void; onSwitchToAdd?: () => void 
 };
 
 const ToolsPage: React.FC = () => {
-  const [active, setActive] = useState<null | 'ocr' | 'newsAdd' | 'newsManage' | 'faqAdd' | 'faqManage' | 'privacyEdit' | 'termsEdit'>(null);
+  const [active, setActive] = useState<null | 'ocr' | 'newsAdd' | 'newsManage' | 'faqAdd' | 'faqManage' | 'privacyEdit' | 'termsEdit' | 'idConfig'>(null);
   const [newsCount, setNewsCount] = useState<number>(0);
   const [faqCount, setFaqCount] = useState<number>(0);
   const [ocrStats, setOcrStats] = useState<OcrStats | null>(null);
   const [privacyCustom, setPrivacyCustom] = useState<boolean>(false);
   const [termsCustom, setTermsCustom] = useState<boolean>(false);
+  // إعدادات المعرّف
+  const [idPrefix, setIdPrefix] = useState('ALF');
+  const [idPattern, setIdPattern] = useState('{PREFIX}-{DATE}-{RAND6}');
+  const [idSeqDigits, setIdSeqDigits] = useState(3);
+  const [idRandLength, setIdRandLength] = useState(6);
+  const [idDateFormat, setIdDateFormat] = useState<'YYYYMMDD' | 'YYMMDD'>('YYYYMMDD');
+  const [idMsg, setIdMsg] = useState<string | null>(null);
+  const [seqInfo, setSeqInfo] = useState<{date:string; seq:number}>({date:'', seq:0});
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setActive(null); };
@@ -750,12 +758,121 @@ const ToolsPage: React.FC = () => {
 
   useEffect(() => { refreshStats(); }, [refreshStats]);
 
+  // تحميل الإعدادات الحالية لمعرّف التذاكر
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('ticketIdConfig');
+      if (raw) {
+        const cfg = JSON.parse(raw);
+        if (cfg.prefix) setIdPrefix(cfg.prefix);
+        if (cfg.pattern) setIdPattern(cfg.pattern);
+        if (cfg.seqDigits) setIdSeqDigits(cfg.seqDigits);
+        if (cfg.randomLength) setIdRandLength(cfg.randomLength);
+        if (cfg.dateFormat) setIdDateFormat(cfg.dateFormat);
+      }
+    } catch { /* ignore */ }
+    try {
+      const rawSeq = localStorage.getItem('ticketSeq');
+      if (rawSeq) {
+        const parsed = JSON.parse(rawSeq);
+        if (parsed && parsed.date) setSeqInfo({date: parsed.date, seq: parsed.seq || 0});
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  function saveIdConfig() {
+    try {
+      const data = { prefix: idPrefix.trim() || 'ALF', pattern: idPattern.trim() || '{PREFIX}-{DATE}-{RAND6}', seqDigits: idSeqDigits, randomLength: idRandLength, dateFormat: idDateFormat };
+      localStorage.setItem('ticketIdConfig', JSON.stringify(data));
+      setIdMsg('تم حفظ الإعدادات.');
+      setTimeout(()=>setIdMsg(null), 1800);
+    } catch {
+      setIdMsg('تعذر الحفظ');
+    }
+  }
+
+  function resetIdConfig() {
+    if (!confirm('سيتم حذف الإعدادات الحالية والعودة للوضع الافتراضي. متابعة؟')) return;
+    try {
+      localStorage.removeItem('ticketIdConfig');
+      setIdPrefix('ALF');
+      setIdPattern('{PREFIX}-{DATE}-{RAND6}');
+      setIdSeqDigits(3);
+      setIdRandLength(6);
+      setIdDateFormat('YYYYMMDD');
+      setIdMsg('تمت الاستعادة.');
+      setTimeout(()=>setIdMsg(null), 1500);
+    } catch { setIdMsg('فشل الاستعادة'); }
+  }
+
+  function resetSequence() {
+    if (!confirm('إعادة تعيين التسلسل اليومي إلى 0؟')) return;
+    try {
+      const now = new Date();
+      const datePart = (idDateFormat === 'YYMMDD' ? now.toISOString().slice(2,10) : now.toISOString().slice(0,10)).replace(/-/g,'');
+      localStorage.setItem('ticketSeq', JSON.stringify({ date: datePart, seq: 0 }));
+      setSeqInfo({date: datePart, seq:0});
+      setIdMsg('تم تصفير التسلسل.');
+      setTimeout(()=>setIdMsg(null), 1500);
+    } catch { setIdMsg('فشل العملية'); }
+  }
+
+  function computePreview(count:number) {
+    const list:string[] = [];
+    const now = new Date();
+    const datePart = (idDateFormat === 'YYMMDD' ? now.toISOString().slice(2,10) : now.toISOString().slice(0,10)).replace(/-/g,'');
+    // قراءة التسلسل الحالي بدون تعديل التخزين
+    let baseSeq = 0;
+    try {
+      const rawSeq = localStorage.getItem('ticketSeq');
+      if (rawSeq) {
+        const parsed = JSON.parse(rawSeq); if (parsed.date === datePart) baseSeq = parsed.seq || 0;
+      }
+    } catch { /* ignore */ }
+    function pad(n:number, d:number){return n.toString().padStart(d,'0');}
+    function rand(len:number){ const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; let o=''; for(let i=0;i<len;i++) o+=chars[Math.floor(Math.random()*chars.length)]; return o; }
+    for(let i=1;i<=count;i++) {
+      const seq = baseSeq + i;
+      let out = idPattern.trim() || '{PREFIX}-{DATE}-{RAND6}';
+      const replacements: Record<string,string> = {
+        '{PREFIX}': (idPrefix.trim() || 'ALF').toUpperCase(),
+        '{DATE}': datePart,
+        '{SEQ}': String(seq),
+        '{RAND}': rand(idRandLength),
+        '{RAND4}': rand(4),
+        '{RAND5}': rand(5),
+        '{RAND6}': rand(6),
+      };
+      replacements[`{SEQ${idSeqDigits}}`] = pad(seq, idSeqDigits);
+      replacements[`{RAND${idRandLength}}`] = rand(idRandLength);
+      Object.entries(replacements).forEach(([k,v])=>{ out = out.replaceAll(k,v); });
+      list.push(out.toUpperCase());
+    }
+    return list;
+  }
+
   return (
     <div className="rounded-2xl p-8 animate-fade-in-up transition-all duration-300 border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-900/60 backdrop-blur shadow-lg">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">قسم المعلوماتية</h1>
 
   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Ticket ID Config Card */}
+          <div className="relative">
+            <div
+              role="button" tabIndex={0}
+              onClick={() => setActive(active === 'idConfig' ? null : 'idConfig')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'idConfig' ? null : 'idConfig'); } }}
+              className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <h3 className="text-xl font-semibold mb-1">تهيئة معرّف التذكرة</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">تخصيص البادئة والقالب والتسلسل العشوائي.</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200">البادئة {idPrefix || '—'}</span>
+                <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-800 dark:bg-gray-700/40 dark:text-gray-200">التسلسل {seqInfo.seq}</span>
+              </div>
+            </div>
+          </div>
           {/* OCR Card */}
           <div className="relative">
             <div
@@ -883,6 +1000,7 @@ const ToolsPage: React.FC = () => {
           <div className="relative mt-4 rounded-xl overflow-hidden border border-white/20 dark:border-white/10 bg-white/90 dark:bg-gray-900/90 shadow-xl">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                {active === 'idConfig' && 'إعدادات توليد معرف التذكرة'}
                 {active === 'ocr' && 'أداة التعرف الضوئي على الحروف (OCR)'}
                 {active === 'newsAdd' && 'إضافة خبر جديد'}
                 {active === 'newsManage' && 'إدارة الأخبار'}
@@ -895,6 +1013,48 @@ const ToolsPage: React.FC = () => {
             </div>
             <div className="p-4 max-h-[70vh] overflow-auto">
               {active === 'ocr' && <OcrTool onStatsChanged={refreshStats} />}
+              {active === 'idConfig' && (
+                <div className="space-y-5" dir="rtl">
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <label className="text-sm md:col-span-1">البادئة (PREFIX)
+                      <input value={idPrefix} onChange={e=>setIdPrefix(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,''))} className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" placeholder="ALF" />
+                    </label>
+                    <label className="text-sm md:col-span-2">القالب (PATTERN)
+                      <input value={idPattern} onChange={e=>setIdPattern(e.target.value)} className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 font-mono" placeholder="{PREFIX}-{DATE}-{SEQ3}-{RAND4}" />
+                    </label>
+                    <label className="text-sm">أرقام التسلسل (seqDigits)
+                      <input type="number" min={1} max={6} value={idSeqDigits} onChange={e=>setIdSeqDigits(Math.min(6, Math.max(1, parseInt(e.target.value)||1)))} className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" />
+                    </label>
+                    <label className="text-sm">طول العشوائي (randomLength)
+                      <input type="number" min={2} max={12} value={idRandLength} onChange={e=>setIdRandLength(Math.min(12, Math.max(2, parseInt(e.target.value)||6)))} className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" />
+                    </label>
+                    <label className="text-sm">صيغة التاريخ
+                      <select value={idDateFormat} onChange={e=>setIdDateFormat(e.target.value as any)} className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800">
+                        <option value="YYYYMMDD">YYYYMMDD</option>
+                        <option value="YYMMDD">YYMMDD</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="text-xs bg-gray-50 dark:bg-gray-800/40 p-3 rounded border border-gray-200 dark:border-gray-700 leading-relaxed">
+                    العناصر المتاحة داخل القالب:<br />
+                    <span className="font-mono">{`{PREFIX}`}</span>, <span className="font-mono">{`{DATE}`}</span>, <span className="font-mono">{`{SEQ}`}</span> (بدون أصفار)، <span className="font-mono">{`{SEQn}`}</span> حيث n عدد الأرقام (مثال {`{SEQ3}`})،<br />
+                    <span className="font-mono">{`{RAND}`}</span> بطول العشوائي المحدد، و <span className="font-mono">{`{RANDn}`}</span> (مثل {`{RAND4}`},{`{RAND6}`}).
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={saveIdConfig} className="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">حفظ الإعدادات</button>
+                    <button onClick={resetIdConfig} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">إعادة الافتراضي</button>
+                    <button onClick={resetSequence} className="px-4 py-2 rounded border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:bg-red-900/30 text-sm">تصفير التسلسل اليومي</button>
+                  </div>
+                  {idMsg && <div className="text-sm text-emerald-600 dark:text-emerald-400">{idMsg}</div>}
+                  <div>
+                    <h4 className="font-semibold mb-1">معاينة (لا تغيّر التسلسل الفعلي)</h4>
+                    <ul className="list-disc pr-5 text-sm space-y-1 font-mono">
+                      {computePreview(5).map((p,i)=>(<li key={i}>{p}</li>))}
+                    </ul>
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">ملاحظة: التوليد الفعلي يزيد التسلسل ويحفظه لكل يوم. المعاينة هنا لا تحفظ.</div>
+                </div>
+              )}
               {active === 'newsAdd' && <NewsAddForm onAdded={refreshStats} onSwitchToManage={() => setActive('newsManage')} />}
               {active === 'newsManage' && <NewsManager onChanged={refreshStats} onSwitchToAdd={() => setActive('newsAdd')} />}
               {active === 'faqAdd' && <FaqAddForm onAdded={refreshStats} onSwitchToManage={() => setActive('faqManage')} />}
