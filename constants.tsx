@@ -1,13 +1,4 @@
-
-import { FaqItem, NewsItem, Department, RequestType } from './types';
-
-export const DEPARTMENTS: Department[] = [
-  Department.Income,
-  Department.Companies,
-  Department.RealEstate,
-  Department.Stamps,
-  Department.General,
-];
+import { FaqItem, NewsItem, RequestType } from './types';
 
 export const REQUEST_TYPES: RequestType[] = [
   RequestType.Inquiry,

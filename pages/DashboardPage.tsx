@@ -6,10 +6,11 @@ import { RequestStatus, Ticket, ContactMessageStatus } from '../types';
 import { Document, Page, pdfjs } from 'react-pdf';
 import Mermaid from '../components/Mermaid';
 import { DIWAN_WORKFLOW_DIAGRAM } from '../diagrams/diwan';
-// Use a Vite-friendly worker import so the PDF.js worker is bundled & served correctly
-// @ts-expect-error Vite will resolve this to a URL string
-import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-pdfjs.GlobalWorkerOptions.workerSrc = workerSrc as unknown as string;
+// Use a real module worker to avoid fake worker fallback
+// @ts-ignore Vite returns a Worker constructor for ?worker imports
+import PdfJsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker';
+// @ts-ignore Support workerPort if available
+pdfjs.GlobalWorkerOptions.workerPort = new PdfJsWorker();
 
 const statusColors: { [key in RequestStatus]: string } = {
   [RequestStatus.New]: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
@@ -443,6 +444,27 @@ ${trackUrl}
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+              {currentEmployee?.role === 'مدير' && (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => { window.location.hash = '#/monitor'; }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/monitor'; } }}
+                className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-indigo-300/40 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0">
+                    <h3 className="text-xl font-semibold">مركز المراقبة</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">إحصاءات فورية وأداء النظام.</p>
+                    <div className="mt-3 flex gap-2 flex-wrap text-xs">
+                      <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">التذاكر {ticketStats.total}</span>
+                      <span className="px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">مردود {ticketStats.byStatus[RequestStatus.Answered]}</span>
+                      <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300">مغلق {ticketStats.byStatus[RequestStatus.Closed]}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              )}
               {/* المحتوى/المعلوماتية */}
               <div
                 role="button"

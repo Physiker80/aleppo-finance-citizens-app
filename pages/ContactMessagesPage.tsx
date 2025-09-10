@@ -19,6 +19,13 @@ const ContactMessagesPage: React.FC = () => {
   const appContext = useContext(AppContext);
   const contactMessages = appContext?.contactMessages || [];
   const updateStatus = appContext?.updateContactMessageStatus;
+  const isAdmin = appContext?.currentEmployee?.role === 'مدير';
+  const myDept = appContext?.currentEmployee?.department;
+  const visible = contactMessages.filter(m => {
+    if (isAdmin) return true;
+    if (!myDept) return false;
+    return !!m.department && m.department === myDept;
+  });
 
   return (
     <Card>
@@ -35,7 +42,7 @@ const ContactMessagesPage: React.FC = () => {
         </button>
       </div>
 
-      {contactMessages.length === 0 ? (
+  {visible.length === 0 ? (
         <div className="text-center py-16 text-gray-600 dark:text-gray-300">لا توجد رسائل تواصل</div>
       ) : (
         <div className="overflow-x-auto">
@@ -54,7 +61,7 @@ const ContactMessagesPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {contactMessages.map((m) => (
+              {visible.map((m) => (
                 <tr key={m.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">{m.id}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{m.submissionDate.toLocaleDateString('ar-SY-u-nu-latn')}</td>
@@ -69,6 +76,7 @@ const ContactMessagesPage: React.FC = () => {
                       value={m.status}
                       onChange={(e) => updateStatus && updateStatus(m.id, e.target.value as ContactMessageStatus)}
                       className="w-auto p-1.5 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                      disabled={!isAdmin && m.department !== myDept}
                     >
                       {Object.values(ContactMessageStatus).map((s) => (
                         <option key={s} value={s}>{s}</option>

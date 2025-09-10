@@ -368,6 +368,8 @@ const DepartmentsPage: React.FC = () => {
     setDepItems(list);
     try {
       localStorage.setItem('departmentsList', JSON.stringify(list));
+  // notify other pages that depend on the departments list
+  try { window.dispatchEvent(new Event('departmentsListUpdated')); } catch {}
     } catch { /* noop */ }
   };
 
@@ -543,10 +545,11 @@ const DepartmentsPage: React.FC = () => {
       // Lazy-load pdfjs to keep bundle light
       const pdfjs: any = await import('pdfjs-dist');
       try {
-        const workerUrl = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
-        if (workerUrl) {
-          pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-        }
+        // Prefer a real module worker via workerPort when available
+        // @ts-ignore Vite returns a Worker constructor for ?worker imports
+        const PdfJsWorker = (await import('pdfjs-dist/build/pdf.worker.min.mjs?worker')).default as any;
+        // @ts-ignore Support workerPort if available
+        pdfjs.GlobalWorkerOptions.workerPort = new PdfJsWorker();
       } catch { /* no worker override */ }
       const data = await f.arrayBuffer();
       const loadingTask = pdfjs.getDocument({ data });

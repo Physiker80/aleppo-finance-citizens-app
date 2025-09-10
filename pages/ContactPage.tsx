@@ -6,6 +6,7 @@ import TextArea from '../components/ui/TextArea';
 import Button from '../components/ui/Button';
 import { AppContext } from '../App';
 import { ContactMessageType } from '../types';
+import { useDepartmentNames } from '../utils/departments';
 
 const ContactPage: React.FC = () => {
   const [name, setName] = useState('');
@@ -17,6 +18,7 @@ const ContactPage: React.FC = () => {
   const [sent, setSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const app = useContext(AppContext);
+  const departmentNames = useDepartmentNames();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,11 +64,9 @@ const ContactPage: React.FC = () => {
         <div className="md:col-span-1">
           <Select id="department" label="القسم المستهدف (اختياري)" value={department} onChange={(e) => setDepartment(e.target.value)}>
             <option value="">بدون تحديد</option>
-            <option value="الإدارة">الإدارة</option>
-            <option value="المالية">المالية</option>
-            <option value="الموارد البشرية">الموارد البشرية</option>
-            <option value="الخدمة الذاتية">الخدمة الذاتية</option>
-            <option value="خدمة المواطنين">خدمة المواطنين</option>
+            {departmentNames.map((dep) => (
+              <option key={dep} value={dep}>{dep}</option>
+            ))}
           </Select>
         </div>
         <div className="md:col-span-1">

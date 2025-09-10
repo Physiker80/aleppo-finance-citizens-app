@@ -3,7 +3,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
 import SubmitRequestPage from './pages/SubmitRequestPage';
-import TrackRequestPage from './pages/TrackRequestPage';
+import TrackRequestPage from './pages/TrackRequestPage_fixed';
 import FaqPage from './pages/FaqPage';
 import NewsPage from './pages/NewsPage';
 import DashboardPage from './pages/DashboardPage';
@@ -27,13 +27,15 @@ import RequestsPage from './pages/RequestsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import DepartmentsPage from './pages/DepartmentsPage';
-import { Ticket, Employee, ContactMessage, ContactMessageStatus, ContactMessageType } from './types';
+import AdminMonitorPage from './pages/AdminMonitorPage';
+import { Ticket, Employee, ContactMessage, ContactMessageStatus, ContactMessageType, Department, DepartmentNotification } from './types';
 import { RequestStatus } from './types';
 
 type Theme = 'light' | 'dark';
 
 interface AppContextType {
   tickets: Ticket[];
+  notifications: DepartmentNotification[];
   addTicket: (ticket: Omit<Ticket, 'id' | 'status'>) => string;
   findTicket: (id: string) => Ticket | undefined;
   contactMessages: ContactMessage[];
@@ -42,7 +44,13 @@ interface AppContextType {
   currentEmployee: Employee | null;
   employeeLogin: (employee: Employee) => void;
   logout: () => void;
-  updateTicketStatus: (ticketId: string, newStatus: RequestStatus) => void;
+  updateTicketStatus: (ticketId: string, newStatus: RequestStatus, responseText?: string, responseAttachments?: File[]) => void;
+  updateTicketDepartment: (ticketId: string, newDepartment: Department) => void;
+  updateTicketResponse: (ticketId: string, responseText: string, responseAttachments?: File[]) => void;
+  updateTicketOpinion: (ticketId: string, opinion: string) => void;
+  updateTicketForwardedTo: (ticketId: string, departments: Department[]) => void;
+  markNotificationsReadForDepartment: (department: Department) => void;
+  addNotification: (n: Omit<DepartmentNotification, 'id' | 'createdAt' | 'read'> & { message?: string }) => void;
   updateContactMessageStatus: (id: string, newStatus: ContactMessageStatus) => void;
   lastSubmittedId: string | null;
   theme: Theme;
@@ -53,7 +61,32 @@ export const AppContext = createContext<AppContextType | null>(null);
 
 const App: React.FC = () => {
   const [route, setRoute] = useState(window.location.hash || '#/');
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>(() => {
+    const raw = localStorage.getItem('tickets');
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed.map((t: any) => ({
+        ...t,
+        submissionDate: t.submissionDate ? new Date(t.submissionDate) : new Date(),
+        startedAt: t.startedAt ? new Date(t.startedAt) : undefined,
+        answeredAt: t.answeredAt ? new Date(t.answeredAt) : undefined,
+        closedAt: t.closedAt ? new Date(t.closedAt) : undefined,
+      })) as Ticket[];
+    } catch {
+      return [];
+    }
+  });
+  const [notifications, setNotifications] = useState<DepartmentNotification[]>(() => {
+    const raw = localStorage.getItem('notifications');
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed.map((n: any) => ({ ...n, createdAt: n.createdAt ? new Date(n.createdAt) : new Date() })) as DepartmentNotification[];
+    } catch {
+      return [];
+    }
+  });
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>(() => {
     const raw = localStorage.getItem('contactMessages');
     if (!raw) return [];
@@ -73,6 +106,15 @@ const App: React.FC = () => {
     return savedUser ? JSON.parse(savedUser) : null;
   });
   const [lastSubmittedId, setLastSubmittedId] = useState<string | null>(null);
+  // Helpers for permissions
+  const isAdmin = !!(currentEmployee && currentEmployee.role === 'مدير');
+  const employeeDept = currentEmployee?.department || '';
+  const canAccessTicket = (t: Ticket): boolean => {
+    if (isAdmin) return true;
+    if (!employeeDept) return false;
+    return String(t.department) === employeeDept || (t.forwardedTo || []).includes(employeeDept);
+  };
+  const canEditTicket = canAccessTicket; // same rule for edit in this app
   
   // تحقق من وجود جلسة سابقة
   useEffect(() => {
@@ -91,6 +133,18 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('contactMessages', JSON.stringify(contactMessages));
   }, [contactMessages]);
+  // persist tickets as well (strip non-serializable File objects)
+  useEffect(() => {
+    const serializable = tickets.map(t => {
+      const { responseAttachments, ...rest } = t as any;
+      return rest;
+    });
+    localStorage.setItem('tickets', JSON.stringify(serializable));
+  }, [tickets]);
+  // persist notifications
+  useEffect(() => {
+    localStorage.setItem('notifications', JSON.stringify(notifications));
+  }, [notifications]);
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
       const storedTheme = window.localStorage.getItem('theme') as Theme;
@@ -142,6 +196,24 @@ const App: React.FC = () => {
       ...ticketData,
     };
     setTickets(prevTickets => [...prevTickets, newTicket]);
+    // Notify target department of new ticket
+    try {
+      const dep = ticketData.department;
+      if (dep) {
+        setNotifications(prev => [
+          {
+            id: `N-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
+            kind: 'ticket-new',
+            ticketId: newTicket.id,
+            department: dep,
+            message: `طلب جديد (${newTicket.id}) وارد إلى قسم ${dep}`,
+            createdAt: new Date(),
+            read: false,
+          },
+          ...prev,
+        ]);
+      }
+    } catch {}
     setLastSubmittedId(newTicket.id);
     return newId;
   };
@@ -220,16 +292,110 @@ const App: React.FC = () => {
     }
   };
 
-  const updateTicketStatus = (ticketId: string, newStatus: RequestStatus) => {
+  const updateTicketStatus = (ticketId: string, newStatus: RequestStatus, responseText?: string, responseAttachments?: File[]) => {
     setTickets(prevTickets =>
-      prevTickets.map(ticket =>
-        ticket.id === ticketId ? { ...ticket, status: newStatus } : ticket
-      )
+      prevTickets.map(ticket => {
+        if (ticket.id !== ticketId) return ticket;
+        if (!canEditTicket(ticket)) return ticket;
+        const now = new Date();
+        const patch: Partial<Ticket> = { status: newStatus };
+        if (newStatus === RequestStatus.InProgress && !ticket.startedAt) patch.startedAt = now;
+        if (newStatus === RequestStatus.Answered) {
+          patch.answeredAt = now;
+          if (responseText && responseText.trim()) patch.response = responseText.trim();
+          if (responseAttachments && responseAttachments.length) patch.responseAttachments = responseAttachments;
+        }
+        if (newStatus === RequestStatus.Closed) patch.closedAt = now;
+        return { ...ticket, ...patch };
+      })
     );
   };
 
   const updateContactMessageStatus = (id: string, newStatus: ContactMessageStatus) => {
-    setContactMessages(prev => prev.map(m => m.id === id ? { ...m, status: newStatus } : m));
+    setContactMessages(prev => prev.map(m => {
+      if (m.id !== id) return m;
+      // Restrict updates to admin or same department messages
+      if (!isAdmin && employeeDept && m.department && m.department !== employeeDept) return m;
+      if (!isAdmin && employeeDept && !m.department) return m; // messages without department editable by admin only
+      return { ...m, status: newStatus };
+    }));
+  };
+
+  const updateTicketDepartment = (ticketId: string, newDepartment: Department) => {
+    let moved = { changed: false } as { changed: boolean };
+    setTickets(prev => prev.map(t => {
+      if (t.id !== ticketId) return t;
+      // Allow if admin OR if employee owns this ticket's current department OR it is forwarded to their department
+      const canMove = isAdmin || (!!employeeDept && (String(t.department) === employeeDept || (t.forwardedTo || []).includes(employeeDept)));
+      if (!canMove) return t;
+      if (String(t.department) === String(newDepartment)) return t;
+      moved.changed = true;
+      return { ...t, department: newDepartment };
+    }));
+    if (moved.changed) {
+      // Notification: ticket moved to another department
+      setNotifications(prev => [
+        {
+          id: `N-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
+          kind: 'ticket-moved',
+          ticketId,
+          department: newDepartment,
+          message: `تم تحويل الطلب ${ticketId} إلى قسم ${newDepartment}`,
+          createdAt: new Date(),
+          read: false,
+        },
+        ...prev,
+      ]);
+    }
+  };
+
+  const updateTicketResponse = (ticketId: string, responseText: string, responseAttachments?: File[]) => {
+    setTickets(prev => prev.map(t => {
+      if (t.id !== ticketId) return t;
+      if (!canEditTicket(t)) return t;
+      return { ...t, response: responseText, ...(responseAttachments && responseAttachments.length ? { responseAttachments } : {}) };
+    }));
+  };
+
+  const updateTicketOpinion = (ticketId: string, opinion: string) => {
+    setTickets(prev => prev.map(t => {
+      if (t.id !== ticketId) return t;
+      if (!canEditTicket(t)) return t;
+      return { ...t, opinion };
+    }));
+  };
+
+  const updateTicketForwardedTo = (ticketId: string, departments: Department[]) => {
+    const unique = Array.from(new Set(departments));
+    setTickets(prev => prev.map(t => {
+      if (t.id !== ticketId) return t;
+      if (!canEditTicket(t)) return t;
+      return { ...t, forwardedTo: unique };
+    }));
+    // Notifications for each forwarded department
+    setNotifications(prev => [
+      ...unique.map(dep => ({
+        id: `N-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
+        kind: 'ticket-forwarded',
+        ticketId,
+        department: dep,
+        message: `تم إحالة الطلب ${ticketId} إلى قسم ${dep}`,
+        createdAt: new Date(),
+        read: false,
+      })),
+      ...prev,
+    ]);
+  };
+
+  const markNotificationsReadForDepartment = (department: Department) => {
+    setNotifications(prev => prev.map(n => n.department === department ? { ...n, read: true } : n));
+  };
+
+  const addNotification = (n: Omit<DepartmentNotification, 'id' | 'createdAt' | 'read'> & { message?: string }) => {
+    setNotifications(prev => [
+      { id: `N-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, createdAt: new Date(), read: false, ...n },
+      ...prev,
+    ]);
   };
 
 
@@ -283,6 +449,8 @@ const App: React.FC = () => {
         return <TermsPage />;
       case '#/departments':
         return <DepartmentsPage />;
+      case '#/monitor':
+        return isEmployeeLoggedIn && currentEmployee?.role === 'مدير' ? <AdminMonitorPage /> : <LoginPage />;
       case '#/confirmation':
         return <ConfirmationPage />;
       default:
@@ -293,6 +461,7 @@ const App: React.FC = () => {
   return (
     <AppContext.Provider value={{ 
       tickets, 
+  notifications,
       addTicket, 
       findTicket, 
       contactMessages,
@@ -302,6 +471,12 @@ const App: React.FC = () => {
       employeeLogin,
       logout, 
       updateTicketStatus,
+  updateTicketDepartment,
+  updateTicketResponse,
+  updateTicketOpinion,
+  updateTicketForwardedTo,
+  markNotificationsReadForDepartment,
+  addNotification,
       updateContactMessageStatus,
       lastSubmittedId, 
       theme, 

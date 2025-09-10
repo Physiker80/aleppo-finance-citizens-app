@@ -1,13 +1,17 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { AppContext } from '../App';
 import LoginModal from './LoginModal';
 
 const Header: React.FC = () => {
   const appContext = useContext(AppContext);
   const { theme, toggleTheme } = appContext || {};
+  const notifications = appContext?.notifications || [];
+  const currentEmployee = appContext?.currentEmployee;
+  const markRead = appContext?.markNotificationsReadForDepartment;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [currentPath, setCurrentPath] = useState(window.location.hash || '#/');
+  const [notifOpen, setNotifOpen] = useState(false);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -89,6 +93,56 @@ const Header: React.FC = () => {
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
         )}
       </button>
+    );
+  };
+
+  const myDepartment = currentEmployee?.department;
+  const myNotifs = useMemo(() => notifications.filter(n => n.department === myDepartment), [notifications, myDepartment]);
+  const unreadCount = useMemo(() => myNotifs.filter(n => !n.read).length, [myNotifs]);
+
+  const NotificationsButton: React.FC = () => {
+    if (!appContext?.isEmployeeLoggedIn || !myDepartment) return null;
+    return (
+      <div className="relative">
+        <button
+          onClick={() => setNotifOpen(o => !o)}
+          className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+          aria-label="Notifications"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 00-7 7v3.586l-.707.707A1 1 0 005 15h14a1 1 0 00.707-1.707L19 12.586V9a7 7 0 00-7-7z"/><path d="M7 16a5 5 0 0010 0H7z"/></svg>
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 bg-red-600 text-white text-[10px] rounded-full px-1 min-w-[16px] text-center">{unreadCount}</span>
+          )}
+        </button>
+        {notifOpen && (
+          <div className="absolute right-0 mt-2 w-96 max-w-[90vw] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[80]">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="text-sm font-semibold">تنبيهات قسم: {myDepartment}</div>
+              <button
+                className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+                onClick={() => { if (markRead && myDepartment) markRead(myDepartment); }}
+              >تحديد الكل كمقروء</button>
+            </div>
+            <div className="max-h-80 overflow-y-auto">
+              {myNotifs.length === 0 ? (
+                <div className="p-4 text-sm text-gray-500 dark:text-gray-400 text-center">لا توجد تنبيهات</div>
+              ) : myNotifs.map(n => (
+                <div key={n.id} className={`px-3 py-2 text-sm border-b border-gray-100 dark:border-gray-700 ${n.read ? 'bg-white dark:bg-gray-800' : 'bg-amber-50 dark:bg-gray-900'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{n.kind === 'ticket-new' ? 'طلب جديد' : n.kind === 'ticket-moved' ? 'تحويل قسم' : 'إحالة قسم'}</span>
+                    <span className="text-xs text-gray-400">{new Date(n.createdAt).toLocaleString('ar-SY-u-nu-latn')}</span>
+                  </div>
+                  <div className="mt-1 text-gray-700 dark:text-gray-300">{n.message || ''}</div>
+                  <div className="mt-1 text-xs text-gray-500">رقم: {n.ticketId}</div>
+                  <div className="mt-2">
+                    <a href={`#/requests?focus=${encodeURIComponent(n.ticketId)}`} className="text-xs text-blue-600 hover:underline">فتح الطلب</a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -183,6 +237,7 @@ const Header: React.FC = () => {
             
             <div className="hidden md:flex items-center space-x-4 rtl:space-x-reverse">
               <ThemeToggleButton />
+              <NotificationsButton />
               {appContext?.isEmployeeLoggedIn && appContext?.currentEmployee && (
                 <div className="text-sm text-gray-600 dark:text-gray-300">
                   مرحباً، {appContext.currentEmployee.name}
@@ -198,6 +253,7 @@ const Header: React.FC = () => {
 
             <div className="md:hidden flex items-center space-x-4 rtl:space-x-reverse">
               <ThemeToggleButton />
+              <NotificationsButton />
               <HamburgerButton className="text-[#0f3c35] dark:text-gray-200" />
             </div>
           </div>

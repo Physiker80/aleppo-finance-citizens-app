@@ -6,13 +6,17 @@ import Select from '../components/ui/Select';
 import TextArea from '../components/ui/TextArea';
 import FileInput from '../components/ui/FileInput';
 import Button from '../components/ui/Button';
-import { DEPARTMENTS, REQUEST_TYPES } from '../constants';
+import { REQUEST_TYPES } from '../constants';
 import { Department, RequestType } from '../types';
+import { useDepartmentNames } from '../utils/departments';
 import { useFilePreviews } from '../hooks/useFilePreview';
 
 // يدعم رفع عدة ملفات (حتى 5) مع معاينات PDF بالـ iframe والصور عبر <img>
 const SubmitRequestPage: React.FC = () => {
   const appContext = useContext(AppContext);
+
+  const departmentNames = useDepartmentNames();
+  const initialDept = departmentNames[0] as Department | undefined;
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -20,7 +24,7 @@ const SubmitRequestPage: React.FC = () => {
     email: '',
     nationalId: '',
     requestType: REQUEST_TYPES[0],
-    department: DEPARTMENTS[0],
+  department: initialDept || '',
     details: '',
   });
 
@@ -139,7 +143,7 @@ const SubmitRequestPage: React.FC = () => {
             ))}
           </Select>
           <Select id="department" label="القسم المعني *" value={formData.department} onChange={handleChange}>
-            {DEPARTMENTS.map((dep) => (
+            {departmentNames.map((dep) => (
               <option key={dep} value={dep}>
                 {dep}
               </option>

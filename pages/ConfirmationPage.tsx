@@ -8,6 +8,12 @@ declare const html2canvas: any;
 declare const JsBarcode: any;
 declare const QRCode: any;
 
+// Ministry identity logo for header branding (used in PDF as well)
+// Place your provided logo file at: public/ministry-logo.png
+const ministryLogoLocalPng = '/ministry-logo.png';
+const ministryLogoLocalSvg = '/ministry-logo.svg';
+const ministryLogoRemote = 'https://syrian.zone/syid/materials/logo.ai.svg';
+
 const ConfirmationPage: React.FC = () => {
   const appContext = useContext(AppContext);
   const { lastSubmittedId, findTicket } = appContext || {};
@@ -18,8 +24,35 @@ const ConfirmationPage: React.FC = () => {
   const [attLoading, setAttLoading] = useState<boolean>(false);
   const [attCanceled, setAttCanceled] = useState<boolean>(false);
   const [attObjUrl, setAttObjUrl] = useState<string | null>(null);
+  const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
 
   const trackingUrl = ticket?.id ? `${window.location.origin}/#/track?id=${ticket.id}` : '';
+
+  // Helpers for date/time and durations (Arabic locale with Latin digits)
+  const formatDateTime = (d?: Date) => {
+    if (!d) return '—';
+    try {
+      return new Intl.DateTimeFormat('ar-SY-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
+    } catch {
+      return d.toLocaleString();
+    }
+  };
+  const formatDuration = (from?: Date, to?: Date) => {
+    if (!from || !to) return '—';
+    const ms = to.getTime() - from.getTime();
+    if (!isFinite(ms) || ms <= 0) return '—';
+    const sec = Math.floor(ms / 1000);
+    const d = Math.floor(sec / 86400);
+    const h = Math.floor((sec % 86400) / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    const parts: string[] = [];
+    if (d) parts.push(`${d} يوم`);
+    if (h) parts.push(`${h} س`);
+    if (m) parts.push(`${m} د`);
+    if (!d && !h && !m) parts.push(`${s} ث`);
+    return parts.join(' ');
+  };
 
   const handleCopyTrackingLink = () => {
     if (!trackingUrl) return;
@@ -177,6 +210,16 @@ const ConfirmationPage: React.FC = () => {
     }
 
     try {
+      // Ensure web fonts are loaded to render Arabic shaping correctly
+      try {
+        if ((document as any).fonts && typeof (document as any).fonts.ready?.then === 'function') {
+          const fontReady = (document as any).fonts.ready as Promise<void>;
+          await Promise.race([
+            fontReady,
+            new Promise((resolve) => setTimeout(resolve, 800)) // safety timeout
+          ]);
+        }
+      } catch {}
       const pdfBarcodeCanvas = document.getElementById('pdf-barcode') as HTMLCanvasElement;
       if (pdfBarcodeCanvas && ticket?.id) {
         JsBarcode(pdfBarcodeCanvas, ticket.id, {
@@ -253,8 +296,8 @@ const ConfirmationPage: React.FC = () => {
         }
       }
 
-      // Wait for header logo to load to avoid it missing in the capture
-      const headerLogo = content.querySelector('img[src*="logo.ai.svg"]') as HTMLImageElement | null;
+  // Wait for header logo to load to avoid it missing in the capture
+  const headerLogo = content.querySelector('#ministry-logo') as HTMLImageElement | null;
       if (headerLogo && !headerLogo.complete) {
         await new Promise<void>((resolve) => {
           headerLogo.onload = () => resolve();
@@ -273,7 +316,11 @@ const ConfirmationPage: React.FC = () => {
       // Small extra delay to ensure canvas/SVG render
       await new Promise(resolve => setTimeout(resolve, 200));
 
-      const canvas = await html2canvas(content, { 
+  // Update on-screen timestamp only
+  const now = new Date();
+  setGeneratedAt(now);
+
+  const canvas = await html2canvas(content, { 
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
@@ -302,6 +349,53 @@ const ConfirmationPage: React.FC = () => {
       const y = 10;
       
       pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight);
+
+      // Helper: fetch and rasterize logo to PNG for safe embedding into PDF
+      const getLogoPngDataUrl = async (targetWidthPx: number, targetHeightPx: number): Promise<string | null> => {
+        const tryFetch = async (url: string): Promise<string | null> => {
+          try {
+            const res = await fetch(url, { mode: url.startsWith('/') ? 'same-origin' : 'cors' });
+            if (!res.ok) return null;
+            const blob = await res.blob();
+            const base64Url: string = await new Promise((resolve, reject) => {
+              const fr = new FileReader();
+              fr.onload = () => resolve(fr.result as string);
+              fr.onerror = reject;
+              fr.readAsDataURL(blob);
+            });
+            const isSvg = base64Url.startsWith('data:image/svg');
+            if (!isSvg) return base64Url; // already PNG/JPEG
+            // Rasterize SVG to PNG at desired pixel size
+            return await new Promise<string>((resolve) => {
+              const img = new Image();
+              img.onload = () => {
+                const w = Math.max(1, Math.round(targetWidthPx || 160));
+                const h = Math.max(1, Math.round(targetHeightPx || 80));
+                const c = document.createElement('canvas');
+                c.width = w; c.height = h;
+                const ctx = c.getContext('2d');
+                if (ctx) {
+                  ctx.clearRect(0, 0, w, h);
+                  // optional white bg
+                  ctx.fillStyle = '#ffffff';
+                  ctx.fillRect(0, 0, w, h);
+                  ctx.drawImage(img, 0, 0, w, h);
+                  resolve(c.toDataURL('image/png'));
+                } else {
+                  resolve(base64Url);
+                }
+              };
+              img.onerror = () => resolve(base64Url);
+              img.src = base64Url;
+            });
+          } catch { return null; }
+        };
+        return (
+          (await tryFetch(ministryLogoLocalPng)) ||
+          (await tryFetch(ministryLogoLocalSvg)) ||
+          (await tryFetch(ministryLogoRemote))
+        );
+      };
 
       // Build QR as data URL and overlay it directly on PDF at the #pdf-qr spot
       const buildQRDataUrl = async (text: string, size = 160): Promise<string | null> => {
@@ -372,6 +466,29 @@ const ConfirmationPage: React.FC = () => {
           }
         }
       }
+
+      // Overlay the ministry logo explicitly to ensure it's embedded in the PDF
+      try {
+        const headerImgEl = content.querySelector('#ministry-logo') as HTMLImageElement | null;
+        if (headerImgEl) {
+          const elRect = headerImgEl.getBoundingClientRect();
+          const contentRect = content.getBoundingClientRect();
+          const offsetXPx = elRect.left - contentRect.left;
+          const offsetYPx = elRect.top - contentRect.top;
+          const widthPx = elRect.width;
+          const heightPx = elRect.height;
+          const scaleFactor = canvas.width / content.scrollWidth; // html2canvas scale
+          const mmPerCanvasPx = finalWidth / canvas.width;
+          const logoXmm = x + (offsetXPx * scaleFactor) * mmPerCanvasPx;
+          const logoYmm = y + (offsetYPx * scaleFactor) * mmPerCanvasPx;
+          const logoWmm = Math.max(20, (widthPx * scaleFactor) * mmPerCanvasPx);
+          const logoHmm = Math.max(20, (heightPx * scaleFactor) * mmPerCanvasPx);
+          const logoDataUrl = await getLogoPngDataUrl(widthPx * scaleFactor, heightPx * scaleFactor);
+          if (logoDataUrl) {
+            pdf.addImage(logoDataUrl, 'PNG', logoXmm, logoYmm, logoWmm, logoHmm);
+          }
+        }
+      } catch {}
       
       pdf.setProperties({
         title: `إيصال طلب رقم ${ticket?.id || 'غير محدد'}`,
@@ -394,6 +511,16 @@ const ConfirmationPage: React.FC = () => {
       return;
     }
     try {
+      // Ensure web fonts are loaded to render Arabic shaping correctly (preview)
+      try {
+        if ((document as any).fonts && typeof (document as any).fonts.ready?.then === 'function') {
+          const fontReady = (document as any).fonts.ready as Promise<void>;
+          await Promise.race([
+            fontReady,
+            new Promise((resolve) => setTimeout(resolve, 800))
+          ]);
+        }
+      } catch {}
       const pdfBarcodeCanvas = document.getElementById('pdf-barcode') as HTMLCanvasElement;
       if (pdfBarcodeCanvas && ticket?.id) {
         JsBarcode(pdfBarcodeCanvas, ticket.id, {
@@ -477,7 +604,11 @@ const ConfirmationPage: React.FC = () => {
       }
       await new Promise(resolve => setTimeout(resolve, 200));
 
-      const canvas = await html2canvas(content, {
+  // Update on-screen timestamp only
+  const now = new Date();
+  setGeneratedAt(now);
+
+  const canvas = await html2canvas(content, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
@@ -502,6 +633,50 @@ const ConfirmationPage: React.FC = () => {
       const x = (pdfWidth - finalWidth) / 2;
       const y = 10;
       pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight);
+
+      const getLogoPngDataUrl = async (targetWidthPx: number, targetHeightPx: number): Promise<string | null> => {
+        const tryFetch = async (url: string): Promise<string | null> => {
+          try {
+            const res = await fetch(url, { mode: url.startsWith('/') ? 'same-origin' : 'cors' });
+            if (!res.ok) return null;
+            const blob = await res.blob();
+            const base64Url: string = await new Promise((resolve, reject) => {
+              const fr = new FileReader();
+              fr.onload = () => resolve(fr.result as string);
+              fr.onerror = reject;
+              fr.readAsDataURL(blob);
+            });
+            const isSvg = base64Url.startsWith('data:image/svg');
+            if (!isSvg) return base64Url;
+            return await new Promise<string>((resolve) => {
+              const img = new Image();
+              img.onload = () => {
+                const w = Math.max(1, Math.round(targetWidthPx || 160));
+                const h = Math.max(1, Math.round(targetHeightPx || 80));
+                const c = document.createElement('canvas');
+                c.width = w; c.height = h;
+                const ctx = c.getContext('2d');
+                if (ctx) {
+                  ctx.clearRect(0, 0, w, h);
+                  ctx.fillStyle = '#ffffff';
+                  ctx.fillRect(0, 0, w, h);
+                  ctx.drawImage(img, 0, 0, w, h);
+                  resolve(c.toDataURL('image/png'));
+                } else {
+                  resolve(base64Url);
+                }
+              };
+              img.onerror = () => resolve(base64Url);
+              img.src = base64Url;
+            });
+          } catch { return null; }
+        };
+        return (
+          (await tryFetch(ministryLogoLocalPng)) ||
+          (await tryFetch(ministryLogoLocalSvg)) ||
+          (await tryFetch(ministryLogoRemote))
+        );
+      };
 
       // Overlay QR directly as in download
       const buildQRDataUrl = async (text: string, size = 160): Promise<string | null> => {
@@ -570,6 +745,29 @@ const ConfirmationPage: React.FC = () => {
           }
         }
       }
+
+      // Overlay the ministry logo in preview as well
+      try {
+        const headerImgEl = content.querySelector('#ministry-logo') as HTMLImageElement | null;
+        if (headerImgEl) {
+          const elRect = headerImgEl.getBoundingClientRect();
+          const contentRect = content.getBoundingClientRect();
+          const offsetXPx = elRect.left - contentRect.left;
+          const offsetYPx = elRect.top - contentRect.top;
+          const widthPx = elRect.width;
+          const heightPx = elRect.height;
+          const scaleFactor = canvas.width / content.scrollWidth;
+          const mmPerCanvasPx = finalWidth / canvas.width;
+          const logoXmm = x + (offsetXPx * scaleFactor) * mmPerCanvasPx;
+          const logoYmm = y + (offsetYPx * scaleFactor) * mmPerCanvasPx;
+          const logoWmm = Math.max(20, (widthPx * scaleFactor) * mmPerCanvasPx);
+          const logoHmm = Math.max(20, (heightPx * scaleFactor) * mmPerCanvasPx);
+          const logoDataUrl = await getLogoPngDataUrl(widthPx * scaleFactor, heightPx * scaleFactor);
+          if (logoDataUrl) {
+            pdf.addImage(logoDataUrl, 'PNG', logoXmm, logoYmm, logoWmm, logoHmm);
+          }
+        }
+      } catch {}
 
       pdf.setProperties({
         title: `إيصال طلب رقم ${ticket?.id || 'غير محدد'}`,
@@ -674,6 +872,20 @@ const ConfirmationPage: React.FC = () => {
               <span className="inline-block max-w-full truncate px-2 py-1 text-xs rounded bg-slate-800 text-slate-300 border border-slate-700" title={trackingUrl}>{trackingUrl}</span>
             </div>
           )}
+          <div className="mt-2 text-center text-xs text-slate-400">
+            آخر إنشاء للإيصال: <span>{generatedAt ? formatDateTime(generatedAt) : '—'}</span>
+          </div>
+        </div>
+
+        {/* تفاصيل زمن متابعة الطلب - على الشاشة */}
+        <div className="mt-6">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 text-center mb-3">تفاصيل زمن متابعة الطلب</h3>
+          <div className="grid grid-cols-1 gap-3">
+            <div className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 text-center">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">وقت وتاريخ التقديم</p>
+              <p className="text-base font-bold text-teal-700 dark:text-teal-300">{formatDateTime(ticket?.submissionDate)}</p>
+            </div>
+          </div>
         </div>
 
   {/* أزلنا مجموعة الأزرار السفلية لأننا وفرناها بالأعلى */}
@@ -769,15 +981,34 @@ const ConfirmationPage: React.FC = () => {
         </div>
       )}
 
-  <div ref={pdfContentRef} style={{ position: 'absolute', left: '-9999px', width: '800px', direction: 'rtl', fontFamily: 'Cairo, sans-serif', backgroundColor: 'white', zIndex: -1000 }}>
-        <div style={{ padding: '40px', color: '#333', minHeight: '1000px', backgroundColor: '#ffffff' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '3px solid #0f3c35', paddingBottom: '25px', marginBottom: '30px' }}>
+  <div ref={pdfContentRef} style={{ position: 'absolute', left: '-9999px', width: '800px', direction: 'rtl', fontFamily: '"Noto Kufi Arabic", Amiri, Cairo, sans-serif', backgroundColor: 'white', zIndex: -1000 }}>
+        <div style={{ padding: '40px', color: '#233', minHeight: '1000px', backgroundColor: '#ffffff' }}>
+          {/* Header matching the provided style */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '3px solid #0f3c35', paddingBottom: '20px', marginBottom: '28px' }}>
+            {/* Text block on the right (RTL), logo to its right */}
             <div style={{textAlign: 'right'}}>
-              <h1 style={{ margin: '8px 0 0', fontSize: '28px', color: '#0f3c35', fontWeight: '600' }}>مديريــة الماليــة - محافظــة حلــب</h1>
-              <p style={{ margin: '8px 0 0', fontSize: '18px', color: '#555', fontWeight: '600' }}>إيصال تقديم طلب</p>
-              <p style={{ margin: '5px 0 0', fontSize: '14px', color: '#777' }}>وزارة المالية - الجمهورية العربية السورية</p>
+              <div style={{ fontSize: '28px', color: '#0f3c35', fontWeight: 800 }}>مديرية المالية - محافظة حلب</div>
+              <div style={{ fontSize: '16px', color: '#475569', marginTop: '4px' }}>إيصال تقديم طلب</div>
+              <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>وزارة المالية - الجمهورية العربية السورية</div>
             </div>
-            <img src="https://syrian.zone/syid/materials/logo.ai.svg" alt="شعار" style={{ height: '90px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }} />
+            {/* Logo (also overlaid directly into the PDF later) */}
+            <img
+              id="ministry-logo"
+              src={ministryLogoLocalPng}
+              crossOrigin="anonymous"
+              alt="شعار"
+              style={{ height: '82px' }}
+              onError={(e) => {
+                const img = e.currentTarget as HTMLImageElement;
+                if (!img.dataset.triedRemote) {
+                  img.dataset.triedRemote = '1';
+                  img.src = ministryLogoLocalSvg;
+                } else if (!img.dataset.triedRemote2) {
+                  img.dataset.triedRemote2 = '1';
+                  img.src = ministryLogoRemote;
+                }
+              }}
+            />
           </div>
 
           <div style={{ marginBottom: '40px' }}>
@@ -806,7 +1037,7 @@ const ConfirmationPage: React.FC = () => {
                 </tr>
                 <tr>
                   <td style={{ padding: '15px', border: '1px solid #e0e0e0', fontWeight: 'bold', color: '#0f3c35' }}>تاريخ التقديم</td>
-                  <td style={{ padding: '15px', border: '1px solid #e0e0e0', color: '#333' }}>{ticket?.submissionDate ? new Intl.DateTimeFormat('ar-SY-u-nu-latn', { dateStyle: 'medium' }).format(ticket.submissionDate) : 'غير محدد'}</td>
+                  <td style={{ padding: '15px', border: '1px solid #e0e0e0', color: '#333' }}>{ticket?.submissionDate ? formatDateTime(ticket.submissionDate) : 'غير محدد'}</td>
                 </tr>
                 <tr style={{ backgroundColor: '#f8f9fa' }}>
                   <td style={{ padding: '15px', border: '1px solid #e0e0e0', fontWeight: 'bold', color: '#0f3c35' }}>الحالة</td>
@@ -820,28 +1051,48 @@ const ConfirmationPage: React.FC = () => {
             </table>
           </div>
 
-          <div style={{ marginTop: '50px', textAlign: 'center', backgroundColor: '#f8f9fa', padding: '30px', borderRadius: '12px', border: '2px solid #0f3c35' }}>
-            <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#0f3c35', marginBottom: '25px' }}>معلومات متابعة الطلب</h3>
-            
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: '30px', marginBottom: '20px' }}>
+          <div style={{ marginTop: '36px', textAlign: 'center', backgroundColor: '#f2f8f6', padding: '28px', borderRadius: '12px', border: '2px solid #0f3c35' }}>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: '#0f3c35', marginBottom: '18px' }}>معلومات متابعة الطلب</div>
+
+            {/* Top row: barcode and QR at same level */}
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: '24px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              {/* QR card (left) */}
               <div style={{ textAlign: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', border: '2px solid #0f3c35', borderRadius: '8px', padding: '15px', margin: '0 auto', minHeight: '120px', minWidth: '300px' }}>
-                  <canvas 
-                    id="pdf-barcode"
-                    style={{ maxWidth: '300px', maxHeight: '120px', display: 'block' }}
-                  ></canvas>
-                </div>
-                <p style={{ fontSize: '12px', color: '#0f3c35', margin: '8px 0 0 0', fontWeight: 'bold' }}>باركود قابل للمسح والتتبع</p>
-                <div style={{ backgroundColor: '#ffffff', border: '2px dashed #0f3c35', borderRadius: '8px', padding: '10px', marginTop: '12px', display: 'inline-block' }}>
+                <div style={{ backgroundColor: '#ffffff', border: '2px dashed #0f3c35', borderRadius: '8px', padding: '10px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 'fit-content', height: '184px' }}>
                   <div id="pdf-qr" style={{ width: '160px', height: '160px' }}></div>
                 </div>
-                <p style={{ fontSize: '12px', color: '#0f3c35', margin: '8px 0 0 0', fontWeight: 'bold' }}>رمز QR لفتح صفحة المتابعة</p>
+                <div style={{ fontSize: '12px', color: '#0f3c35', fontWeight: 700, marginTop: '6px' }}>رمز QR لفتح صفحة المتابعة</div>
               </div>
-              
-              <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '8px', border: '2px dashed #0f3c35', minWidth: '300px' }}>
-                <p style={{ fontSize: '16px', color: '#0f3c35', margin: '0 0 10px 0', fontWeight: 'bold' }}>رقم التتبع الخاص بك:</p>
-                <p style={{ fontSize: '28px', fontFamily: 'monospace', color: '#d63384', fontWeight: 'bold', letterSpacing: '2px', margin: '10px 0', textAlign: 'center' }}>{ticket?.id || 'خطأ في توليد الرقم'}</p>
+              {/* Barcode card (right) */}
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ backgroundColor: '#ffffff', border: '2px solid #0f3c35', borderRadius: '8px', padding: '12px', minWidth: '320px', height: '184px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <canvas id="pdf-barcode" style={{ maxWidth: '320px', maxHeight: '110px', display: 'block' }}></canvas>
+                </div>
+                <div style={{ fontSize: '12px', color: '#0f3c35', fontWeight: 700, marginTop: '6px' }}>باركود قابل للمسح والتتبع</div>
               </div>
+            </div>
+
+            {/* Bottom centered: tracking number dashed box */}
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <div style={{ backgroundColor: '#ffffff', padding: '18px', borderRadius: '8px', border: '2px dashed #0f3c35', minHeight: '110px', minWidth: '320px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '14px', color: '#0f3c35', marginBottom: '8px' }}>رقم التتبع الخاص بك:</div>
+                  <div style={{ fontSize: '28px', fontFamily: 'monospace', color: '#d63384', fontWeight: 700, letterSpacing: '2px' }}>{ticket?.id || 'خطأ في توليد الرقم'}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+            {/* تفاصيل زمن متابعة الطلب */}
+            <div style={{ marginTop: '10px', textAlign: 'right' }}>
+              <h3 style={{ fontSize: '20px', marginBottom: '12px', color: '#0f3c35', borderBottom: '2px solid #e0e0e0', paddingBottom: '8px' }}>تفاصيل زمن متابعة الطلب</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '16px', borderRadius: '8px', overflow: 'hidden' }}>
+                <tbody>
+                  <tr>
+                    <td style={{ padding: '12px', border: '1px solid #e0e0e0', fontWeight: 'bold', color: '#0f3c35', width: '30%', background: '#f8f9fa' }}>التقديم</td>
+                    <td style={{ padding: '12px', border: '1px solid #e0e0e0', color: '#333' }}>{ticket?.submissionDate ? formatDateTime(ticket.submissionDate) : '—'}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
             
             <div style={{ backgroundColor: '#e8f5e8', padding: '20px', borderRadius: '8px', textAlign: 'right' }}>
@@ -856,7 +1107,6 @@ const ConfirmationPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 };
