@@ -42,3 +42,30 @@ If using plain POSIX shell:
 ```bash
 git tag "restore-point-2025-09-10_$(date +%H-%M-%S)"
 ```
+
+## Logged Restore Point (2025-09-10)
+
+Created tag:
+
+```
+restore-20250910-200300
+```
+
+Contents include:
+- Admin monitoring page (`#/monitor`).
+- AI-style heuristic analysis card.
+- pdf.js worker unification.
+- Confirmation page layout (centered submission time block).
+- Tracking page robust decode & fixed proxy file.
+
+To restore to this exact snapshot later:
+
+```bash
+git checkout restore-20250910-200300
+```
+
+To push the tag to remote:
+
+```bash
+git push origin restore-20250910-200300
+```
