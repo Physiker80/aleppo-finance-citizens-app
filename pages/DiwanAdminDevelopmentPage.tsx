@@ -39,7 +39,11 @@ const DiwanAdminDevelopmentPage: React.FC = () => {
         </div>
 
         {/* وحدة التوثيق */}
-        <GeneralDiwanPage defaultDepartment="قسم التنمية الإدارية" />
+        <GeneralDiwanPage 
+          defaultDepartment="قسم التنمية الإدارية" 
+          title="ديوان قسم التنمية الإدارية"
+          description="إدارة الوثائق والمحاضر الخاصة بقسم التنمية الإدارية"
+        />
       </div>
     </div>
   );

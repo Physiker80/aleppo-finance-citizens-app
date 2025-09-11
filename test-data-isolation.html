@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار فصل البيانات بين الأقسام</title>
+    <style>
+        body {
+            font-family: 'Cairo', Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .department-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .storage-keys {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        .clear-btn {
+            background: #dc2626;
+        }
+        .clear-btn:hover {
+            background: #b91c1c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>اختبار فصل البيانات بين دواوين الأقسام</h1>
+        <p>هذه الصفحة تساعد في اختبار أن كل قسم له تخزين منفصل ومستقل عن الأقسام الأخرى وعن إدارة الديوان العام.</p>
+        
+        <div id="storage-info"></div>
+        
+        <div style="margin: 20px 0;">
+            <button onclick="refreshStorageInfo()">تحديث معلومات التخزين</button>
+            <button onclick="clearAllStorage()" class="clear-btn">مسح جميع البيانات</button>
+        </div>
+    </div>
+
+    <script>
+        // أسماء الأقسام العشرة
+        const departments = [
+            'ديوان الشؤون الإدارية',
+            'ديوان الإيرادات',
+            'ديوان كبار المكلفين',
+            'ديوان الديون',
+            'ديوان الاستيرادات',
+            'ديوان التدقيق',
+            'ديوان المعلوماتية',
+            'ديوان التطوير الإداري',
+            'ديوان الاستعلامات',
+            'ديوان الخزينة'
+        ];
+
+        function refreshStorageInfo() {
+            const container = document.getElementById('storage-info');
+            container.innerHTML = '';
+
+            // معلومات إدارة الديوان العام
+            const generalSection = document.createElement('div');
+            generalSection.className = 'department-section';
+            generalSection.innerHTML = `
+                <h2>إدارة الديوان العام</h2>
+                <div class="storage-keys">
+                    مفاتيح التخزين: diwanInbox_general, diwanOutbox_general
+                </div>
+                <div>البريد الوارد: ${localStorage.getItem('diwanInbox_general') ? 'يحتوي على بيانات' : 'فارغ'}</div>
+                <div>البريد الصادر: ${localStorage.getItem('diwanOutbox_general') ? 'يحتوي على بيانات' : 'فارغ'}</div>
+            `;
+            container.appendChild(generalSection);
+
+            // معلومات كل قسم
+            departments.forEach(dept => {
+                const deptKey = dept.replace(/\s/g, '_');
+                const inboxKey = `diwanInbox_${deptKey}`;
+                const outboxKey = `diwanOutbox_${deptKey}`;
+                
+                const section = document.createElement('div');
+                section.className = 'department-section';
+                section.innerHTML = `
+                    <h3>${dept}</h3>
+                    <div class="storage-keys">
+                        مفاتيح التخزين: ${inboxKey}, ${outboxKey}
+                    </div>
+                    <div>البريد الوارد: ${localStorage.getItem(inboxKey) ? 'يحتوي على بيانات' : 'فارغ'}</div>
+                    <div>البريد الصادر: ${localStorage.getItem(outboxKey) ? 'يحتوي على بيانات' : 'فارغ'}</div>
+                    <button onclick="clearDepartmentData('${deptKey}')" class="clear-btn">
+                        مسح بيانات ${dept}
+                    </button>
+                `;
+                container.appendChild(section);
+            });
+        }
+
+        function clearDepartmentData(deptKey) {
+            if (!confirm(`هل تريد مسح جميع بيانات ${deptKey.replace(/_/g, ' ')}؟`)) return;
+            
+            localStorage.removeItem(`diwanInbox_${deptKey}`);
+            localStorage.removeItem(`diwanOutbox_${deptKey}`);
+            refreshStorageInfo();
+        }
+
+        function clearAllStorage() {
+            if (!confirm('هل تريد مسح جميع بيانات التخزين؟')) return;
+            
+            // مسح بيانات الديوان العام
+            localStorage.removeItem('diwanInbox_general');
+            localStorage.removeItem('diwanOutbox_general');
+            
+            // مسح بيانات جميع الأقسام
+            departments.forEach(dept => {
+                const deptKey = dept.replace(/\s/g, '_');
+                localStorage.removeItem(`diwanInbox_${deptKey}`);
+                localStorage.removeItem(`diwanOutbox_${deptKey}`);
+            });
+            
+            // مسح المفاتيح القديمة إن وجدت
+            localStorage.removeItem('diwanInbox');
+            localStorage.removeItem('diwanOutbox');
+            
+            refreshStorageInfo();
+        }
+
+        // تحديث المعلومات عند تحميل الصفحة
+        refreshStorageInfo();
+    </script>
+</body>
+</html>

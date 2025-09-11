@@ -4,16 +4,7 @@ import GeneralDiwanPage from './GeneralDiwanPage';
 const DiwanIncomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6 text-center">
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">
-            ديوان قسم الدخل
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            إدارة الوثائق والمحاضر الخاصة بقسم الدخل
-          </p>
-        </div>
-        
+      <div className="container mx-auto px-4 py-8">        
         <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
           <h2 className="text-lg font-semibold text-green-800 dark:text-green-200 mb-2">
             معلومات القسم
@@ -54,7 +45,11 @@ const DiwanIncomePage: React.FC = () => {
           </div>
         </div>
         
-        <GeneralDiwanPage defaultDepartment="قسم الدخل" />
+        <GeneralDiwanPage 
+          defaultDepartment="قسم الدخل" 
+          title="ديوان قسم الدخل"
+          description="إدارة الوثائق والمحاضر الخاصة بقسم الدخل"
+        />
       </div>
     </div>
   );

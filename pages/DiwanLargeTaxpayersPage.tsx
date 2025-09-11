@@ -4,16 +4,7 @@ import GeneralDiwanPage from './GeneralDiwanPage';
 const DiwanLargeTaxpayersPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6 text-center">
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">
-            ديوان قسم كبار ومتوسطي المكلفين
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            إدارة الوثائق والمحاضر الخاصة بقسم كبار ومتوسطي المكلفين
-          </p>
-        </div>
-        
+      <div className="container mx-auto px-4 py-8">        
         <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4 mb-6">
           <h2 className="text-lg font-semibold text-purple-800 dark:text-purple-200 mb-2">
             معلومات القسم
@@ -48,7 +39,11 @@ const DiwanLargeTaxpayersPage: React.FC = () => {
           </div>
         </div>
         
-        <GeneralDiwanPage defaultDepartment="قسم كبار ومتوسطي المكلفين" />
+        <GeneralDiwanPage 
+          defaultDepartment="قسم كبار ومتوسطي المكلفين" 
+          title="ديوان قسم كبار ومتوسطي المكلفين"
+          description="إدارة الوثائق والمحاضر الخاصة بقسم كبار ومتوسطي المكلفين"
+        />
       </div>
     </div>
   );

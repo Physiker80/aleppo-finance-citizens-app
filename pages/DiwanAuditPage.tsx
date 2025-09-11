@@ -4,16 +4,7 @@ import GeneralDiwanPage from './GeneralDiwanPage';
 const DiwanAuditPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6 text-center">
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">
-            ديوان قسم الرقابة الداخلية
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            إدارة الوثائق والمحاضر الخاصة بقسم الرقابة الداخلية
-          </p>
-        </div>
-        
+      <div className="container mx-auto px-4 py-8">        
         <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4 mb-6">
           <h2 className="text-lg font-semibold text-indigo-800 dark:text-indigo-200 mb-2">
             معلومات القسم
@@ -48,7 +39,11 @@ const DiwanAuditPage: React.FC = () => {
           </div>
         </div>
         
-        <GeneralDiwanPage defaultDepartment="قسم الرقابة الداخلية" />
+        <GeneralDiwanPage 
+          defaultDepartment="قسم الرقابة الداخلية" 
+          title="ديوان قسم الرقابة الداخلية"
+          description="إدارة الوثائق والمحاضر الخاصة بقسم الرقابة الداخلية"
+        />
       </div>
     </div>
   );
