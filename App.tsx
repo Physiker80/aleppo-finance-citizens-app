@@ -12,6 +12,16 @@ import LoginPage from './pages/LoginPage';
 import EmployeeManagementPage from './pages/EmployeeManagementPage';
 import ToolsPage from './pages/ToolsPage';
 import GeneralDiwanPage from './pages/GeneralDiwanPage';
+import DiwanAdminPage from './pages/DiwanAdminPage';
+import DiwanIncomePage from './pages/DiwanIncomePage';
+import DiwanLargeTaxpayersPage from './pages/DiwanLargeTaxpayersPage';
+import DiwanDebtPage from './pages/DiwanDebtPage';
+import DiwanImportsPage from './pages/DiwanImportsPage';
+import DiwanAuditPage from './pages/DiwanAuditPage';
+import DiwanInformaticsPage from './pages/DiwanInformaticsPage';
+import DiwanAdminDevelopmentPage from './pages/DiwanAdminDevelopmentPage';
+import DiwanInquiryPage from './pages/DiwanInquiryPage';
+import DiwanTreasuryPage from './pages/DiwanTreasuryPage';
 import ContactPage from './pages/ContactPage';
 import ContactMessagesPage from './pages/ContactMessagesPage';
 import HrmsPage from './pages/HrmsPage';
@@ -450,6 +460,26 @@ const App: React.FC = () => {
         return isEmployeeLoggedIn && currentEmployee?.role === 'مدير' ? <ToolsPage /> : <LoginPage />;
       case '#/diwan':
         return isEmployeeLoggedIn ? <GeneralDiwanPage /> : <LoginPage />;
+      case '#/diwan/admin':
+        return isEmployeeLoggedIn ? <DiwanAdminPage /> : <LoginPage />;
+      case '#/diwan/income':
+        return isEmployeeLoggedIn ? <DiwanIncomePage /> : <LoginPage />;
+      case '#/diwan/large-taxpayers':
+        return isEmployeeLoggedIn ? <DiwanLargeTaxpayersPage /> : <LoginPage />;
+      case '#/diwan/debt':
+        return isEmployeeLoggedIn ? <DiwanDebtPage /> : <LoginPage />;
+      case '#/diwan/imports':
+        return isEmployeeLoggedIn ? <DiwanImportsPage /> : <LoginPage />;
+      case '#/diwan/audit':
+        return isEmployeeLoggedIn ? <DiwanAuditPage /> : <LoginPage />;
+      case '#/diwan/informatics':
+        return isEmployeeLoggedIn ? <DiwanInformaticsPage /> : <LoginPage />;
+      case '#/diwan/admin-development':
+        return isEmployeeLoggedIn ? <DiwanAdminDevelopmentPage /> : <LoginPage />;
+      case '#/diwan/inquiry':
+        return isEmployeeLoggedIn ? <DiwanInquiryPage /> : <LoginPage />;
+      case '#/diwan/treasury':
+        return isEmployeeLoggedIn ? <DiwanTreasuryPage /> : <LoginPage />;
       case '#/messages':
         return isEmployeeLoggedIn ? <ContactMessagesPage /> : <LoginPage />;
       case '#/requests':

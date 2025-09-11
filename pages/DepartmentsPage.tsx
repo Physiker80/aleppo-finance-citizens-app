@@ -212,6 +212,36 @@ const DEFAULT_DEPARTMENTS: DepartmentInfo[] = [
 ];
 
 const DepartmentsPage: React.FC = () => {
+  // قائمة دواوين الأقسام الإدارية
+  const departmentDiwans = [
+    { name: 'الديوان الإداري', route: '#/diwan/admin', description: 'توثيق المراسلات الإدارية والقرارات التنظيمية', color: 'blue', departmentId: 'general-admin' },
+    { name: 'ديوان قسم الدخل', route: '#/diwan/income', description: 'توثيق المعاملات المتعلقة بقسم الدخل', color: 'green', departmentId: 'income' },
+    { name: 'ديوان كبار المكلفين', route: '#/diwan/large-taxpayers', description: 'توثيق معاملات المكلفين الكبار', color: 'purple', departmentId: 'large-taxpayers' },
+    { name: 'ديوان قسم الديون', route: '#/diwan/debt', description: 'توثيق المتابعة والتحصيل', color: 'red', departmentId: 'debt-collection' },
+    { name: 'ديوان قسم المستوردات', route: '#/diwan/imports', description: 'توثيق معاملات الاستيراد والجمارك', color: 'orange', departmentId: 'imports' },
+    { name: 'ديوان التدقيق الداخلي', route: '#/diwan/audit', description: 'توثيق عمليات التدقيق والمراجعة', color: 'indigo', departmentId: 'internal-audit' },
+    { name: 'ديوان المعلوماتية', route: '#/diwan/informatics', description: 'توثيق الأنظمة والتطوير التقني', color: 'cyan', departmentId: 'informatics' },
+    { name: 'ديوان التنمية الإدارية', route: '#/diwan/admin-development', description: 'توثيق تطوير العمليات والموارد البشرية', color: 'teal', departmentId: 'admin-development' },
+    { name: 'ديوان الاستعلام', route: '#/diwan/inquiry', description: 'توثيق الخدمات الإلكترونية وخدمة الجمهور', color: 'pink', departmentId: 'inquiry' },
+    { name: 'ديوان الخزينة', route: '#/diwan/treasury', description: 'توثيق المعاملات المالية والحسابات', color: 'amber', departmentId: 'treasury' }
+  ];
+
+  const getColorClasses = (color: string) => {
+    const colorMap = {
+      blue: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700/40 hover:bg-blue-100 dark:hover:bg-blue-900/30',
+      green: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700/40 hover:bg-green-100 dark:hover:bg-green-900/30',
+      purple: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700/40 hover:bg-purple-100 dark:hover:bg-purple-900/30',
+      red: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700/40 hover:bg-red-100 dark:hover:bg-red-900/30',
+      orange: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-700/40 hover:bg-orange-100 dark:hover:bg-orange-900/30',
+      indigo: 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-700/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/30',
+      cyan: 'bg-cyan-50 dark:bg-cyan-900/20 border-cyan-200 dark:border-cyan-700/40 hover:bg-cyan-100 dark:hover:bg-cyan-900/30',
+      teal: 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-700/40 hover:bg-teal-100 dark:hover:bg-teal-900/30',
+      pink: 'bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-700/40 hover:bg-pink-100 dark:hover:bg-pink-900/30',
+      amber: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700/40 hover:bg-amber-100 dark:hover:bg-amber-900/30'
+    };
+    return colorMap[color as keyof typeof colorMap] || colorMap.blue;
+  };
+
   // Departments state synced with localStorage
   const [depItems, setDepItems] = useState<DepartmentInfo[]>(DEFAULT_DEPARTMENTS);
   const departments = depItems;
@@ -653,6 +683,24 @@ const DepartmentsPage: React.FC = () => {
             className={`px-4 py-2 rounded-lg text-sm border transition ${tab === 'chart' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white/70 dark:bg-gray-800/70 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'}`}
             onClick={() => setTab('chart')}
           >خريطة الهيكل التنظيمي</button>
+        </div>
+
+        {/* قسم دواوين الأقسام الإدارية */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4 text-center">دواوين الأقسام الإدارية</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-6">دواوين توثيق المراسلات والمعاملات لكل قسم من أقسام المديرية</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
+            {departmentDiwans.map((diwan, index) => (
+              <a
+                key={index}
+                href={diwan.route}
+                className={`rounded-xl border p-4 transition-all duration-200 cursor-pointer transform hover:scale-105 ${getColorClasses(diwan.color)}`}
+              >
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{diwan.name}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{diwan.description}</p>
+              </a>
+            ))}
+          </div>
         </div>
 
         {tab === 'overview' && (

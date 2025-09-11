@@ -1,18 +1,42 @@
+/* Import Arabic fonts: Fustat (Kufi style) for headings and Noto Naskh Arabic for body text */
+@import url('https://fonts.googleapis.com/css2?family=Fustat:wght@200;300;400;500;600;700;800&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Base body text using Noto Naskh Arabic (الأميري) */
 body {
-  font-family: 'Amiri', serif;
+  font-family: 'Noto Naskh Arabic', 'Traditional Arabic', 'Arabic Typesetting', serif;
+  font-weight: 400;
+  line-height: 1.8;
 }
 
+/* All headings use Fustat (الكوفي) */
 h1, h2, h3, h4, h5, h6, .font-heading {
-  font-family: 'Fustat', sans-serif;
+  font-family: 'Fustat', 'Traditional Arabic', 'Arabic Typesetting', serif;
+  font-weight: 500;
+  letter-spacing: 0.3px;
 }
 
-/* Kufi Arabic utility class for headings/sections that should use Kufi */
+/* Enhanced Fustat Kufi utility class for official documents and headings */
 .font-kufi {
-  font-family: 'Noto Kufi Arabic', 'Fustat', 'Cairo', sans-serif;
+  font-family: 'Fustat', 'Traditional Arabic', 'Arabic Typesetting', serif !important;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+/* Noto Naskh Arabic utility class for body text */
+.font-naskh {
+  font-family: 'Noto Naskh Arabic', 'Traditional Arabic', 'Arabic Typesetting', serif !important;
+  font-weight: 400;
+}
+
+/* Official document header styling - using Fustat (Kufi) */
+.official-header {
+  font-family: 'Fustat', 'Traditional Arabic', 'Arabic Typesetting', serif;
+  font-weight: bold;
+  letter-spacing: 0.5px;
 }
 
 #root {
@@ -67,11 +91,17 @@ select:focus {
   outline-offset: 2px;
 }
 
-/* Print styles for PDF */
+/* Print styles for PDF - using Noto Naskh Arabic for body and Fustat for headers */
 @media print {
   body {
-    font-family: 'Cairo', sans-serif;
+    font-family: 'Noto Naskh Arabic', 'Traditional Arabic', 'Arabic Typesetting', serif !important;
     background: white !important;
+    font-weight: 400;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Fustat', 'Traditional Arabic', 'Arabic Typesetting', serif !important;
+    font-weight: 500;
   }
   
   .no-print {
