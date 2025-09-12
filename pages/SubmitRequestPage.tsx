@@ -6,18 +6,13 @@ import Select from '../components/ui/Select';
 import TextArea from '../components/ui/TextArea';
 import FileInput from '../components/ui/FileInput';
 import Button from '../components/ui/Button';
-import { REQUEST_TYPES } from '../constants';
-import { Department, RequestType } from '../types';
-import { useDepartmentNames } from '../utils/departments';
+import { REQUEST_TYPES, formatArabicNumber } from '../constants';
+import { RequestType } from '../types';
 import { useFilePreviews } from '../hooks/useFilePreview';
 import { isTicketIdUsed } from '../utils/idGenerator';
 
-// يدعم رفع عدة ملفات (حتى 5) مع معاينات PDF بالـ iframe والصور عبر <img>
 const SubmitRequestPage: React.FC = () => {
   const appContext = useContext(AppContext);
-
-  const departmentNames = useDepartmentNames();
-  const initialDept = departmentNames[0] as Department | undefined;
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -25,7 +20,6 @@ const SubmitRequestPage: React.FC = () => {
     email: '',
     nationalId: '',
     requestType: REQUEST_TYPES[0],
-  department: initialDept || '',
     details: '',
   });
 
@@ -33,8 +27,6 @@ const SubmitRequestPage: React.FC = () => {
   const [manualId, setManualId] = useState('');
   const [manualIdError, setManualIdError] = useState<string | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  const [viewerLoading, setViewerLoading] = useState<boolean>(false);
-  const [viewerCanceled, setViewerCanceled] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const previews = useFilePreviews(attachments);
@@ -42,87 +34,86 @@ const SubmitRequestPage: React.FC = () => {
   const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
   const MAX_FILES = 5;
 
-  // previews are managed by the hook with proper cleanup
-
   const handleFilesChange = (files: File[] | undefined) => {
     if (!files || files.length === 0) {
       setAttachments([]);
       setError(null);
       return;
     }
-    let selected = files.slice(0, MAX_FILES);
-    const oversize = selected.filter((f) => f.size > MAX_FILE_SIZE);
-    if (oversize.length > 0) {
-      setError('بعض الملفات تتجاوز 100MB وتم تجاهلها.');
-      selected = selected.filter((f) => f.size <= MAX_FILE_SIZE);
-    } else {
-      setError(null);
+
+    const validFiles: File[] = [];
+    let errorMsg = '';
+
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        errorMsg = `الملف "${file.name}" كبير جداً. الحد الأقصى ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB`;
+        break;
+      }
+      if (validFiles.length >= MAX_FILES) {
+        errorMsg = `يمكن إرفاق ${MAX_FILES} ملفات كحد أقصى`;
+        break;
+      }
+      validFiles.push(file);
     }
-    setAttachments(selected);
+
+    if (errorMsg) {
+      setError(errorMsg);
+      return;
+    }
+
+    setAttachments(validFiles);
+    setError(null);
   };
 
-  const removeAttachment = (idx: number) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== idx));
-    if (previewIndex === idx) setPreviewIndex(null);
+  const removeAttachment = (index: number) => {
+    const newFiles = attachments.filter((_, i) => i !== index);
+    setAttachments(newFiles);
+    if (previewIndex === index) {
+      setPreviewIndex(null);
+    } else if (previewIndex !== null && previewIndex > index) {
+      setPreviewIndex(previewIndex - 1);
+    }
   };
 
-  const openPreview = (idx: number) => {
-    setPreviewIndex(idx);
-    setViewerLoading(true);
-    setViewerCanceled(false);
+  const openPreview = (index: number) => {
+    setPreviewIndex(index);
   };
+
   const closePreview = () => {
     setPreviewIndex(null);
-    setViewerLoading(false);
-    setViewerCanceled(false);
-  };
-  const cancelViewerLoading = () => {
-    if (viewerLoading && !viewerCanceled) {
-      setViewerCanceled(true);
-      setViewerLoading(false);
-    }
   };
 
-  const readableSize = (size: number) => {
-    if (size >= 1024 * 1024) return `${Math.ceil(size / (1024 * 1024))}MB`;
-    if (size >= 1024) return `${Math.ceil(size / 1024)}KB`;
-    return `${size}B`;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setFormData({ ...formData, [e.target.id]: e.target.value });
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
-    const { id, value } = e.target;
-    setFormData((prev) => ({ ...prev, [id]: value }));
+  const readableSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${Math.round(bytes / 1024 / 1024)} MB`;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.fullName || !formData.phone || !formData.nationalId || !formData.details || !formData.email) {
-      setError('يرجى ملء جميع الحقول الإلزامية.');
+    
+    if (!formData.fullName || !formData.phone || !formData.email || !formData.nationalId || !formData.details) {
+      setError('يرجى ملء جميع الحقول المطلوبة');
       return;
     }
-    // تحقق من تكرار المعرف اليدوي (إن وجد)
-    if (manualId.trim()) {
-      const exists = isTicketIdUsed(appContext?.tickets?.map(t=>t.id)||[], manualId.trim());
-      if (exists) {
-        setManualIdError('المعرف المدخل مستخدم مسبقاً، الرجاء اختيار معرف آخر.');
-        return;
-      }
-    }
-    setError(null);
-    setIsSubmitting(true);
 
-    // تخزين المعرف اليدوي مؤقتاً إذا أدخله المدير
-    if (manualId.trim()) {
-      try { localStorage.setItem('manualTicketId', manualId.trim().toUpperCase()); } catch {}
+    setIsSubmitting(true);
+    setError(null);
+
+    // Store manual ID if provided
+    if (manualId && !manualIdError) {
+      localStorage.setItem('manualTicketId', manualId);
     }
 
     setTimeout(() => {
       const newTicketId = appContext?.addTicket({
         ...formData,
         requestType: formData.requestType as RequestType,
-        department: formData.department as Department,
+        department: 'الديوان العام',
         attachments: attachments.length ? attachments : undefined,
         submissionDate: new Date(),
       });
@@ -135,233 +126,333 @@ const SubmitRequestPage: React.FC = () => {
   };
 
   return (
-    <Card>
-      <img src="https://syrian.zone/syid/materials/logo.ai.svg" alt="Syrian Zone Logo" className="mb-4 w-32 mx-auto" />
-      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-1">تقديم طلب جديد</h2>
-      <p className="text-gray-600 dark:text-gray-400 mb-6">يرجى ملء البيانات التالية بدقة. الحقول التي تحمل علامة * إلزامية.</p>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid md:grid-cols-2 gap-6">
-          <Input id="fullName" label="الاسم الكامل *" value={formData.fullName} onChange={handleChange} required />
-          <Input id="nationalId" label="الرقم الوطني *" value={formData.nationalId} onChange={handleChange} required />
-        </div>
-        <div className="grid md:grid-cols-2 gap-6">
-          <Input id="phone" label="رقم الهاتف *" type="tel" value={formData.phone} onChange={handleChange} required />
-          <Input id="email" label="البريد الإلكتروني *" type="email" value={formData.email} onChange={handleChange} required />
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          <Select id="requestType" label="نوع الطلب *" value={formData.requestType} onChange={handleChange}>
-            {REQUEST_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </Select>
-          <Select id="department" label="القسم المعني *" value={formData.department} onChange={handleChange}>
-            {departmentNames.map((dep) => (
-              <option key={dep} value={dep}>
-                {dep}
-              </option>
-            ))}
-          </Select>
-        </div>
-
-        <TextArea id="details" label="تفاصيل الطلب *" value={formData.details} onChange={handleChange} required />
-
-        {appContext?.isEmployeeLoggedIn && appContext?.currentEmployee?.role === 'مدير' && (
-          <Input
-            id="manualTicketId"
-            label="معرّف مخصص (اختياري - للمدير)"
-            placeholder="مثال: ALF-20250910-0001"
-            value={manualId}
-            onChange={(e) => {
-              const v = e.target.value.toUpperCase().trimStart();
-              setManualId(v);
-              if (v) {
-                const exists = isTicketIdUsed(appContext?.tickets?.map(t=>t.id)||[], v);
-                setManualIdError(exists ? 'المعرف مستخدم مسبقاً.' : null);
-              } else {
-                setManualIdError(null);
-              }
-            }}
-            helperText={manualIdError ? manualIdError : 'عند تعبئته سيتم استخدامه بدلاً من التوليد التلقائي (مرة واحدة).'}
-            error={!!manualIdError}
-          />
-        )}
-
-        <FileInput
-          id="attachments"
-          label="إرفاق ملفات (اختياري)"
-          onFileChange={handleFilesChange}
-          accept=".pdf,.png,.jpg,.jpeg,.docx"
-          multiple
-          maxFiles={MAX_FILES}
-        />
-
-        {attachments.length > 0 && (
-          <div className="mt-4 p-4 border rounded-lg bg-gray-50 dark:bg-gray-800">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="font-semibold text-lg text-gray-800 dark:text-gray-200">
-                المرفقات ({attachments.length})
-              </h4>
-              <p className="text-xs text-gray-500 dark:text-gray-400">باقي {MAX_FILES - attachments.length} من {MAX_FILES} ملفات</p>
+    <div className="min-h-screen py-8" style={{
+      background: 'url("https://syrian.zone/syid/materials/bg.svg") center/cover',
+      backdropFilter: 'blur(0.5px)'
+    }}>
+      <div className="container mx-auto px-4">
+        <Card className="max-w-5xl mx-auto shadow-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border border-white/30 dark:border-gray-700/30 rounded-3xl overflow-hidden">
+          {/* Header Section */}
+          <div className="bg-gradient-to-r from-[#002623]/5 to-[#003833]/5 px-8 py-8 border-b border-gray-100 dark:border-gray-700/50">
+            <div className="text-center">
+              <img 
+                src="https://syrian.zone/syid/materials/logo.ai.svg" 
+                alt="Syrian Zone Logo" 
+                className="mb-6 w-32 h-32 mx-auto filter drop-shadow-lg opacity-90 hover:opacity-100 transition-opacity duration-300" 
+              />
+              <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-3 drop-shadow-sm">
+                تقديم طلب جديد
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 text-lg max-w-2xl mx-auto leading-relaxed">
+                يرجى ملء البيانات التالية بدقة. الحقول التي تحمل علامة <span className="text-red-500 font-semibold">*</span> إلزامية.
+              </p>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {attachments.map((file, index) => {
-                const p = previews[index];
-                const kind = p?.kind || 'unsupported';
-                const badge = kind === 'image' ? 'صورة' : kind === 'pdf' ? 'PDF' : kind === 'docx' ? 'Word' : 'ملف';
-                return (
-                  <div key={`${file.name}-${index}`} className="relative border rounded-md bg-black/5 dark:bg-white/5 shadow-sm overflow-hidden">
-                    <button onClick={() => removeAttachment(index)} title="إزالة" className="absolute top-2 right-2 z-10 inline-flex items-center justify-center w-8 h-8 rounded-full bg-black/40 text-white hover:bg-black/60">×</button>
-                    <div className="relative w-full h-72 md:h-80 bg-gray-50 dark:bg-gray-800">
-                      {!p || p.loading ? (
-                        <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-600 dark:text-gray-300">جاري تجهيز المعاينة...</div>
-                      ) : p.kind === 'pdf' ? (
-                        <iframe src={p.url} title={`pdf-${index}`} className="absolute inset-0 w-full h-full border-0" />
-                      ) : p.kind === 'image' ? (
-                        <img src={p.url} alt={`attachment-${index}`} className="absolute inset-0 w-full h-full object-contain" />
-                      ) : p.kind === 'docx' ? (
-                        p.html ? (
-                          <div className="absolute inset-0 overflow-auto">
-                            <div className="prose prose-sm max-w-none dark:prose-invert bg-white dark:bg-gray-900 p-3 min-h-full" dangerouslySetInnerHTML={{ __html: p.html }} />
+          </div>
+
+          {/* Form Section */}
+          <div className="px-8 py-8">
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Personal Information */}
+              <div className="bg-gray-50/50 dark:bg-gray-800/30 rounded-2xl p-6 border border-gray-200/50 dark:border-gray-700/30">
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-6">
+                  البيانات الشخصية
+                </h3>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <Input 
+                    id="fullName" 
+                    label="الاسم الكامل *" 
+                    value={formData.fullName} 
+                    onChange={handleChange} 
+                    required 
+                    className="transition-all duration-300 focus:ring-2 focus:ring-[#002623]/20" 
+                  />
+                  <Input 
+                    id="nationalId" 
+                    label="الرقم الوطني *" 
+                    value={formData.nationalId} 
+                    onChange={handleChange} 
+                    required 
+                    className="transition-all duration-300 focus:ring-2 focus:ring-[#002623]/20" 
+                  />
+                </div>
+                <div className="grid md:grid-cols-2 gap-6 mt-6">
+                  <Input 
+                    id="phone" 
+                    label="رقم الهاتف *" 
+                    type="tel" 
+                    value={formData.phone} 
+                    onChange={handleChange} 
+                    required 
+                    className="transition-all duration-300 focus:ring-2 focus:ring-[#002623]/20" 
+                  />
+                  <Input 
+                    id="email" 
+                    label="البريد الإلكتروني *" 
+                    type="email" 
+                    value={formData.email} 
+                    onChange={handleChange} 
+                    required 
+                    className="transition-all duration-300 focus:ring-2 focus:ring-[#002623]/20" 
+                  />
+                </div>
+              </div>
+
+              {/* Request Details */}
+              <div className="bg-gray-50/50 dark:bg-gray-800/30 rounded-2xl p-6 border border-gray-200/50 dark:border-gray-700/30">
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-6">
+                  تفاصيل الطلب
+                </h3>
+                <div className="space-y-6">
+                  <Select 
+                    id="requestType" 
+                    label="نوع الطلب *" 
+                    value={formData.requestType} 
+                    onChange={handleChange}
+                    className="transition-all duration-300 focus:ring-2 focus:ring-[#002623]/20"
+                  >
+                    {REQUEST_TYPES.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </Select>
+                  <TextArea 
+                    id="details" 
+                    label="تفاصيل الطلب *" 
+                    value={formData.details} 
+                    onChange={handleChange} 
+                    required 
+                    className="transition-all duration-300 focus:ring-2 focus:ring-[#002623]/20 min-h-[120px]" 
+                  />
+                </div>
+              </div>
+
+              {/* Admin Section */}
+              {appContext?.isEmployeeLoggedIn && appContext?.currentEmployee?.role === 'مدير' && (
+                <div className="bg-amber-50/50 dark:bg-amber-900/20 rounded-2xl p-6 border border-amber-200/50 dark:border-amber-700/30">
+                  <h3 className="text-xl font-semibold text-amber-800 dark:text-amber-200 mb-6">
+                    إعدادات المدير
+                  </h3>
+                  <Input
+                    id="manualTicketId"
+                    label="معرّف مخصص (اختياري - للمدير)"
+                    placeholder="مثال: ALF-20250910-0001"
+                    value={manualId}
+                    onChange={(e) => {
+                      const v = e.target.value.toUpperCase().trimStart();
+                      setManualId(v);
+                      if (v) {
+                        const exists = isTicketIdUsed(appContext?.tickets?.map(t=>t.id)||[], v);
+                        setManualIdError(exists ? 'المعرف مستخدم مسبقاً.' : null);
+                      } else {
+                        setManualIdError(null);
+                      }
+                    }}
+                    helperText={manualIdError ? manualIdError : 'عند تعبئته سيتم استخدامه بدلاً من التوليد التلقائي (مرة واحدة).'}
+                    error={!!manualIdError}
+                    className="transition-all duration-300 focus:ring-2 focus:ring-amber-500/20"
+                  />
+                </div>
+              )}
+
+              {/* Attachments */}
+              <div className="bg-blue-50/50 dark:bg-blue-900/20 rounded-2xl p-6 border border-blue-200/50 dark:border-blue-700/30">
+                <h3 className="text-xl font-semibold text-blue-800 dark:text-blue-200 mb-6">
+                  المرفقات (اختياري)
+                </h3>
+                <div className="space-y-4">
+                  <FileInput
+                    id="attachments"
+                    label="إرفاق ملفات"
+                    onFileChange={handleFilesChange}
+                    accept=".pdf,.png,.jpg,.jpeg,.docx"
+                    multiple
+                    maxFiles={MAX_FILES}
+                  />
+                  <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-4">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                      PDF, Word, الصور
+                    </span>
+                    <span className="text-gray-400">•</span>
+                    <span>حد أقصى {MAX_FILES} ملفات</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Files Display */}
+              {attachments.length > 0 && (
+                <div className="bg-gray-50/50 dark:bg-gray-800/30 rounded-2xl p-6 border border-gray-200/50 dark:border-gray-700/30">
+                  <div className="flex items-center justify-between mb-6">
+                    <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-3">
+                      <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold">✓</div>
+                      الملفات المرفقة ({attachments.length})
+                    </h4>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
+                      باقي {MAX_FILES - attachments.length} من {MAX_FILES}
+                    </div>
+                  </div>
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {attachments.map((file, index) => {
+                      const p = previews[index];
+                      const kind = p?.kind || 'unsupported';
+                      const badge = kind === 'image' ? '🖼️ صورة' : kind === 'pdf' ? '📄 PDF' : kind === 'docx' ? '📝 Word' : '📁 ملف';
+                      return (
+                        <div key={`${file.name}-${index}`} className="group relative border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+                          <button 
+                            onClick={() => removeAttachment(index)} 
+                            className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors duration-200 flex items-center justify-center text-sm font-bold opacity-0 group-hover:opacity-100"
+                          >
+                            ×
+                          </button>
+                          <div className="relative w-full h-48 bg-gray-50 dark:bg-gray-700 rounded-t-xl overflow-hidden">
+                            {!p || p.loading ? (
+                              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                <div className="animate-spin w-8 h-8 border-2 border-gray-400 border-t-transparent rounded-full mb-2"></div>
+                                <span className="text-sm text-gray-600 dark:text-gray-300">جاري المعاينة...</span>
+                              </div>
+                            ) : p.kind === 'pdf' ? (
+                              <iframe src={p.url} className="w-full h-full border-0" />
+                            ) : p.kind === 'image' ? (
+                              <img src={p.url} alt={`attachment-${index}`} className="w-full h-full object-contain" />
+                            ) : p.kind === 'docx' && p.html ? (
+                              <div className="absolute inset-0 overflow-hidden p-2">
+                                <div className="prose prose-sm max-w-none dark:prose-invert text-xs" dangerouslySetInnerHTML={{ __html: p.html.substring(0, 200) + '...' }} />
+                              </div>
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="text-center">
+                                  <div className="text-2xl mb-2">📁</div>
+                                  <span className="text-sm text-gray-600 dark:text-gray-300">لا يمكن المعاينة</span>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        ) : (
-                          <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-600 dark:text-gray-300">جارٍ تجهيز معاينة الوورد...</div>
-                        )
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-600 dark:text-gray-300">لا يمكن معاينة هذا النوع من الملفات.</div>
-                      )}
-                      {/* Transparent details/action bar */}
-                      <div className="absolute bottom-0 left-0 right-0 p-3 bg-black/40 text-white backdrop-blur-sm flex items-center justify-between">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate" title={file.name}>{file.name}</p>
-                          <p className="text-xs opacity-90">{badge} • {readableSize(file.size)}</p>
+                          <div className="p-4">
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate mb-1" title={file.name}>
+                              {file.name}
+                            </p>
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {badge} • {readableSize(file.size)}
+                              </p>
+                              <button 
+                                onClick={() => openPreview(index)} 
+                                className="px-3 py-1 text-xs bg-[#002623] text-white rounded-lg hover:bg-[#003833] transition-colors"
+                              >
+                                معاينة
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3 text-xs">
-                          <button onClick={() => openPreview(index)} className="px-2 py-1 rounded bg-white/10 hover:bg-white/20">معاينة</button>
-                          {p?.url && (
-                            <a href={p.url} target="_blank" rel="noreferrer" className="px-2 py-1 rounded bg-white/10 hover:bg-white/20">فتح</a>
-                          )}
-                          {p?.url && (
-                            <a href={p.url} download={file.name} className="px-2 py-1 rounded bg-white/10 hover:bg-white/20">تنزيل</a>
-                          )}
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Submit Section */}
+              <div className="bg-gradient-to-r from-[#002623]/5 to-[#003833]/5 rounded-2xl p-8 border border-gray-200/50 dark:border-gray-700/30 text-center">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
+                  جاهز لإرسال طلبك؟
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                  تأكد من صحة جميع البيانات قبل الإرسال. سيتم إرسال رقم متابعة الطلب إلى بريدك الإلكتروني.
+                </p>
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting || !!error || !!manualIdError}
+                  className="w-full py-4 text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                >
+                  {isSubmitting ? (
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                      <span>جاري الإرسال...</span>
+                    </div>
+                  ) : (
+                    <span>إرسال الطلب</span>
+                  )}
+                </Button>
+                {error && (
+                  <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg">
+                    <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                  </div>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {/* Preview Modal */}
+          {previewIndex !== null && previews[previewIndex] && (
+            <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm" onClick={closePreview}>
+              <div className="relative w-screen h-screen" onClick={(e) => e.stopPropagation()}>
+                <div className="absolute top-6 left-6 right-6 flex items-center justify-between text-white">
+                  <div>
+                    <h5 className="text-lg font-semibold truncate mb-1" title={attachments[previewIndex].name}>
+                      {attachments[previewIndex].name}
+                    </h5>
+                    <p className="text-sm opacity-80">
+                      ملف {previewIndex + 1} من {attachments.length} • {readableSize(attachments[previewIndex].size)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={closePreview}
+                    className="w-12 h-12 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center text-xl"
+                  >
+                    ×
+                  </button>
+                </div>
+                
+                <div className="absolute inset-6 mt-24 mb-20 rounded-lg overflow-hidden bg-white dark:bg-gray-900">
+                  {(() => {
+                    const p = previews[previewIndex];
+                    if (!p || p.loading) return (
+                      <div className="flex items-center justify-center h-full text-gray-500">
+                        <div className="text-center">
+                          <div className="animate-spin w-12 h-12 border-2 border-gray-400 border-t-transparent rounded-full mb-4"></div>
+                          <p>جاري التحميل...</p>
                         </div>
+                      </div>
+                    );
+                    if (p.kind === 'pdf') return <iframe src={p.url} className="w-full h-full" />;
+                    if (p.kind === 'image') return <img src={p.url} className="w-full h-full object-contain" alt="Preview" />;
+                    if (p.kind === 'docx' && p.html) {
+                      return (
+                        <div className="w-full h-full overflow-auto p-6">
+                          <div className="prose max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: p.html }} />
+                        </div>
+                      );
+                    }
+                    return <div className="flex items-center justify-center h-full text-gray-500">لا يمكن معاينة هذا الملف</div>;
+                  })()}
+                </div>
+
+                {attachments.length > 1 && (
+                  <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2">
+                    <div className="bg-black/50 backdrop-blur-sm rounded-full px-4 py-2">
+                      <div className="flex gap-2">
+                        {attachments.map((f, i) => (
+                          <button 
+                            key={i} 
+                            onClick={() => setPreviewIndex(i)} 
+                            title={f.name}
+                            className={`px-3 py-1 rounded-full text-xs transition-all ${
+                              i === previewIndex 
+                                ? 'bg-[#002623] text-white' 
+                                : 'bg-white/10 text-white/80 hover:bg-white/20'
+                            }`}
+                          >
+                            {i + 1}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {previewIndex !== null && previews[previewIndex] && (
-          <div className="fixed inset-0 z-50 bg-black/80" onClick={closePreview}>
-            <div className="relative w-screen h-screen" onClick={(e) => e.stopPropagation()}>
-              {/* Top transparent info bar */}
-              <div className="absolute top-0 left-0 right-0 p-3 flex items-center justify-between text-white bg-transparent">
-                <div className="min-w-0">
-                  <h5 className="text-sm font-semibold truncate" title={attachments[previewIndex].name}>{attachments[previewIndex].name}</h5>
-                  <p className="text-xs opacity-80">ملف {previewIndex + 1} من {attachments.length} • {readableSize(attachments[previewIndex].size)}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {previews[previewIndex]?.url && (
-                    <a href={previews[previewIndex]!.url} target="_blank" rel="noreferrer" className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-white text-xs">فتح</a>
-                  )}
-                  {previews[previewIndex]?.url && (
-                    <a href={previews[previewIndex]!.url} download={attachments[previewIndex].name} className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-white text-xs">تنزيل</a>
-                  )}
-                  <button
-                    onClick={cancelViewerLoading}
-                    title="إلغاء التحميل"
-                    aria-label="إلغاء التحميل"
-                    className={`w-8 h-8 rounded-full ${viewerLoading && !viewerCanceled ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 opacity-50 cursor-not-allowed'} text-white`}
-                    disabled={!viewerLoading || viewerCanceled}
-                  >✕</button>
-                </div>
+                )}
               </div>
-
-              {/* Side navigation arrows */}
-              {attachments.length > 1 && (
-                <>
-                  <button aria-label="السابق" disabled={previewIndex === 0} onClick={() => setPreviewIndex((i) => (i !== null ? Math.max(0, i - 1) : 0))} className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-40">‹</button>
-                  <button aria-label="التالي" disabled={previewIndex === attachments.length - 1} onClick={() => setPreviewIndex((i) => (i !== null ? Math.min(attachments.length - 1, i + 1) : 0))} className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-40">›</button>
-                </>
-              )}
-
-              {/* Content */}
-              <div className="h-full w-full flex items-center justify-center px-6 pt-16 pb-24">
-                {(() => {
-                  const p = previews[previewIndex]!;
-                  // keep local loading state in sync for docx
-                  if (p.kind === 'docx' && viewerCanceled) {
-                    return <div className="p-6 text-center text-white/90">تم إلغاء التحميل.</div>;
-                  }
-                  if (viewerCanceled) {
-                    return <div className="p-6 text-center text-white/90">تم إلغاء التحميل.</div>;
-                  }
-                  if (!p || p.loading) {
-                    // when hook indicates loading, mark viewer as loading
-                    if (!viewerLoading) setViewerLoading(true);
-                    return <div className="p-6 text-center text-white/90">جاري تحميل المعاينة…</div>;
-                  }
-                  if (p.kind === 'pdf') return (
-                    <iframe
-                      key={`pdf-${previewIndex}`}
-                      src={p.url}
-                      title={`pdf-full-${previewIndex}`}
-                      className="w-full h-full bg-white rounded"
-                      onLoad={() => setViewerLoading(false)}
-                    />
-                  );
-                  if (p.kind === 'image') return (
-                    <img
-                      key={`img-${previewIndex}`}
-                      src={p.url}
-                      alt={`img-full-${previewIndex}`}
-                      className="max-w-full max-h-full object-contain mx-auto"
-                      onLoad={() => setViewerLoading(false)}
-                      onError={() => setViewerLoading(false)}
-                    />
-                  );
-                  if (p.kind === 'docx') return p.html ? (
-                    <div
-                      className="prose max-w-none dark:prose-invert bg-white/90 dark:bg-gray-900/90 p-6 rounded border border-white/20 max-h-full overflow-auto"
-                      dangerouslySetInnerHTML={{ __html: p.html }}
-                      onLoad={() => setViewerLoading(false) as any}
-                    />
-                  ) : (
-                    <div className="p-6 text-center text-white/90">جارٍ تجهيز معاينة الوورد…</div>
-                  );
-                  return <div className="p-6 text-center text-white/90">لا تتوفر معاينة لهذا الملف.</div>;
-                })()}
-              </div>
-
-              {/* Bottom transparent selector */}
-              {attachments.length > 1 && (
-                <div className="absolute bottom-0 left-0 right-0 p-2 overflow-x-auto bg-transparent">
-                  <div className="flex gap-2 px-2">
-                    {attachments.map((f, i) => (
-                      <button key={i} onClick={() => setPreviewIndex(i)} title={f.name} className={`px-2 py-1 rounded text-xs whitespace-nowrap border ${i === previewIndex ? 'bg-white/20 text-white border-white/50' : 'bg-transparent text-white/90 border-white/20 hover:bg-white/10'}`}>{f.name}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
-          </div>
-        )}
-
-        {error && <p className="text-red-500 text-sm">{error}</p>}
-
-        <div className="text-left">
-          <Button type="submit" isLoading={isSubmitting}>
-            {isSubmitting ? 'جاري الإرسال...' : 'إرسال الطلب'}
-          </Button>
-        </div>
-      </form>
-    </Card>
+          )}
+        </Card>
+      </div>
+    </div>
   );
 };
 

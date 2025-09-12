@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { FaCrown, FaUpload, FaTrash, FaDownload, FaChevronRight, FaChevronDown, FaChevronUp, FaBuilding, FaSearch, FaSearchPlus, FaSearchMinus, FaSync, FaAngleDoubleDown, FaAngleDoubleUp } from 'react-icons/fa';
+import { AppContext } from '../App';
 
 type DepartmentInfo = {
   id: string;
@@ -241,6 +242,10 @@ const DepartmentsPage: React.FC = () => {
     };
     return colorMap[color as keyof typeof colorMap] || colorMap.blue;
   };
+
+  // استخدام AppContext للتحقق من تسجيل دخول الموظفين
+  const appContext = useContext(AppContext);
+  const isEmployeeLoggedIn = appContext?.isEmployeeLoggedIn || false;
 
   // Departments state synced with localStorage
   const [depItems, setDepItems] = useState<DepartmentInfo[]>(DEFAULT_DEPARTMENTS);
@@ -685,23 +690,25 @@ const DepartmentsPage: React.FC = () => {
           >خريطة الهيكل التنظيمي</button>
         </div>
 
-        {/* قسم دواوين الأقسام الإدارية */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4 text-center">دواوين الأقسام الإدارية</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-6">دواوين توثيق المراسلات والمعاملات لكل قسم من أقسام المديرية</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
-            {departmentDiwans.map((diwan, index) => (
-              <a
-                key={index}
-                href={diwan.route}
-                className={`rounded-xl border p-4 transition-all duration-200 cursor-pointer transform hover:scale-105 ${getColorClasses(diwan.color)}`}
-              >
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{diwan.name}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{diwan.description}</p>
-              </a>
-            ))}
+        {/* قسم دواوين الأقسام الإدارية - يظهر للموظفين المسجلين فقط */}
+        {isEmployeeLoggedIn && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4 text-center">دواوين الأقسام الإدارية</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-6">دواوين توثيق المراسلات والمعاملات لكل قسم من أقسام المديرية</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
+              {departmentDiwans.map((diwan, index) => (
+                <a
+                  key={index}
+                  href={diwan.route}
+                  className={`rounded-xl border p-4 transition-all duration-200 cursor-pointer transform hover:scale-105 ${getColorClasses(diwan.color)}`}
+                >
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{diwan.name}</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{diwan.description}</p>
+                </a>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {tab === 'overview' && (
           <div>

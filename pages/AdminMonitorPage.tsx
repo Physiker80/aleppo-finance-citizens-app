@@ -2,18 +2,19 @@ import React, { useContext, useMemo, useState } from 'react';
 import { AppContext } from '../App';
 import Card from '../components/ui/Card';
 import { RequestStatus, Ticket, ContactMessageStatus } from '../types';
+import { formatArabicNumber, formatArabicDate } from '../constants';
 
 // دوال مساعدة لحساب الفروقات الزمنية
 const diffMinutes = (a: Date, b: Date) => Math.max(0, (b.getTime() - a.getTime()) / 60000);
 const formatDuration = (mins: number) => {
   if (!isFinite(mins) || mins <= 0) return '—';
-  if (mins < 60) return `${Math.round(mins)} دقيقة`;
+  if (mins < 60) return `${formatArabicNumber(Math.round(mins))} دقيقة`;
   const h = mins / 60;
-  if (h < 24) return `${h.toFixed(1)} ساعة`;
+  if (h < 24) return `${formatArabicNumber(h.toFixed(1))} ساعة`;
   const d = h / 24;
-  if (d < 30) return `${d.toFixed(1)} يوم`;
+  if (d < 30) return `${formatArabicNumber(d.toFixed(1))} يوم`;
   const mo = d / 30;
-  return `${mo.toFixed(1)} شهر`;
+  return `${formatArabicNumber(mo.toFixed(1))} شهر`;
 };
 
 interface RangeFilter {
@@ -252,8 +253,19 @@ const AdminMonitorPage: React.FC = () => {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-end gap-6">
         <div className="flex-1">
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">مركز المراقبة والتحليلات</h1>
+          <h1 className="text-4xl font-bold text-gray-800 dark:text-gray-100">مركز المراقبة والتحليل</h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">نظرة شاملة مباشرة عن أداء النظام وحركة الطلبات والرسائل.</p>
+        </div>
+        <div className="flex justify-end">
+          <button
+            onClick={() => { window.location.hash = '#/dashboard'; }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            العودة إلى لوحة التحكم
+          </button>
         </div>
         <Card className="w-full md:w-auto md:min-w-[380px] flex flex-col gap-3">
           <div className="flex gap-3">
@@ -316,7 +328,7 @@ const AdminMonitorPage: React.FC = () => {
 
       {/* مخطط 14 يوم */}
       <Card>
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">التذاكر خلال آخر 14 يوم</h3>
+        <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">التذاكر خلال آخر 14 يوم</h3>
         <MiniBarChart data={last14DaysChart} />
         <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
           إجمالي: {last14DaysChart.reduce((a,b)=>a+b.value,0)} • متوسط يومي: {(last14DaysChart.reduce((a,b)=>a+b.value,0)/14).toFixed(2)}
@@ -326,7 +338,7 @@ const AdminMonitorPage: React.FC = () => {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* توزيع حسب القسم */}
         <Card className="xl:col-span-1">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">أعلى الأقسام (عدد التذاكر)</h3>
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">أعلى الأقسام (عدد التذاكر)</h3>
           <ul className="mt-3 space-y-2 text-sm">
             {deptDistribution.slice(0,8).map(([dep,count],i) => {
               const pct = rangedTickets.length ? (count / rangedTickets.length)*100 : 0;
@@ -345,7 +357,7 @@ const AdminMonitorPage: React.FC = () => {
 
         {/* أعمار التذاكر و التذاكر المتقادمة */}
         <Card className="xl:col-span-1">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">الصحة التشغيلية</h3>
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">الصحة التشغيلية</h3>
           <div className="mt-4 space-y-4 text-sm">
             <div className="flex justify-between"><span>تذاكر جديدة متقادمة (&gt; {STALE_DAYS} أيام)</span><span className="font-semibold text-red-600 dark:text-red-400">{staleCount}</span></div>
             <div className="flex justify-between"><span>عدد التذاكر قيد المعالجة</span><span className="font-semibold">{byStatus[RequestStatus.InProgress].length}</span></div>
@@ -358,7 +370,7 @@ const AdminMonitorPage: React.FC = () => {
 
         {/* رسائل التواصل */}
         <Card className="xl:col-span-1">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">رسائل التواصل (النطاق)</h3>
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">رسائل التواصل (النطاق)</h3>
           <div className="mt-4 space-y-3 text-sm">
             <div className="flex justify-between"><span>إجمالي</span><span className="font-semibold">{rangedMessages.length}</span></div>
             <div className="flex justify-between"><span>جديد</span><span className="font-semibold">{messageByStatus[ContactMessageStatus.New]}</span></div>
@@ -366,7 +378,7 @@ const AdminMonitorPage: React.FC = () => {
             <div className="flex justify-between"><span>مغلق</span><span className="font-semibold">{messageByStatus[ContactMessageStatus.Closed]}</span></div>
           </div>
           <div className="mt-5">
-            <h4 className="text-sm font-semibold mb-2">أحدث 5 رسائل</h4>
+            <h4 className="text-base font-semibold mb-2">أحدث 5 رسائل</h4>
             <ul className="space-y-2 text-xs max-h-48 overflow-auto pr-1">
               {rangedMessages.slice().sort((a,b)=> b.submissionDate.getTime() - a.submissionDate.getTime()).slice(0,5).map(m => (
                 <li key={m.id} className="p-2 rounded bg-white/60 dark:bg-gray-800/60 border border-white/30 dark:border-gray-700/40">
@@ -383,7 +395,7 @@ const AdminMonitorPage: React.FC = () => {
       {/* جدول عينات لأحدث التذاكر */}
       <Card>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">أحدث التذاكر (10)</h3>
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">أحدث التذاكر (10)</h3>
           <div className="text-xs text-gray-500 dark:text-gray-400">يتم تطبيق نفس مرشحات النطاق/القسم/الحالة</div>
         </div>
         <div className="overflow-auto rounded border border-white/30 dark:border-gray-700/40">
@@ -434,7 +446,7 @@ const AdminMonitorPage: React.FC = () => {
       {/* كرت التحليل الذكي */}
       <Card>
         <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">تحليل ذكي للأداء التشغيلي</h3>
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">تحليل ذكي للأداء التشغيلي</h3>
           <button
             onClick={() => setAnalysisSeed(s => s + 1)}
             className="text-xs px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-700 text-white shadow focus:outline-none focus:ring-2 focus:ring-indigo-400"
@@ -456,7 +468,7 @@ const AdminMonitorPage: React.FC = () => {
               </div>
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">العوامل المساهمة</h4>
+              <h4 className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-2">العوامل المساهمة</h4>
               <ul className="space-y-1.5 text-xs">
                 {aiAnalysis.factors.map(f => (
                   <li key={f.label} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 p-2 rounded bg-white/60 dark:bg-gray-800/60 border border-white/30 dark:border-gray-700/40">
@@ -472,7 +484,7 @@ const AdminMonitorPage: React.FC = () => {
           </div>
           <div className="lg:col-span-3 space-y-4">
             <div>
-              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">التوصيات</h4>
+              <h4 className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-2">التوصيات</h4>
               <ul className="list-disc pr-5 space-y-1 text-sm text-gray-700 dark:text-gray-300 marker:text-indigo-500 dark:marker:text-indigo-300">
                 {aiAnalysis.recommendations.map((r,i) => <li key={i}>{r}</li>)}
               </ul>

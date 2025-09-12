@@ -1,7 +1,7 @@
 import React from 'react';
 import Card from '../components/ui/Card';
 
-const HomePage: React.FC = () => {
+const HomePage: React.FC = () => {  
   const ActionCard: React.FC<{
     title: string;
     description: string;
@@ -18,7 +18,7 @@ const HomePage: React.FC = () => {
         </Card>
     </a>
   );
-    
+      
   return (
     <div className="space-y-12">
       <div className="text-center py-12 bg-white dark:bg-gray-800/50 rounded-lg shadow-md">

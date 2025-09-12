@@ -62,14 +62,37 @@ const HrmsPage: React.FC = () => {
   }, [showIntro]);
 
   return (
-    <Card>
-      <div className="flex items-start justify-between mb-6">
-        <div className="min-w-0">
-          <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">نظام إدارة الموارد البشرية المتكامل (HRMS)</h2>
-        </div>
+    <div className="min-h-screen py-8" style={{
+      background: 'url("https://syrian.zone/syid/materials/bg.svg") center/cover',
+      backdropFilter: 'blur(0.5px)'
+    }}>
+      <div className="container mx-auto px-4">
+        <Card className="max-w-6xl mx-auto bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-white/20 dark:border-gray-700/20 shadow-2xl">
+          {/* الشعار الرسمي */}
+          <div className="mb-8 flex flex-col items-center text-center">
+            <img 
+              src="https://syrian.zone/syid/materials/logo.ai.svg" 
+              alt="شعار الجمهورية العربية السورية" 
+              className="w-32 h-32 mx-auto filter drop-shadow-lg opacity-90 hover:opacity-100 transition-opacity duration-300 mb-6"
+              onError={(e) => {
+                const img = e.currentTarget as HTMLImageElement;
+                // fallback to local logo if remote fails
+                img.src = '/logo.ai.svg';
+              }}
+            />
+          </div>
+          
+          <div className="flex items-start justify-between mb-6">
+            <div className="min-w-0">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white drop-shadow-sm">نظام إدارة الموارد البشرية المتكامل (HRMS)</h2>
+            </div>
         <div className="flex gap-2 items-center">
           <div className="relative" ref={introBtnRef}>
-            <Button onClick={() => setShowIntro((v) => !v)} aria-haspopup="dialog" aria-expanded={showIntro}>
+            <Button 
+              onClick={() => setShowIntro((v) => !v)} 
+              aria-haspopup="dialog" 
+              aria-expanded={showIntro}
+            >
               تعريف النظام
             </Button>
             {showIntro && (
@@ -104,7 +127,12 @@ const HrmsPage: React.FC = () => {
               </div>
             )}
           </div>
-          <Button variant="secondary" onClick={() => window.location.hash = '#/dashboard'}>العودة للوحة التحكم</Button>
+          <Button 
+            variant="secondary" 
+            onClick={() => window.location.hash = '#/dashboard'}
+          >
+            العودة للوحة التحكم
+          </Button>
         </div>
       </div>
 
@@ -197,7 +225,11 @@ const HrmsPage: React.FC = () => {
                 <li>إدارة المستندات: أرشفة وتخزين كافة المستندات المتعلقة بالموظف إلكترونياً (عقود، شهادات، جوازات سفر).</li>
               </ul>
               <div className="pt-2">
-                <Button variant="secondary" onClick={() => { window.location.hash = '#/employees'; }}>فتح إدارة الموظفين</Button>
+                <Button 
+                  onClick={() => { window.location.hash = '#/employees'; }}
+                >
+                  فتح إدارة الموظفين
+                </Button>
               </div>
             </div>
           )}
@@ -270,7 +302,9 @@ const HrmsPage: React.FC = () => {
           )}
         </Modal>
       )}
-    </Card>
+        </Card>
+      </div>
+    </div>
   );
 };
 

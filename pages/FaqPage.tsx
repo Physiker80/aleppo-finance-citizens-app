@@ -44,6 +44,20 @@ const FaqPage: React.FC = () => {
 
   return (
     <Card>
+      {/* الشعار الرسمي */}
+      <div className="mb-8 flex flex-col items-center">
+        <img 
+          src="https://syrian.zone/syid/materials/logo.ai.svg" 
+          alt="شعار الجمهورية العربية السورية" 
+          className="w-32 h-32 mx-auto filter drop-shadow-lg opacity-90 hover:opacity-100 transition-opacity duration-300"
+          onError={(e) => {
+            const img = e.currentTarget as HTMLImageElement;
+            // fallback to local logo if remote fails
+            img.src = '/logo.ai.svg';
+          }}
+        />
+      </div>
+      
       <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-gray-100 mb-2">قاعدة المعرفة والأسئلة الشائعة</h2>
       <p className="text-center text-gray-600 dark:text-gray-400 mb-8">
         ابحث عن إجابات للأسئلة الأكثر تكراراً لتوفر على نفسك الوقت والجهد.

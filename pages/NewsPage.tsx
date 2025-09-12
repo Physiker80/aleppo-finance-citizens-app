@@ -13,6 +13,20 @@ const NewsPage: React.FC = () => {
   return (
     <div>
       <div className="text-center mb-10">
+        {/* الشعار الرسمي */}
+        <div className="mb-8 flex flex-col items-center">
+          <img 
+            src="https://syrian.zone/syid/materials/logo.ai.svg" 
+            alt="شعار الجمهورية العربية السورية" 
+            className="w-32 h-32 mx-auto filter drop-shadow-lg opacity-90 hover:opacity-100 transition-opacity duration-300"
+            onError={(e) => {
+              const img = e.currentTarget as HTMLImageElement;
+              // fallback to local logo if remote fails
+              img.src = '/logo.ai.svg';
+            }}
+          />
+        </div>
+        
         <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">الأخبار والإعلانات الرسمية</h2>
         <p className="text-gray-600 dark:text-gray-400">
           تابع آخر المستجدات والقرارات الصادرة عن مديرية مالية حلب.

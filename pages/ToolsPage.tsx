@@ -1,9 +1,45 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useContext } from 'react';
 import Tesseract from 'tesseract.js';
-import { FaFileUpload, FaSpinner, FaFilePdf, FaFileWord, FaFileImage } from 'react-icons/fa';
+import { FaFileUpload, FaSpinner, FaFilePdf, FaFileWord, FaFileImage, FaCheck, FaTimes, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 import { useFilePreview } from '../hooks/useFilePreview';
 import { NewsItem, FaqItem } from '../types';
 import { NEWS_DATA, FAQ_DATA } from '../constants';
+import { 
+  PdfTemplate,
+  getSavedTemplates, 
+  saveTemplate, 
+  deleteTemplate, 
+  exportTemplate, 
+  importTemplate,
+  generatePdfFromTemplate,
+  generateSimplePreview,
+  getDefaultTemplate,
+  diagnoseSystem,
+  approveTemplate,
+  unapproveTemplate
+} from '../utils/pdfTemplateGenerator';
+
+const ARABIC_FONTS = [
+  { name: 'Amiri', displayName: 'الأميري - خط تقليدي أنيق', url: 'https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&display=swap' },
+  { name: 'Scheherazade New', displayName: 'شهرزاد الجديد - خط ناسخي جميل', url: 'https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;500;600;700&display=swap' },
+  { name: 'Aref Ruqaa', displayName: 'عارف رقعة - خط الرقعة الكلاسيكي', url: 'https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&display=swap' },
+  { name: 'Lateef', displayName: 'لطيف - خط نسخي حديث', url: 'https://fonts.googleapis.com/css2?family=Lateef:wght@200;300;400;500;600;700;800&display=swap' },
+  { name: 'Reem Kufi', displayName: 'ريم كوفي - خط كوفي عصري', url: 'https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400;500;600;700&display=swap' },
+  { name: 'Katibeh', displayName: 'كاتبة - خط فارسي أنيق', url: 'https://fonts.googleapis.com/css2?family=Katibeh&display=swap' },
+  { name: 'Markazi Text', displayName: 'نص مركزي - خط حديث متعدد الاستخدامات', url: 'https://fonts.googleapis.com/css2?family=Markazi+Text:wght@400;500;600;700&display=swap' },
+  { name: 'Noto Naskh Arabic', displayName: 'نوتو نسخ عربي - خط نسخي احترافي', url: 'https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap' }
+];
+
+// تحميل الخطوط العربية الجميلة
+const loadArabicFonts = () => {
+  ARABIC_FONTS.forEach(font => {
+    const link = document.createElement('link');
+    link.href = font.url;
+    link.rel = 'stylesheet';
+    link.type = 'text/css';
+    document.head.appendChild(link);
+  });
+};
 
 // Removed overlay popover; we'll render a fixed inline panel instead.
 
@@ -275,7 +311,7 @@ const LegalEditor: React.FC<{
       a.download = `${storageKey}-export-${ts}.html`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch { alert('تعذر تصدير الملف.'); }
+    } catch (error) { alert('تعذر تصدير الملف.'); }
   };
 
   const onImport: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
@@ -427,7 +463,7 @@ const NewsManager: React.FC<{ onChanged?: () => void; onSwitchToAdd?: () => void
       a.download = `news-export-${ts}.json`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
+    } catch (error) {
       alert('تعذر تصدير البيانات.');
     }
   };
@@ -614,7 +650,7 @@ const FaqManager: React.FC<{ onChanged?: () => void; onSwitchToAdd?: () => void 
       a.download = `faq-export-${ts}.json`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
+    } catch (error) {
       alert('تعذر تصدير البيانات.');
     }
   };
@@ -705,13 +741,1070 @@ const FaqManager: React.FC<{ onChanged?: () => void; onSwitchToAdd?: () => void 
   );
 };
 
+// مكون إدارة قوالب PDF
+const PdfTemplateManager: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
+  const [templates, setTemplates] = useState<PdfTemplate[]>([]);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [previewMode, setPreviewMode] = useState<'edit' | 'preview'>('edit');
+  const [draft, setDraft] = useState<PdfTemplate>(getDefaultTemplate());
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadedTemplates = getSavedTemplates();
+    setTemplates(loadedTemplates);
+  }, []);
+
+  const startEdit = (i: number) => {
+    setEditingIndex(i);
+    setDraft({ ...templates[i] });
+  };
+
+  const cancel = () => {
+    setEditingIndex(null);
+    setPreviewMode('edit');
+  };
+
+  const save = () => {
+    if (editingIndex === null) return;
+    try {
+      const updatedTemplate = { ...draft, id: templates[editingIndex].id };
+      saveTemplate(updatedTemplate);
+      const loadedTemplates = getSavedTemplates();
+      setTemplates(loadedTemplates);
+      setEditingIndex(null);
+      setMessage('تم حفظ القالب بنجاح');
+      setTimeout(() => setMessage(null), 2000);
+      onChanged?.();
+    } catch (error) {
+      setMessage('فشل في حفظ القالب');
+      setTimeout(() => setMessage(null), 2000);
+    }
+  };
+
+  const addNew = () => {
+    try {
+      const newTemplate: PdfTemplate = {
+        ...getDefaultTemplate(),
+        id: `template-${Date.now()}`,
+        name: `قالب جديد ${templates.length + 1}`
+      };
+      saveTemplate(newTemplate);
+      const loadedTemplates = getSavedTemplates();
+      setTemplates(loadedTemplates);
+      setMessage('تم إضافة القالب الجديد');
+      setTimeout(() => setMessage(null), 2000);
+      onChanged?.();
+    } catch (error) {
+      setMessage('فشل في إضافة القالب');
+      setTimeout(() => setMessage(null), 2000);
+    }
+  };
+
+  const remove = (i: number) => {
+    if (!confirm('هل تريد حذف هذا القالب؟')) return;
+    try {
+      deleteTemplate(templates[i].id);
+      const loadedTemplates = getSavedTemplates();
+      setTemplates(loadedTemplates);
+      if (editingIndex === i) setEditingIndex(null);
+      setMessage('تم حذف القالب');
+      setTimeout(() => setMessage(null), 2000);
+      onChanged?.();
+    } catch (error) {
+      setMessage('فشل في حذف القالب');
+      setTimeout(() => setMessage(null), 2000);
+    }
+  };
+
+  const duplicate = (i: number) => {
+    try {
+      const template = templates[i];
+      const duplicated: PdfTemplate = {
+        ...template,
+        id: `template-${Date.now()}`,
+        name: `نسخة من ${template.name}`
+      };
+      saveTemplate(duplicated);
+      const loadedTemplates = getSavedTemplates();
+      setTemplates(loadedTemplates);
+      setMessage('تم نسخ القالب');
+      setTimeout(() => setMessage(null), 2000);
+      onChanged?.();
+    } catch (error) {
+      setMessage('فشل في نسخ القالب');
+      setTimeout(() => setMessage(null), 2000);
+    }
+  };
+
+  const handleExportTemplate = (template: PdfTemplate) => {
+    try {
+      exportTemplate(template);
+      setMessage('تم تصدير القالب');
+      setTimeout(() => setMessage(null), 2000);
+    } catch (error) {
+      setMessage('فشل في تصدير القالب');
+      setTimeout(() => setMessage(null), 2000);
+    }
+  };
+
+  const handleImportTemplate = async (file: File) => {
+    try {
+      const template = await importTemplate(file);
+      saveTemplate(template);
+      const loadedTemplates = getSavedTemplates();
+      setTemplates(loadedTemplates);
+      setMessage('تم استيراد القالب بنجاح');
+      setTimeout(() => setMessage(null), 2000);
+      onChanged?.();
+    } catch (error) {
+      setMessage('فشل في استيراد القالب');
+      setTimeout(() => setMessage(null), 2000);
+    }
+  };
+
+  const handleApproveTemplate = (templateId: string) => {
+    try {
+      // يمكن هنا إضافة نظام أذونات لتحديد من يستطيع الاعتماد
+      const currentUser = 'المدير'; // يجب الحصول عليه من السياق
+      approveTemplate(templateId, currentUser);
+      const loadedTemplates = getSavedTemplates();
+      setTemplates(loadedTemplates);
+      setMessage('تم اعتماد القالب بنجاح');
+      setTimeout(() => setMessage(null), 2000);
+      onChanged?.();
+    } catch (error) {
+      setMessage('فشل في اعتماد القالب');
+      setTimeout(() => setMessage(null), 2000);
+    }
+  };
+
+  const handleUnapproveTemplate = (templateId: string) => {
+    try {
+      unapproveTemplate(templateId);
+      const loadedTemplates = getSavedTemplates();
+      setTemplates(loadedTemplates);
+      setMessage('تم إلغاء اعتماد القالب');
+      setTimeout(() => setMessage(null), 2000);
+      onChanged?.();
+    } catch (error) {
+      setMessage('فشل في إلغاء اعتماد القالب');
+      setTimeout(() => setMessage(null), 2000);
+    }
+  };
+
+  const handleDiagnoseSystem = async () => {
+    try {
+      setMessage('جاري تشخيص النظام...');
+      
+      const diagnostics = await diagnoseSystem();
+      const diagnosticsText = diagnostics.join('\n');
+      
+      // عرض التشخيص
+      if (confirm(`تقرير التشخيص:\n\n${diagnosticsText}\n\nهل تريد نسخ التقرير للحافظة؟`)) {
+        try {
+          await navigator.clipboard.writeText(diagnosticsText);
+          setMessage('تم نسخ تقرير التشخيص للحافظة');
+        } catch {
+          setMessage('فشل في نسخ التقرير - يرجى نسخه يدوياً');
+        }
+      } else {
+        setMessage('تم إجراء التشخيص');
+      }
+      
+      setTimeout(() => setMessage(null), 3000);
+      
+    } catch (error) {
+      setMessage(`فشل في التشخيص: ${error}`);
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  const generatePreview = async () => {
+    try {
+      // التحقق من وجود القالب
+      if (!draft || !draft.name) {
+        setMessage('يرجى تحديد قالب أولاً');
+        setTimeout(() => setMessage(null), 2000);
+        return;
+      }
+
+      setMessage('جاري إنتاج المعاينة...');
+      
+      // محاكاة بيانات طلب للمعاينة
+      const sampleData = {
+        id: 'ALF-20250912-001-ABC123',
+        fullName: 'أحمد محمد الخطيب',
+        phone: '+963 11 1234567',
+        email: 'ahmed@example.com',
+        nationalId: '01234567890',
+        requestType: 'استعلام',
+        department: 'قسم الضرائب',
+        submissionDate: new Date(),
+        status: 'جديد',
+        details: 'استعلام حول إجراءات تجديد الترخيص التجاري وما هي الوثائق المطلوبة والرسوم المترتبة على ذلك.'
+      };
+
+      // محاولة إنتاج المعاينة باستخدام الدالة المحسنة
+      await generateSimplePreview(draft, sampleData);
+
+      setMessage('تم إنتاج معاينة PDF بنجاح');
+      setTimeout(() => setMessage(null), 3000);
+    } catch (error) {
+      console.error('خطأ في إنتاج المعاينة:', error);
+      const errorMessage = error instanceof Error ? error.message : 'خطأ غير محدد';
+      setMessage(`فشل في إنتاج المعاينة: ${errorMessage}`);
+      setTimeout(() => setMessage(null), 5000);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">إدارة قوالب PDF</h2>
+        <div className="flex gap-2">
+          <button 
+            onClick={addNew}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+          >
+            إضافة قالب جديد
+          </button>
+          <label className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm cursor-pointer">
+            استيراد قالب
+            <input
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  handleImportTemplate(file);
+                  e.target.value = ''; // إعادة تعيين قيمة الإدخال
+                }
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
+      {message && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg text-sm">
+          {message}
+        </div>
+      )}
+
+      {editingIndex !== null && (
+        <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">تحرير القالب: {templates[editingIndex]?.name}</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPreviewMode(previewMode === 'edit' ? 'preview' : 'edit')}
+                className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                {previewMode === 'edit' ? 'معاينة' : 'تحرير'}
+              </button>
+              <button
+                onClick={generatePreview}
+                className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+              >
+                إنتاج معاينة PDF
+              </button>
+              <button
+                onClick={handleDiagnoseSystem}
+                className="px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700"
+                title="تشخيص مشاكل النظام"
+              >
+                🔧 تشخيص
+              </button>
+            </div>
+          </div>
+
+          {previewMode === 'edit' ? (
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* إعدادات أساسية */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">اسم القالب</label>
+                  <input
+                    value={draft.name}
+                    onChange={(e) => setDraft({...draft, name: e.target.value})}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">نوع القالب</label>
+                  <select
+                    value={draft.type}
+                    onChange={(e) => setDraft({...draft, type: e.target.value})}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800"
+                  >
+                    <option value="ticket_confirmation">إيصال تقديم الطلب</option>
+                    <option value="ticket_report">تقرير الطلب</option>
+                    <option value="department_report">تقرير القسم</option>
+                    <option value="monthly_report">التقرير الشهري</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">عنوان الهيدر</label>
+                  <textarea
+                    value={draft.header.title}
+                    onChange={(e) => setDraft({...draft, header: {...draft.header, title: e.target.value}})}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800 min-h-[60px]"
+                    rows={3}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">عنوان فرعي</label>
+                  <input
+                    value={draft.header.subtitle}
+                    onChange={(e) => setDraft({...draft, header: {...draft.header, subtitle: e.target.value}})}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">عنوان المحتوى</label>
+                  <input
+                    value={draft.content.title}
+                    onChange={(e) => setDraft({...draft, content: {...draft.content, title: e.target.value}})}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800"
+                  />
+                </div>
+
+                {/* إعدادات اللوغو */}
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                  <h4 className="font-medium mb-3">إعدادات اللوغو</h4>
+                  
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={draft.header.logo}
+                        onChange={(e) => setDraft({...draft, header: {...draft.header, logo: e.target.checked}})}
+                        className="rounded"
+                      />
+                      <span className="text-sm">إظهار اللوغو</span>
+                    </label>
+
+                    {draft.header.logo && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">تحميل لوغو SVG</label>
+                          <input
+                            type="file"
+                            accept=".svg,image/svg+xml,.png,.jpg,.jpeg,image/png,image/jpeg"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                // التحقق من حجم الملف (حد أقصى 2MB)
+                                if (file.size > 2 * 1024 * 1024) {
+                                  alert('حجم الملف كبير جداً. الحد الأقصى: ٢ ميجابايت');
+                                  return;
+                                }
+                                
+                                try {
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    const base64 = event.target?.result as string;
+                                    setDraft({
+                                      ...draft, 
+                                      header: {
+                                        ...draft.header, 
+                                        logoFile: base64,
+                                        logoFileName: file.name
+                                      }
+                                    });
+                                  };
+                                  reader.readAsDataURL(file);
+                                } catch (error) {
+                                  alert('فشل في تحميل اللوغو');
+                                }
+                              }
+                            }}
+                            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800 text-sm"
+                          />
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            الصيغ المدعومة: SVG, PNG, JPG • الحد الأقصى: ٢MB
+                          </p>
+                          {draft.header.logoFileName && (
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                              ✅ تم تحميل: {draft.header.logoFileName}
+                            </p>
+                          )}
+                        </div>
+
+                        {draft.header.logoFile && (
+                          <div>
+                            <label className="block text-sm font-medium mb-1">معاينة اللوغو</label>
+                            <div className="border border-gray-300 dark:border-gray-600 rounded p-3 bg-white dark:bg-gray-800">
+                              <img 
+                                src={draft.header.logoFile} 
+                                alt="Logo Preview"
+                                className="max-w-full max-h-24 mx-auto"
+                                style={{
+                                  width: draft.header.logoWidth ? `${draft.header.logoWidth}px` : 'auto',
+                                  height: draft.header.logoHeight ? `${draft.header.logoHeight}px` : 'auto'
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-sm font-medium mb-1">عرض اللوغو (px)</label>
+                            <input
+                              type="number"
+                              min="20"
+                              max="200"
+                              value={draft.header.logoWidth || 60}
+                              onChange={(e) => setDraft({...draft, header: {...draft.header, logoWidth: parseInt(e.target.value) || 60}})}
+                              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800"
+                            />
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              القيمة الحالية: {(draft.header.logoWidth || 60).toLocaleString('ar')}px
+                            </p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">ارتفاع اللوغو (px)</label>
+                            <input
+                              type="number"
+                              min="20"
+                              max="200"
+                              value={draft.header.logoHeight || 60}
+                              onChange={(e) => setDraft({...draft, header: {...draft.header, logoHeight: parseInt(e.target.value) || 60}})}
+                              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800"
+                            />
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              القيمة الحالية: {(draft.header.logoHeight || 60).toLocaleString('ar')}px
+                            </p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium mb-2">المسافة بين اللوغو والعنوان</label>
+                          
+                          {/* معاينة بصرية للمسافة */}
+                          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-3 text-center">
+                            <div className="inline-block w-8 h-8 bg-blue-500 rounded mb-1"></div>
+                            <div 
+                              className="border-l-2 border-dashed border-gray-400 mx-auto"
+                              style={{ height: `${Math.max((draft.header.logoSpacing || 15) * 0.5, 2)}px`, width: '1px' }}
+                            ></div>
+                            <div className="text-xs font-medium text-gray-700 dark:text-gray-300">عنوان الهيدر</div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              معاينة المسافة: {(draft.header.logoSpacing || 15).toLocaleString('ar')}px
+                            </p>
+                          </div>
+
+                          <input
+                            type="range"
+                            min="0"
+                            max="50"
+                            value={draft.header.logoSpacing || 15}
+                            onChange={(e) => setDraft({...draft, header: {...draft.header, logoSpacing: parseInt(e.target.value)}})}
+                            className="w-full accent-blue-600"
+                          />
+                          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            <span>ملتصق (٠px)</span>
+                            <span className="font-medium text-blue-600 dark:text-blue-400">{(draft.header.logoSpacing || 15).toLocaleString('ar')}px</span>
+                            <span>متباعد (٥٠px)</span>
+                          </div>
+                          
+                          {/* أزرار سريعة للمسافات الشائعة */}
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              type="button"
+                              onClick={() => setDraft({...draft, header: {...draft.header, logoSpacing: 0}})}
+                              className={`px-3 py-1 text-xs rounded transition-colors ${
+                                (draft.header.logoSpacing || 15) === 0 
+                                  ? 'bg-blue-600 text-white' 
+                                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                              }`}
+                            >
+                              مدمج
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDraft({...draft, header: {...draft.header, logoSpacing: 10}})}
+                              className={`px-3 py-1 text-xs rounded transition-colors ${
+                                (draft.header.logoSpacing || 15) === 10
+                                  ? 'bg-blue-600 text-white' 
+                                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                              }`}
+                            >
+                              قريب
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDraft({...draft, header: {...draft.header, logoSpacing: 15}})}
+                              className={`px-3 py-1 text-xs rounded transition-colors ${
+                                (draft.header.logoSpacing || 15) === 15
+                                  ? 'bg-blue-600 text-white' 
+                                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                              }`}
+                            >
+                              متوسط
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDraft({...draft, header: {...draft.header, logoSpacing: 25}})}
+                              className={`px-3 py-1 text-xs rounded transition-colors ${
+                                (draft.header.logoSpacing || 15) === 25
+                                  ? 'bg-blue-600 text-white' 
+                                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                              }`}
+                            >
+                              متباعد
+                            </button>
+                          </div>
+
+                          {/* نصائح سريعة */}
+                          <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 rounded p-2">
+                            <strong>💡 نصائح:</strong>
+                            <ul className="list-disc list-inside mt-1 space-y-1">
+                              <li><strong>٠-١٠px:</strong> مناسب للوثائق المدمجة</li>
+                              <li><strong>١٥-٢٥px:</strong> التوازن المثالي (موصى به)</li>
+                              <li><strong>٣٠-٥٠px:</strong> مناسب للعناوين الكبيرة</li>
+                              <li><strong>نصيحة الخطوط:</strong> فسطاط أو أميري مناسب للهيدر، نوتو نسخ للفوتر</li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        {draft.header.logoFile && (
+                          <button
+                            onClick={() => setDraft({...draft, header: {...draft.header, logoFile: undefined, logoFileName: undefined}})}
+                            className="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                          >
+                            🗑️ إزالة اللوغو
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* إعدادات التصميم */}
+              <div className="space-y-4">
+                <h4 className="font-medium">إعدادات التصميم</h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">حجم الصفحة</label>
+                    <select
+                      value={draft.styling.pageSize}
+                      onChange={(e) => setDraft({...draft, styling: {...draft.styling, pageSize: e.target.value}})}
+                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800"
+                    >
+                      <option value="A4">A4</option>
+                      <option value="A5">A5</option>
+                      <option value="Letter">Letter</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">خط الهيدر</label>
+                    <select
+                      value={draft.header.fontFamily || draft.styling.fontFamily}
+                      onChange={(e) => setDraft({...draft, header: {...draft.header, fontFamily: e.target.value}})}
+                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800 font-preview"
+                      style={{ fontFamily: draft.header.fontFamily || draft.styling.fontFamily }}
+                    >
+                      <optgroup label="خطوط تقليدية">
+                        <option value="Arial" className="font-sans">Arial - الافتراضي</option>
+                        <option value="Helvetica" className="font-sans">Helvetica - هلفيتيكا</option>
+                        <option value="Times" className="font-serif">Times - تايمز</option>
+                      </optgroup>
+                      <optgroup label="خطوط عربية كلاسيكية">
+                        <option value="Amiri" className="font-amiri">الأميري - خط تقليدي أنيق</option>
+                        <option value="Scheherazade New" className="font-scheherazade">شهرزاد الجديد - خط ناسخي جميل</option>
+                        <option value="Aref Ruqaa" className="font-aref-ruqaa">عارف رقعة - خط الرقعة الكلاسيكي</option>
+                        <option value="Lateef" className="font-lateef">لطيف - خط نسخي حديث</option>
+                        <option value="Katibeh" className="font-katibeh">كاتبة - خط فارسي أنيق</option>
+                      </optgroup>
+                      <optgroup label="خطوط عربية حديثة">
+                        <option value="Fustat" className="font-fustat">فسطاط - خط كوفي أنيق ومعاصر</option>
+                        <option value="Reem Kufi" className="font-reem-kufi">ريم كوفي - خط كوفي عصري</option>
+                        <option value="Markazi Text" className="font-markazi">نص مركزي - خط متعدد الاستخدامات</option>
+                        <option value="Noto Naskh Arabic" className="font-naskh">نوتو نسخ عربي - خط نسخي احترافي</option>
+                      </optgroup>
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      معاينة خط الهيدر: <span style={{ fontFamily: draft.header.fontFamily || draft.styling.fontFamily, fontSize: '18px', fontWeight: 'bold' }}>الجمهورية العربية السورية 123</span>
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">خط الفوتر</label>
+                    <select
+                      value={draft.footer.fontFamily || draft.styling.fontFamily}
+                      onChange={(e) => setDraft({...draft, footer: {...draft.footer, fontFamily: e.target.value}})}
+                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800 font-preview"
+                      style={{ fontFamily: draft.footer.fontFamily || draft.styling.fontFamily }}
+                    >
+                      <optgroup label="خطوط تقليدية">
+                        <option value="Arial" className="font-sans">Arial - الافتراضي</option>
+                        <option value="Helvetica" className="font-sans">Helvetica - هلفيتيكا</option>
+                        <option value="Times" className="font-serif">Times - تايمز</option>
+                      </optgroup>
+                      <optgroup label="خطوط عربية كلاسيكية">
+                        <option value="Amiri" className="font-amiri">الأميري - خط تقليدي أنيق</option>
+                        <option value="Scheherazade New" className="font-scheherazade">شهرزاد الجديد - خط ناسخي جميل</option>
+                        <option value="Aref Ruqaa" className="font-aref-ruqaa">عارف رقعة - خط الرقعة الكلاسيكي</option>
+                        <option value="Lateef" className="font-lateef">لطيف - خط نسخي حديث</option>
+                        <option value="Katibeh" className="font-katibeh">كاتبة - خط فارسي أنيق</option>
+                      </optgroup>
+                      <optgroup label="خطوط عربية حديثة">
+                        <option value="Fustat" className="font-fustat">فسطاط - خط كوفي أنيق ومعاصر</option>
+                        <option value="Reem Kufi" className="font-reem-kufi">ريم كوفي - خط كوفي عصري</option>
+                        <option value="Markazi Text" className="font-markazi">نص مركزي - خط متعدد الاستخدامات</option>
+                        <option value="Noto Naskh Arabic" className="font-naskh">نوتو نسخ عربي - خط نسخي احترافي</option>
+                      </optgroup>
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      معاينة خط الفوتر: <span style={{ fontFamily: draft.footer.fontFamily || draft.styling.fontFamily, fontSize: '14px' }}>يرجى الاحتفاظ بهذا الإيصال 2025</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* أحجام خطوط الهيدر والفوتر */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">حجم خط العنوان الرئيسي</label>
+                    <input
+                      type="range"
+                      min="12"
+                      max="28"
+                      value={draft.header.titleFontSize || 18}
+                      onChange={(e) => setDraft({...draft, header: {...draft.header, titleFontSize: parseInt(e.target.value)}})}
+                      className="w-full mb-1"
+                    />
+                    <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                      {(draft.header.titleFontSize || 18).toLocaleString('ar')} نقطة
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">حجم خط العنوان الفرعي</label>
+                    <input
+                      type="range"
+                      min="10"
+                      max="20"
+                      value={draft.header.subtitleFontSize || 14}
+                      onChange={(e) => setDraft({...draft, header: {...draft.header, subtitleFontSize: parseInt(e.target.value)}})}
+                      className="w-full mb-1"
+                    />
+                    <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                      {(draft.header.subtitleFontSize || 14).toLocaleString('ar')} نقطة
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">حجم خط الفوتر الرئيسي</label>
+                    <input
+                      type="range"
+                      min="8"
+                      max="16"
+                      value={draft.footer.fontSize || 11}
+                      onChange={(e) => setDraft({...draft, footer: {...draft.footer, fontSize: parseInt(e.target.value)}})}
+                      className="w-full mb-1"
+                    />
+                    <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                      {(draft.footer.fontSize || 11).toLocaleString('ar')} نقطة
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">حجم خط الفوتر الفرعي</label>
+                    <input
+                      type="range"
+                      min="6"
+                      max="14"
+                      value={draft.footer.subFooterFontSize || 9}
+                      onChange={(e) => setDraft({...draft, footer: {...draft.footer, subFooterFontSize: parseInt(e.target.value)}})}
+                      className="w-full mb-1"
+                    />
+                    <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                      {(draft.footer.subFooterFontSize || 9).toLocaleString('ar')} نقطة
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">الخط العام (للمحتوى)</label>
+                  <select
+                    value={draft.styling.fontFamily}
+                    onChange={(e) => setDraft({...draft, styling: {...draft.styling, fontFamily: e.target.value}})}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800 font-preview"
+                    style={{ fontFamily: draft.styling.fontFamily }}
+                  >
+                    <optgroup label="خطوط تقليدية">
+                      <option value="Arial" className="font-sans">Arial - الافتراضي</option>
+                      <option value="Helvetica" className="font-sans">Helvetica - هلفيتيكا</option>
+                      <option value="Times" className="font-serif">Times - تايمز</option>
+                    </optgroup>
+                    <optgroup label="خطوط عربية كلاسيكية">
+                      <option value="Amiri" className="font-amiri">الأميري - خط تقليدي أنيق</option>
+                      <option value="Scheherazade New" className="font-scheherazade">شهرزاد الجديد - خط ناسخي جميل</option>
+                      <option value="Aref Ruqaa" className="font-aref-ruqaa">عارف رقعة - خط الرقعة الكلاسيكي</option>
+                      <option value="Lateef" className="font-lateef">لطيف - خط نسخي حديث</option>
+                      <option value="Katibeh" className="font-katibeh">كاتبة - خط فارسي أنيق</option>
+                    </optgroup>
+                    <optgroup label="خطوط عربية حديثة">
+                      <option value="Fustat" className="font-fustat">فسطاط - خط كوفي أنيق ومعاصر</option>
+                      <option value="Reem Kufi" className="font-reem-kufi">ريم كوفي - خط كوفي عصري</option>
+                      <option value="Markazi Text" className="font-markazi">نص مركزي - خط متعدد الاستخدامات</option>
+                      <option value="Noto Naskh Arabic" className="font-naskh">نوتو نسخ عربي - خط نسخي احترافي</option>
+                    </optgroup>
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    معاينة خط المحتوى: <span style={{ fontFamily: draft.styling.fontFamily, fontSize: '16px' }}>نموذج نص عربي جميل 123</span>
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">اللون الأساسي</label>
+                    <input
+                      type="color"
+                      value={draft.styling.primaryColor}
+                      onChange={(e) => setDraft({...draft, styling: {...draft.styling, primaryColor: e.target.value}})}
+                      className="w-full p-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800 h-10"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">اللون الثانوي</label>
+                    <input
+                      type="color"
+                      value={draft.styling.secondaryColor}
+                      onChange={(e) => setDraft({...draft, styling: {...draft.styling, secondaryColor: e.target.value}})}
+                      className="w-full p-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800 h-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">نص الفوتر</label>
+                  <textarea
+                    value={draft.footer.text}
+                    onChange={(e) => setDraft({...draft, footer: {...draft.footer, text: e.target.value}})}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800 min-h-[80px]"
+                    rows={4}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">فوتر فرعي إضافي</label>
+                  <textarea
+                    value={draft.footer.subFooter || ''}
+                    onChange={(e) => setDraft({...draft, footer: {...draft.footer, subFooter: e.target.value}})}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800 min-h-[60px]"
+                    rows={3}
+                    placeholder="نص إضافي للفوتر (مثل: معلومات الاتصال، عنوان المؤسسة، إلخ...)"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">لون الخط الفاصل</label>
+                    <input
+                      type="color"
+                      value={draft.footer.separatorColor || '#10b981'}
+                      onChange={(e) => setDraft({...draft, footer: {...draft.footer, separatorColor: e.target.value}})}
+                      className="w-full p-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800 h-10"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">سمك الخط الفاصل</label>
+                    <select
+                      value={draft.footer.separatorThickness || '2'}
+                      onChange={(e) => setDraft({...draft, footer: {...draft.footer, separatorThickness: e.target.value}})}
+                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800"
+                    >
+                      <option value="1">رفيع (1px)</option>
+                      <option value="2">متوسط (2px)</option>
+                      <option value="3">عريض (3px)</option>
+                      <option value="4">عريض جداً (4px)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={draft.footer.qrCode}
+                      onChange={(e) => setDraft({...draft, footer: {...draft.footer, qrCode: e.target.checked}})}
+                      className="rounded"
+                    />
+                    <span className="text-sm">QR Code</span>
+                  </label>
+
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={draft.footer.timestamp}
+                      onChange={(e) => setDraft({...draft, footer: {...draft.footer, timestamp: e.target.checked}})}
+                      className="rounded"
+                    />
+                    <span className="text-sm">الطابع الزمني</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6 min-h-[400px]">
+              <div className="text-center mb-4">
+                <h3 className="text-lg font-bold">معاينة القالب</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">عرض تقريبي للقالب (البيانات تجريبية)</p>
+              </div>
+              
+              <div className="max-w-md mx-auto border border-gray-300 dark:border-gray-600 rounded-lg p-6 bg-white dark:bg-gray-800">
+                <div className="text-center mb-6" style={{ fontFamily: draft.header.fontFamily || draft.styling.fontFamily }}>
+                  {draft.header.logo && (
+                    <div 
+                      className="mb-3" 
+                      style={{ 
+                        marginBottom: `${Math.max((draft.header.logoSpacing || 15) * 0.3, 8)}px`
+                      }}
+                    >
+                      {draft.header.logoFile ? (
+                        <img 
+                          src={draft.header.logoFile} 
+                          alt="Logo"
+                          className="mx-auto"
+                          style={{
+                            width: `${(draft.header.logoWidth || 60) * 0.5}px`,
+                            height: `${(draft.header.logoHeight || 60) * 0.5}px`,
+                            maxWidth: '100px',
+                            maxHeight: '100px'
+                          }}
+                        />
+                      ) : (
+                        <div className="text-xs text-gray-500 border border-dashed border-gray-300 dark:border-gray-600 rounded p-2 mx-auto w-16 h-16 flex items-center justify-center">
+                          LOGO
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div 
+                    className="font-bold text-sm mb-1" 
+                    style={{
+                      color: draft.styling.primaryColor,
+                      fontSize: `${Math.max((draft.header.titleFontSize || 16) * 0.6, 10)}px`
+                    }}
+                  >
+                    {draft.header.title.split('\n').map((line, i) => <div key={i}>{line}</div>)}
+                  </div>
+                  <div 
+                    className="text-xs" 
+                    style={{
+                      color: draft.styling.secondaryColor,
+                      fontSize: `${Math.max((draft.header.subtitleFontSize || 12) * 0.6, 8)}px`
+                    }}
+                  >
+                    {draft.header.subtitle}
+                  </div>
+                </div>
+
+                <div className="text-center mb-4" style={{ fontFamily: draft.styling.fontFamily }}>
+                  <h3 className="font-bold" style={{color: draft.styling.primaryColor}}>
+                    {draft.content.title}
+                  </h3>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div><strong>رقم الطلب:</strong> ALF-20250912-001-ABC123</div>
+                  <div><strong>الاسم:</strong> أحمد محمد الخطيب</div>
+                  <div><strong>الهاتف:</strong> +963 11 1234567</div>
+                  <div><strong>النوع:</strong> استعلام</div>
+                  <div><strong>القسم:</strong> قسم الضرائب</div>
+                  <div><strong>التاريخ:</strong> {new Date().toLocaleString('ar-SY-u-nu-latn')}</div>
+                  <div><strong>الحالة:</strong> <span style={{color: '#2563eb'}}>جديد</span></div>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-600 text-center" style={{ fontFamily: draft.footer.fontFamily || draft.styling.fontFamily }}>
+                  <div 
+                    className="text-xs" 
+                    style={{
+                      color: draft.styling.secondaryColor,
+                      fontSize: `${Math.max((draft.footer.fontSize || 10) * 0.8, 8)}px`
+                    }}
+                  >
+                    {draft.footer.text.split('\n').map((line, i) => <div key={i}>{line}</div>)}
+                  </div>
+                  {draft.footer.qrCode && <div className="mt-2 text-xs">[QR CODE]</div>}
+                  {draft.footer.timestamp && (
+                    <div className="mt-2 text-xs">تم الإصدار: {new Date().toLocaleString('ar-SY-u-nu-latn')}</div>
+                  )}
+                  
+                  {/* الفوتر الإضافي الفرعي مع الخط الفاصل */}
+                  {draft.footer.subFooter && (
+                    <>
+                      <div 
+                        className="mt-3 mb-3 mx-auto"
+                        style={{
+                          height: `${draft.footer.separatorThickness || 2}px`,
+                          backgroundColor: draft.footer.separatorColor || '#10b981',
+                          width: '80%',
+                        }}
+                      />
+                      <div 
+                        className="text-xs" 
+                        style={{
+                          color: draft.styling.secondaryColor,
+                          fontSize: `${Math.max((draft.footer.subFooterFontSize || 9) * 0.8, 7)}px`
+                        }}
+                      >
+                        {draft.footer.subFooter.split('\n').map((line, i) => <div key={i}>{line}</div>)}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button
+              onClick={cancel}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              إلغاء
+            </button>
+            <button
+              onClick={save}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              حفظ التغييرات
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* قائمة القوالب */}
+      <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+        {templates.length === 0 ? (
+          <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+            لا توجد قوالب بعد. اضغط على "إضافة قالب جديد" للبدء.
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-gray-100 dark:bg-gray-800">
+              <tr>
+                <th className="p-3 text-right">اسم القالب</th>
+                <th className="p-3 text-right">النوع</th>
+                <th className="p-3 text-right">حالة الاعتماد</th>
+                <th className="p-3 text-right">آخر تحديث</th>
+                <th className="p-3 text-right">الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {templates.map((template, i) => (
+                <tr key={template.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <td className="p-3 font-medium">{template.name}</td>
+                  <td className="p-3">
+                    <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 rounded text-xs">
+                      {template.type === 'ticket_confirmation' ? 'إيصال طلب' : 
+                       template.type === 'ticket_report' ? 'تقرير طلب' :
+                       template.type === 'department_report' ? 'تقرير قسم' : 'تقرير شهري'}
+                    </span>
+                  </td>
+                  <td className="p-3">
+                    <div className="flex items-center gap-2">
+                      {template.approved ? (
+                        <span className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 rounded text-xs">
+                          <FaCheckCircle size={12} />
+                          معتمد
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 px-2 py-1 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 rounded text-xs">
+                          <FaExclamationTriangle size={12} />
+                          مسودة
+                        </span>
+                      )}
+                      {template.approved && template.approvedBy && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          بواسطة: {template.approvedBy}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="p-3 text-gray-600 dark:text-gray-400">
+                    {template.updatedAt ? new Date(template.updatedAt).toLocaleString('ar-SY-u-nu-latn') : 
+                     template.createdAt ? new Date(template.createdAt).toLocaleString('ar-SY-u-nu-latn') : '—'}
+                  </td>
+                  <td className="p-3">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => startEdit(i)}
+                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        تحرير
+                      </button>
+                      <button
+                        onClick={() => duplicate(i)}
+                        className="text-green-600 dark:text-green-400 hover:underline"
+                      >
+                        نسخ
+                      </button>
+                      {template.approved ? (
+                        <button
+                          onClick={() => handleUnapproveTemplate(template.id)}
+                          className="text-orange-600 dark:text-orange-400 hover:underline"
+                          title="إلغاء الاعتماد"
+                        >
+                          إلغاء اعتماد
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleApproveTemplate(template.id)}
+                          className="text-emerald-600 dark:text-emerald-400 hover:underline"
+                          title="اعتماد القالب للاستخدام في التوليد"
+                        >
+                          اعتماد
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleExportTemplate(template)}
+                        className="text-purple-600 dark:text-purple-400 hover:underline"
+                      >
+                        تصدير
+                      </button>
+                      <button
+                        onClick={() => remove(i)}
+                        className="text-red-600 dark:text-red-400 hover:underline"
+                      >
+                        حذف
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const ToolsPage: React.FC = () => {
-  const [active, setActive] = useState<null | 'ocr' | 'newsAdd' | 'newsManage' | 'faqAdd' | 'faqManage' | 'privacyEdit' | 'termsEdit' | 'idConfig'>(null);
+  const [active, setActive] = useState<null | 'ocr' | 'newsAdd' | 'newsManage' | 'faqAdd' | 'faqManage' | 'privacyEdit' | 'termsEdit' | 'idConfig' | 'pdfTemplates'>(null);
   const [newsCount, setNewsCount] = useState<number>(0);
   const [faqCount, setFaqCount] = useState<number>(0);
   const [ocrStats, setOcrStats] = useState<OcrStats | null>(null);
   const [privacyCustom, setPrivacyCustom] = useState<boolean>(false);
   const [termsCustom, setTermsCustom] = useState<boolean>(false);
+  const [pdfTemplatesCount, setPdfTemplatesCount] = useState<number>(0);
   // إعدادات المعرّف
   const [idPrefix, setIdPrefix] = useState('ALF');
   const [idPattern, setIdPattern] = useState('{PREFIX}-{DATE}-{RAND6}');
@@ -724,6 +1817,10 @@ const ToolsPage: React.FC = () => {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setActive(null); };
     document.addEventListener('keydown', onKey);
+    
+    // تحميل الخطوط العربية الجميلة
+    loadArabicFonts();
+    
     return () => document.removeEventListener('keydown', onKey);
   }, []);
 
@@ -754,6 +1851,12 @@ const ToolsPage: React.FC = () => {
       const t = localStorage.getItem('termsHtml');
       setTermsCustom(!!(t && t.trim()));
     } catch { setTermsCustom(false); }
+
+    try {
+      const templates = localStorage.getItem('pdfTemplates');
+      if (templates) setPdfTemplatesCount(JSON.parse(templates).length);
+      else setPdfTemplatesCount(0);
+    } catch { setPdfTemplatesCount(0); }
   }, []);
 
   useEffect(() => { refreshStats(); }, [refreshStats]);
@@ -994,6 +2097,23 @@ const ToolsPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* PDF Templates Card */}
+          <div className="relative">
+            <div
+              role="button" tabIndex={0}
+              onClick={() => setActive(active === 'pdfTemplates' ? null : 'pdfTemplates')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'pdfTemplates' ? null : 'pdfTemplates'); } }}
+              className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <h3 className="text-xl font-semibold mb-1">قوالب PDF</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">تصميم وإعداد قوالب PDF للطلبات والتقارير.</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="px-2 py-0.5 rounded bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200">القوالب {pdfTemplatesCount}</span>
+                <span className="px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200">تخصيص التصميم</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {active && (
@@ -1008,6 +2128,7 @@ const ToolsPage: React.FC = () => {
                 {active === 'faqManage' && 'إدارة الأسئلة الشائعة'}
                 {active === 'privacyEdit' && 'تحرير سياسة الخصوصية'}
                 {active === 'termsEdit' && 'تحرير الشروط والأحكام'}
+                {active === 'pdfTemplates' && 'إعداد قوالب PDF'}
               </h3>
               <button onClick={() => setActive(null)} aria-label="إغلاق" className="w-8 h-8 rounded hover:bg-black/5 dark:hover:bg-white/10">✕</button>
             </div>
@@ -1061,6 +2182,7 @@ const ToolsPage: React.FC = () => {
               {active === 'faqManage' && <FaqManager onChanged={refreshStats} onSwitchToAdd={() => setActive('faqAdd')} />}
               {active === 'privacyEdit' && <LegalEditor storageKey="privacyHtml" title="تحرير سياسة الخصوصية" onChanged={refreshStats} />}
               {active === 'termsEdit' && <LegalEditor storageKey="termsHtml" title="تحرير الشروط والأحكام" onChanged={refreshStats} />}
+              {active === 'pdfTemplates' && <PdfTemplateManager onChanged={refreshStats} />}
             </div>
           </div>
         )}

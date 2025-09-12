@@ -3,6 +3,7 @@ import { AppContext } from '../App';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { RequestStatus, Ticket, ContactMessageStatus } from '../types';
+import { formatArabicNumber, formatArabicDate } from '../constants';
 import { Document, Page, pdfjs } from 'react-pdf';
 import Mermaid from '../components/Mermaid';
 import { DIWAN_WORKFLOW_DIAGRAM } from '../diagrams/diwan';
@@ -367,59 +368,6 @@ ${trackUrl}
       }
     }
   };
-
-  const escapeCSV = (str: string): string => {
-    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
-  };
-
-  const handleExportCSV = () => {
-    if (tickets.length === 0) return;
-    
-    const headers = [
-      'ID',
-      'Submission Date',
-      'Full Name',
-      'Email',
-      'Phone',
-      'National ID',
-      'Request Type',
-      'Department',
-      'Details',
-      'Status'
-    ];
-    
-    const csvRows = [
-      headers.join(','),
-      ...tickets.map(ticket => [
-        escapeCSV(ticket.id),
-        escapeCSV(ticket.submissionDate.toISOString()),
-        escapeCSV(ticket.fullName),
-        escapeCSV(ticket.email || ''),
-        escapeCSV(ticket.phone),
-        escapeCSV(ticket.nationalId),
-        escapeCSV(ticket.requestType),
-        escapeCSV(ticket.department),
-        escapeCSV(ticket.details),
-        escapeCSV(ticket.status)
-      ].join(','))
-    ];
-    
-    const csvContent = csvRows.join('\n');
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `tickets_export_${new Date().toISOString().slice(0,10)}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
   
   return (
     <Card>
@@ -432,151 +380,170 @@ ${trackUrl}
             </div>
           )}
         </div>
-        <div className="flex space-x-2 rtl:space-x-reverse">
-          {tickets.length > 0 && (
-            <Button onClick={handleExportCSV} variant="secondary">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2 rtl:ml-0 rtl:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-              تصدير إلى CSV
-            </Button>
-          )}
-        </div>
+
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-              {currentEmployee?.role === 'مدير' && (
+      <div className="space-y-8">
+        
+        {/* قسم الاستعلامات والشكاوى */}
+        <div>
+          <div className="mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
+              الاستعلامات والشكاوى
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">إدارة ومتابعة طلبات المواطنين والتواصل معهم</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {/* لوحة الطلبات */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => { window.location.hash = '#/requests'; }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/requests'; } }}
+              className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <div className="flex items-start justify-between">
+                <div className="min-w-0">
+                  <h4 className="text-xl font-semibold text-blue-600 dark:text-blue-400">لوحة الطلبات</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">إدارة ومتابعة جميع الطلبات الواردة</p>
+                  <div className="mt-3 flex gap-2 flex-wrap text-xs">
+                    <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">الإجمالي {formatArabicNumber(ticketStats.total)}</span>
+                    <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">{RequestStatus.New} {formatArabicNumber(ticketStats.byStatus[RequestStatus.New])}</span>
+                    <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300">{RequestStatus.InProgress} {formatArabicNumber(ticketStats.byStatus[RequestStatus.InProgress])}</span>
+                    <span className="px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">{RequestStatus.Answered} {formatArabicNumber(ticketStats.byStatus[RequestStatus.Answered])}</span>
+                    <span className="px-2 py-0.5 rounded bg-gray-200 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300">{RequestStatus.Closed} {formatArabicNumber(ticketStats.byStatus[RequestStatus.Closed])}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* رسائل التواصل */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => { window.location.hash = '#/messages'; }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/messages'; } }}
+              className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-green-300/40 focus:outline-none focus:ring-2 focus:ring-green-400"
+            >
+              <div className="flex items-start justify-between w-full">
+                <div className="min-w-0">
+                  <h4 className="text-xl font-semibold text-green-600 dark:text-green-400">رسائل التواصل</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">عرض ومعالجة رسائل "تواصل معنا"</p>
+                  <div className="mt-3 flex gap-2 flex-wrap text-xs">
+                    <span className="px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">الإجمالي {contactStats.total}</span>
+                    <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">جديد {contactStats.byStatus[ContactMessageStatus.New]}</span>
+                    <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300">قيد المعالجة {contactStats.byStatus[ContactMessageStatus.InProgress]}</span>
+                    <span className="px-2 py-0.5 rounded bg-gray-200 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300">مغلق {contactStats.byStatus[ContactMessageStatus.Closed]}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* مركز المراقبة والتحليل */}
+            {currentEmployee?.role === 'مدير' && (
               <div
                 role="button"
                 tabIndex={0}
                 onClick={() => { window.location.hash = '#/monitor'; }}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/monitor'; } }}
-                className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-indigo-300/40 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-purple-300/40 focus:outline-none focus:ring-2 focus:ring-purple-400"
               >
                 <div className="flex items-start justify-between">
                   <div className="min-w-0">
-                    <h3 className="text-xl font-semibold">مركز المراقبة</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">إحصاءات فورية وأداء النظام.</p>
+                    <h4 className="text-xl font-semibold text-purple-600 dark:text-purple-400">مركز المراقبة والتحليل</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">إحصاءات فورية وأداء النظام</p>
                     <div className="mt-3 flex gap-2 flex-wrap text-xs">
-                      <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">التذاكر {ticketStats.total}</span>
+                      <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300">التذاكر {ticketStats.total}</span>
                       <span className="px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">مردود {ticketStats.byStatus[RequestStatus.Answered]}</span>
                       <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300">مغلق {ticketStats.byStatus[RequestStatus.Closed]}</span>
                     </div>
                   </div>
                 </div>
               </div>
-              )}
-              {/* المحتوى/المعلوماتية */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => { window.location.hash = '#/tools'; }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/tools'; } }}
-                className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-xl font-semibold">المعلوماتية / المحتوى</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">تحرير المحتوى (الأخبار، الأسئلة، الشروط، الخصوصية).</p>
-                  </div>
-                </div>
-              </div>
+            )}
+          </div>
+        </div>
 
-              {/* الموارد البشرية */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => { window.location.hash = '#/hrms'; }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/hrms'; } }}
-                className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-xl font-semibold">الموارد البشرية</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">منصة HRMS متكاملة: بيانات الموظفين، الرواتب، الحضور، الإجازات، والأداء.</p>
-                    <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">{`$${''}`}</div>
-                  </div>
-                </div>
-              </div>
+        {/* قسم الإدارة العامة */}
+        <div>
+          <div className="mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
+              الإدارة العامة
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">النظم الإدارية والموارد البشرية والهيكل التنظيمي</p>
+          </div>
 
-              {/* لوحة الطلبات */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => { window.location.hash = '#/requests'; }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/requests'; } }}
-                className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="min-w-0">
-                    <h3 className="text-xl font-semibold">لوحة الطلبات</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">إدارة ومتابعة جميع الطلبات الواردة.</p>
-                    <div className="mt-3 flex gap-2 flex-wrap text-xs">
-                      <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">الإجمالي {ticketStats.total}</span>
-                      <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">{RequestStatus.New} {ticketStats.byStatus[RequestStatus.New]}</span>
-                      <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300">{RequestStatus.InProgress} {ticketStats.byStatus[RequestStatus.InProgress]}</span>
-                      <span className="px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">{RequestStatus.Answered} {ticketStats.byStatus[RequestStatus.Answered]}</span>
-                      <span className="px-2 py-0.5 rounded bg-gray-200 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300">{RequestStatus.Closed} {ticketStats.byStatus[RequestStatus.Closed]}</span>
-                    </div>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {/* المعلوماتية / المحتوى */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => { window.location.hash = '#/tools'; }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/tools'; } }}
+              className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="text-xl font-semibold">المعلوماتية / المحتوى</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">تحرير المحتوى (الأخبار، الأسئلة، الشروط، الخصوصية)</p>
                 </div>
               </div>
+            </div>
 
-              {/* الهيكل الإداري */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => { window.location.hash = '#/departments?manage=1'; }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/departments?manage=1'; } }}
-                className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-xl font-semibold">الهيكل الإداري</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">صفحة أقسام المديرية ومهام كل قسم.</p>
-                    <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">{`عدد الأقسام: ${departmentsCount}`}</div>
-                  </div>
+            {/* الموارد البشرية */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => { window.location.hash = '#/hrms'; }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/hrms'; } }}
+              className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="text-xl font-semibold">الموارد البشرية</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">منصة HRMS متكاملة: بيانات الموظفين، الرواتب، الحضور، الإجازات، والأداء</p>
+                  <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">{`$${''}`}</div>
                 </div>
               </div>
+            </div>
 
-              {/* رسائل التواصل */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => { window.location.hash = '#/messages'; }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/messages'; } }}
-                className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                <div className="flex items-start justify-between w-full">
-                  <div className="min-w-0">
-                    <h3 className="text-xl font-semibold">رسائل التواصل</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">عرض ومعالجة رسائل "تواصل معنا".</p>
-                    <div className="mt-3 flex gap-2 flex-wrap text-xs">
-                      <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">الإجمالي {contactStats.total}</span>
-                      <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">جديد {contactStats.byStatus[ContactMessageStatus.New]}</span>
-                      <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300">قيد المعالجة {contactStats.byStatus[ContactMessageStatus.InProgress]}</span>
-                      <span className="px-2 py-0.5 rounded bg-gray-200 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300">مغلق {contactStats.byStatus[ContactMessageStatus.Closed]}</span>
-                    </div>
-                  </div>
+            {/* الهيكل الإداري */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => { window.location.hash = '#/departments?manage=1'; }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/departments?manage=1'; } }}
+              className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="text-xl font-semibold">الهيكل الإداري</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">صفحة أقسام المديرية ومهام كل قسم</p>
+                  <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">{`عدد الأقسام: ${departmentsCount}`}</div>
                 </div>
               </div>
+            </div>
 
-              {/* إدارة الديوان العام */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => { window.location.hash = '#/diwan'; }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/diwan'; } }}
-                className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-xl font-semibold">إدارة الديوان العام</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">التعاميم والكتب الرسمية (إنشاء وأرشفة).</p>
-                    <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">وارد 0 • صادر 0 • قيد 0</div>
-                  </div>
-                  {/* الأزرار داخل الكرت أزيلت — الكرت نفسه أصبح قابلًا للنقر */}
+            {/* إدارة الديوان العام */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => { window.location.hash = '#/diwan'; }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/diwan'; } }}
+              className="relative rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="text-xl font-semibold">إدارة الديوان العام</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">التعاميم والكتب الرسمية (إنشاء وأرشفة)</p>
+                  <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">وارد 0 • صادر 0 • قيد 0</div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
       </div>
 
   {/* قسم رسائل التواصل لم يعد يُعرض داخل لوحة التحكم */}

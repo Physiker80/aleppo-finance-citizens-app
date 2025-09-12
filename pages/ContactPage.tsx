@@ -235,10 +235,32 @@ const ContactPage: React.FC = () => {
   }
 
   return (
-    <Card>
-      <h2 className="text-2xl font-bold mb-1">تواصل معنا</h2>
-      <p className="text-gray-600 dark:text-gray-400 mb-6">أرسل لنا رسالة وسنعاود الاتصال بك.</p>
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="min-h-screen py-8" style={{
+      background: 'url("https://syrian.zone/syid/materials/bg.svg") center/cover',
+      backdropFilter: 'blur(0.5px)'
+    }}>
+      <div className="container mx-auto px-4">
+        <Card className="max-w-4xl mx-auto bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-white/20 dark:border-gray-700/20 shadow-2xl">
+          <div className="text-center mb-8">
+            {/* الشعار الرسمي */}
+            <div className="mb-8 flex flex-col items-center">
+              <img 
+                src="https://syrian.zone/syid/materials/logo.ai.svg" 
+                alt="شعار الجمهورية العربية السورية" 
+                className="w-32 h-32 mx-auto filter drop-shadow-lg opacity-90 hover:opacity-100 transition-opacity duration-300"
+                onError={(e) => {
+                  const img = e.currentTarget as HTMLImageElement;
+                  // fallback to local logo if remote fails
+                  img.src = '/logo.ai.svg';
+                }}
+              />
+            </div>
+            
+            <h2 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white drop-shadow-sm">تواصل معنا</h2>
+            <p className="text-lg text-gray-600 dark:text-gray-400 drop-shadow-sm mb-8">أرسل لنا رسالة وسنعاود الاتصال بك في أقرب وقت ممكن.</p>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="md:col-span-1">
           <Select id="type" label="نوع الرسالة" value={type} onChange={(e) => setType(e.target.value as ContactMessageType)} required>
             <option value="طلب">طلب</option>
@@ -267,10 +289,17 @@ const ContactPage: React.FC = () => {
           <TextArea id="message" label="نص الرسالة" placeholder="اكتب رسالتك هنا" value={message} onChange={(e) => setMessage(e.target.value)} required />
         </div>
         <div className="md:col-span-2 flex justify-end">
-          <Button type="submit" isLoading={isLoading}>إرسال</Button>
+          <Button 
+            type="submit" 
+            isLoading={isLoading}
+          >
+            إرسال
+          </Button>
         </div>
       </form>
-    </Card>
+        </Card>
+      </div>
+    </div>
   );
 };
 

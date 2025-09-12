@@ -5,6 +5,7 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import TextArea from '../components/ui/TextArea';
 import { Ticket, RequestStatus } from '../types';
+import { formatArabicNumber, formatArabicDate } from '../constants';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import { DecodeHintType, BarcodeFormat } from '@zxing/library';
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
@@ -856,7 +857,7 @@ const TrackRequestPage: React.FC = () => {
     try {
       return new Intl.DateTimeFormat('ar-SY-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
     } catch {
-      return d.toLocaleString();
+      return formatArabicDate(d);
     }
   };
 
