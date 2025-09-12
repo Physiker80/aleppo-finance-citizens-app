@@ -1,5 +1,26 @@
 {
   "name": "Aleppo Directorate of Finance - Complaints and Inquiries System",
   "description": "An official portal for citizens and businesses to submit and track inquiries and complaints to the Aleppo Directorate of Finance, enhancing transparency and communication.",
+  "version": "2.1.0",
+  "lastUpdate": "2025-09-12",
+  "features": [
+    "Enhanced inbox with advanced filtering",
+    "Reply system with templates",
+    "Outbox with file attachments",
+    "Message scheduling and tracking",
+    "Dark mode support",
+    "RTL Arabic interface",
+    "Government-compliant design"
+  ],
+  "restorePoints": [
+    {
+      "id": "enhanced-mail-system",
+      "date": "2025-09-12",
+      "commit": "5a0b2a2",
+      "branch": "feature/enhanced-templates-editor",
+      "description": "Complete overhaul of inbox and outbox mail system with advanced features",
+      "file": "RESTORE_POINT_2025_09_12.md"
+    }
+  ],
   "requestFramePermissions": []
 }
