@@ -12,6 +12,18 @@
     },
     "routes": [
         {
+            "route": "/assets/*",
+            "headers": {
+                "Cache-Control": "public, max-age=31536000, immutable"
+            }
+        },
+        {
+            "route": "/*.js",
+            "headers": {
+                "Cache-Control": "public, max-age=3600"
+            }
+        },
+        {
             "route": "/api/*",
             "allowedRoles": [
                 "authenticated"
