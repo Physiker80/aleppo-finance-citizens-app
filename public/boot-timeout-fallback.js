@@ -1,9 +1,12 @@
 // Fail-safe timeout fallback content renderer
 (function () {
   try {
-    const BOOT_FAIL_TIMEOUT = 15000; // زيادة المهلة لـ 15 ثانية للاتصالات البطيئة
+    const BOOT_FAIL_TIMEOUT = 30000; // زيادة المهلة لـ 30 ثانية للملفات الكبيرة
     setTimeout(() => {
       const root = document.getElementById('root');
+      // لا تظهر رسالة الخطأ إذا كانت شاشة التحميل موجودة
+      const loader = document.getElementById('initial-loader');
+      if (loader) return; // شاشة التحميل لا تزال تعمل
       if (!root || root.dataset.mounted || root.dataset.mountError) return;
       const elapsed = (performance.now() - (window.__bootTime || performance.timeOrigin || 0)).toFixed(0);
       if (localStorage.getItem('debugBoot') === '1') console.warn('[BOOT] Timeout fallback after', elapsed, 'ms');

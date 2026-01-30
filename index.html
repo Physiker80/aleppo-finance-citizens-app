@@ -25,8 +25,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
   <script src="/boot-theme.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="/boot-tailwind-config.js"></script>
+  <!-- Removed CDN Tailwind to use local build for production -->
+  <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+  <!-- <script src="/boot-tailwind-config.js"></script> -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
@@ -38,7 +39,54 @@
 </head>
 
 <body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-  <div id="root"></div>
+  <div id="root">
+    <!-- شاشة تحميل أولية - تختفي عند تحميل React -->
+    <div id="initial-loader"
+      style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:Cairo,sans-serif;direction:rtl;background:linear-gradient(135deg,#0f3c35 0%,#1a5c4c 100%);">
+      <div
+        style="background:white;border-radius:16px;padding:40px;box-shadow:0 10px 40px rgba(0,0,0,0.3);text-align:center;max-width:400px;">
+        <img src="https://syrian.zone/syid/materials/logo.ai.svg" alt="شعار"
+          style="width:80px;height:80px;margin:0 auto 20px;display:block;" onerror="this.style.display='none'">
+        <h2 style="color:#0f3c35;margin:0 0 10px;font-size:1.4rem;">مديرية مالية حلب</h2>
+        <p style="color:#666;margin:0 0 20px;font-size:0.9rem;">جاري تحميل النظام...</p>
+        <div style="width:200px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;margin:0 auto;">
+          <div id="loader-bar"
+            style="width:0%;height:100%;background:linear-gradient(90deg,#0f3c35,#2d8a6e);border-radius:3px;animation:loading 3s ease-in-out infinite;">
+          </div>
+        </div>
+        <style>
+          @keyframes loading {
+            0% {
+              width: 0%
+            }
+
+            50% {
+              width: 70%
+            }
+
+            100% {
+              width: 100%
+            }
+          }
+        </style>
+      </div>
+    </div>
+  </div>
+  <script>
+    // إزالة شاشة التحميل عند تحميل التطبيق
+    window.addEventListener('DOMContentLoaded', function () {
+      var checkMount = setInterval(function () {
+        var root = document.getElementById('root');
+        if (root && root.dataset.mounted === 'true') {
+          var loader = document.getElementById('initial-loader');
+          if (loader) loader.remove();
+          clearInterval(checkMount);
+        }
+      }, 100);
+      // إزالة بعد 30 ثانية كحد أقصى
+      setTimeout(function () { clearInterval(checkMount); }, 30000);
+    });
+  </script>
   <!-- QRCode.js library for QR generation (load early to avoid race conditions) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <!-- Fallback QR library (dataURL generation) -->
