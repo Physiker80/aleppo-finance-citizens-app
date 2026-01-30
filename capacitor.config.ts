@@ -41,7 +41,7 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: true,
     captureInput: true,
-    webContentsDebuggingEnabled: false
+    webContentsDebuggingEnabled: true
   },
   ios: {
     contentInset: 'automatic',
@@ -52,7 +52,7 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 2000,
+      launchShowDuration: 0,
       backgroundColor: "#0f3c35",
       showSpinner: false,
       androidSpinnerStyle: "large",

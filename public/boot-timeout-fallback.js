@@ -1,7 +1,7 @@
 // Fail-safe timeout fallback content renderer
 (function(){
   try {
-    const BOOT_FAIL_TIMEOUT = 6000;
+    const BOOT_FAIL_TIMEOUT = 15000; // زيادة المهلة لـ 15 ثانية للاتصالات البطيئة
     setTimeout(() => {
       const root = document.getElementById('root');
       if (!root || root.dataset.mounted || root.dataset.mountError) return;
