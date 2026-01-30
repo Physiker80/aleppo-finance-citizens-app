@@ -1,12 +1,12 @@
 // Fail-safe timeout fallback content renderer
-(function(){
+(function () {
   try {
     const BOOT_FAIL_TIMEOUT = 15000; // زيادة المهلة لـ 15 ثانية للاتصالات البطيئة
     setTimeout(() => {
       const root = document.getElementById('root');
       if (!root || root.dataset.mounted || root.dataset.mountError) return;
       const elapsed = (performance.now() - (window.__bootTime || performance.timeOrigin || 0)).toFixed(0);
-      if (localStorage.getItem('debugBoot') === '1') console.warn('[BOOT] Timeout fallback after', elapsed,'ms');
+      if (localStorage.getItem('debugBoot') === '1') console.warn('[BOOT] Timeout fallback after', elapsed, 'ms');
       const container = document.createElement('div');
       container.dir = 'rtl';
       container.style.padding = '1.75rem';
@@ -34,5 +34,5 @@
       const btn = document.getElementById('retryBtn');
       if (btn) btn.addEventListener('click', () => location.reload());
     }, BOOT_FAIL_TIMEOUT);
-  } catch {}
+  } catch { }
 })();
