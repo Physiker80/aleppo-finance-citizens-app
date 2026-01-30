@@ -1,0 +1,124 @@
+{
+    "name": "نظام الاستعلامات والشكاوى - مديرية مالية حلب",
+    "short_name": "استعلامات حلب",
+    "description": "نظام الاستعلامات والشكاوى الإلكتروني لمديرية مالية حلب - الجمهورية العربية السورية",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0f3c35",
+    "theme_color": "#0f3c35",
+    "orientation": "portrait-primary",
+    "scope": "/",
+    "lang": "ar",
+    "dir": "rtl",
+    "categories": [
+        "government",
+        "business",
+        "utilities"
+    ],
+    "icons": [
+        {
+            "src": "/icons/icon-72x72.png",
+            "sizes": "72x72",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "/icons/icon-96x96.png",
+            "sizes": "96x96",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "/icons/icon-128x128.png",
+            "sizes": "128x128",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "/icons/icon-144x144.png",
+            "sizes": "144x144",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "/icons/icon-152x152.png",
+            "sizes": "152x152",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "/icons/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "/icons/icon-384x384.png",
+            "sizes": "384x384",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "/icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable any"
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "/screenshots/home.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide",
+            "label": "الصفحة الرئيسية"
+        },
+        {
+            "src": "/screenshots/submit.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide",
+            "label": "تقديم طلب"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "تقديم طلب جديد",
+            "short_name": "طلب جديد",
+            "description": "تقديم استعلام أو شكوى جديدة",
+            "url": "/#/submit",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-submit.png",
+                    "sizes": "96x96"
+                }
+            ]
+        },
+        {
+            "name": "متابعة الطلب",
+            "short_name": "متابعة",
+            "description": "متابعة حالة طلب سابق",
+            "url": "/#/track",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-track.png",
+                    "sizes": "96x96"
+                }
+            ]
+        },
+        {
+            "name": "الأسئلة الشائعة",
+            "short_name": "FAQ",
+            "description": "الاطلاع على الأسئلة الشائعة",
+            "url": "/#/faq",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-faq.png",
+                    "sizes": "96x96"
+                }
+            ]
+        }
+    ],
+    "related_applications": [],
+    "prefer_related_applications": false
+}

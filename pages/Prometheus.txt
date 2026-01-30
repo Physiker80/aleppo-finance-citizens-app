@@ -1,0 +1,3 @@
+# حمّل Prometheus لنظام Windows، ثم:
+& ".\observability\bin\prometheus\prometheus.exe" --config.file=".\observability\prometheus\prometheus.yml" --web.listen-address=":9090"
+Start-Process "http://localhost:9090/"

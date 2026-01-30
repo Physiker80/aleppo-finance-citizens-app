@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فحص أخطاء React</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            margin: 0;
+            padding: 20px;
+            color: white;
+            text-align: center;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: right;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+        .instructions {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: right;
+            line-height: 1.8;
+        }
+        .step {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-right: 4px solid #ffd700;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        .error-log {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 فحص أخطاء React</h1>
+        
+        <div class="instructions">
+            <h3>خطوات فحص المشكلة:</h3>
+            
+            <div class="step">
+                <strong>الخطوة 1:</strong> افتح Developer Tools في المتصفح (اضغط F12)
+            </div>
+            
+            <div class="step">
+                <strong>الخطوة 2:</strong> اذهب إلى تبويب Console
+            </div>
+            
+            <div class="step">
+                <strong>الخطوة 3:</strong> اضغط الزر أدناه للذهاب للتطبيق
+            </div>
+            
+            <div class="step">
+                <strong>الخطوة 4:</strong> ابحث عن أي أخطاء حمراء في Console
+            </div>
+            
+            <div class="step">
+                <strong>الخطوة 5:</strong> انسخ الأخطاء وأرسلها
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <button onclick="openReactApp()">🚀 الذهاب لتطبيق React</button>
+            <button onclick="showCommonErrors()">❌ الأخطاء الشائعة</button>
+        </div>
+        
+        <div id="common-errors" style="display: none;">
+            <h3>الأخطاء الشائعة:</h3>
+            
+            <div class="error-log">
+                <div>❌ Cannot read property of undefined</div>
+                <div>❌ Module not found</div>
+                <div>❌ Unexpected token</div>
+                <div>❌ Failed to compile</div>
+                <div>❌ TypeError: Cannot read properties</div>
+                <div>❌ ReferenceError</div>
+                <div>❌ SyntaxError</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function openReactApp() {
+            // فتح تطبيق React في تبويب جديد
+            window.open('http://localhost:3003/', '_blank');
+        }
+        
+        function showCommonErrors() {
+            const errorDiv = document.getElementById('common-errors');
+            if (errorDiv.style.display === 'none') {
+                errorDiv.style.display = 'block';
+            } else {
+                errorDiv.style.display = 'none';
+            }
+        }
+        
+        // فحص المتصفح تلقائياً
+        console.log('🔍 Diagnostic page loaded successfully');
+        console.log('📍 Current URL:', window.location.href);
+        console.log('🌐 React app should be available at: http://localhost:3003/');
+        
+        // محاولة فحص إذا كان التطبيق يعمل
+        fetch('http://localhost:3003/')
+            .then(response => {
+                console.log('✅ Server is responding:', response.status);
+                if (response.status === 200) {
+                    console.log('✅ React app server is working');
+                } else {
+                    console.log('⚠️ Server returned status:', response.status);
+                }
+            })
+            .catch(error => {
+                console.error('❌ Failed to reach React app:', error);
+            });
+    </script>
+</body>
+</html>

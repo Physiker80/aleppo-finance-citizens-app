@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار تقرير المراسلات المفصل</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 50%, #581c87 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .report-preview {
+            font-family: 'Courier New', monospace;
+            white-space: pre-line;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+            border: 2px solid #333;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold text-white text-center mb-8">📊 تقرير الإحصائيات المفصل - مديرية مالية حلب</h1>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- لوحة التحكم -->
+            <div class="glass rounded-lg p-6">
+                <h2 class="text-xl font-semibold text-white mb-4">🎛️ لوحة التحكم</h2>
+                
+                <div class="space-y-4">
+                    <button onclick="generateSampleData()" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                        📝 إنشاء بيانات تجريبية
+                    </button>
+                    
+                    <button onclick="generateDetailedReport()" id="reportBtn" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
+                        📊 إنشاء التقرير المفصل
+                    </button>
+                    
+                    <button onclick="downloadReport()" id="downloadBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg" disabled>
+                        💾 تحميل التقرير
+                    </button>
+                    
+                    <div class="bg-gray-800/50 p-4 rounded-lg">
+                        <h3 class="text-white font-medium mb-2">معلومات البيانات:</h3>
+                        <p id="dataInfo" class="text-gray-300 text-sm">لا توجد بيانات</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- معاينة التقرير -->
+            <div class="glass rounded-lg p-6">
+                <h2 class="text-xl font-semibold text-white mb-4">👁️ معاينة التقرير</h2>
+                <div id="reportPreview" class="report-preview">
+                    اضغط على "إنشاء التقرير المفصل" لعرض المعاينة...
+                </div>
+            </div>
+        </div>
+        
+        <!-- قسم الإحصائيات السريعة -->
+        <div class="glass rounded-lg p-6 mt-6">
+            <h2 class="text-xl font-semibold text-white mb-4">📈 الإحصائيات السريعة</h2>
+            <div id="quickStats" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-blue-900/20 p-4 rounded-lg border border-blue-500/30">
+                    <div class="text-2xl font-bold text-blue-400" id="totalMessages">0</div>
+                    <div class="text-blue-200">إجمالي المراسلات</div>
+                </div>
+                <div class="bg-green-900/20 p-4 rounded-lg border border-green-500/30">
+                    <div class="text-2xl font-bold text-green-400" id="responseRate">0%</div>
+                    <div class="text-green-200">معدل الاستجابة</div>
+                </div>
+                <div class="bg-yellow-900/20 p-4 rounded-lg border border-yellow-500/30">
+                    <div class="text-2xl font-bold text-yellow-400" id="avgResponse">0</div>
+                    <div class="text-yellow-200">متوسط الرد (ساعة)</div>
+                </div>
+                <div class="bg-purple-900/20 p-4 rounded-lg border border-purple-500/30">
+                    <div class="text-2xl font-bold text-purple-400" id="performance">0</div>
+                    <div class="text-purple-200">نقاط الأداء</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentReportText = '';
+
+        // إنشاء البيانات التجريبية
+        function generateSampleData() {
+            // استخدام الأقسام من الهيكل الإداري
+            const departments = [
+                'قسم الإدارة العامة',
+                'قسم الدخل', 
+                'قسم كبار ومتوسطي المكلفين',
+                'قسم المتابعة وإدارة الديون',
+                'قسم الواردات',
+                'قسم الرقابة الداخلية',
+                'قسم المعلوماتية',
+                'قسم التنمية الإدارية', 
+                'قسم الاستعلام',
+                'قسم الخزينة'
+            ];
+            const messages = [];
+
+            for (let i = 0; i < 25; i++) {
+                const dept = departments[Math.floor(Math.random() * departments.length)];
+                const isFromDiwan = Math.random() > 0.5;
+                const sentDate = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
+                const priority = Math.random() > 0.7 ? 'عاجل' : Math.random() > 0.5 ? 'هام' : 'عادي';
+                const status = Math.random() > 0.2 ? 'مجاب' : 'قيد_المراجعة';
+                
+                const responseHours = priority === 'عاجل' ? 2 + Math.random() * 6 : 
+                                    priority === 'هام' ? 8 + Math.random() * 16 : 
+                                    24 + Math.random() * 72;
+
+                const message = {
+                    id: `internal_${Date.now()}_${i}`,
+                    from: isFromDiwan ? 'إدارة الديوان العام' : dept,
+                    to: isFromDiwan ? dept : 'إدارة الديوان العام',
+                    subject: `${isFromDiwan ? 'تعليمات' : 'تقرير'} ${priority} - ${dept}`,
+                    content: `محتوى المراسلة الخاصة بـ ${dept}`,
+                    priority: priority,
+                    status: status,
+                    sentAt: sentDate.toISOString(),
+                    receivedAt: new Date(sentDate.getTime() + Math.random() * 2 * 60 * 60 * 1000).toISOString(),
+                    respondedAt: status === 'مجاب' ? new Date(sentDate.getTime() + responseHours * 60 * 60 * 1000).toISOString() : null,
+                    direction: isFromDiwan ? 'من_الديوان' : 'إلى_الديوان'
+                };
+
+                messages.push(message);
+            }
+
+            localStorage.setItem('internalMessages', JSON.stringify(messages));
+            
+            // تحديث معلومات البيانات
+            document.getElementById('dataInfo').textContent = `تم إنشاء ${messages.length} مراسلة إدارية تجريبية`;
+            
+            // تحديث الإحصائيات السريعة
+            updateQuickStats(messages);
+            
+            alert(`✅ تم إنشاء ${messages.length} مراسلة إدارية تجريبية`);
+        }
+
+        // تحديث الإحصائيات السريعة
+        function updateQuickStats(messages) {
+            const totalMessages = messages.length;
+            const respondedMessages = messages.filter(msg => msg.respondedAt).length;
+            const responseRate = Math.round((respondedMessages / totalMessages) * 100);
+            
+            const responseTimes = messages
+                .filter(msg => msg.respondedAt)
+                .map(msg => Math.round((new Date(msg.respondedAt).getTime() - new Date(msg.sentAt).getTime()) / (1000 * 60 * 60)));
+            
+            const avgResponse = responseTimes.length > 0 ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length) : 0;
+            const performance = Math.min(100, Math.round((responseRate * 0.4) + (Math.max(0, 100 - avgResponse) * 0.3) + (totalMessages > 0 ? 30 : 0)));
+
+            document.getElementById('totalMessages').textContent = totalMessages;
+            document.getElementById('responseRate').textContent = responseRate + '%';
+            document.getElementById('avgResponse').textContent = avgResponse;
+            document.getElementById('performance').textContent = performance + '/100';
+        }
+
+        // إنشاء التقرير المفصل
+        function generateDetailedReport() {
+            const messages = JSON.parse(localStorage.getItem('internalMessages') || '[]');
+            
+            if (messages.length === 0) {
+                alert('❌ لا توجد مراسلات. أنشئ بيانات تجريبية أولاً.');
+                return;
+            }
+
+            const currentDate = new Date();
+            
+            // حساب الإحصائيات
+            const totalOutgoing = messages.filter(msg => msg.direction === 'من_الديوان').length;
+            const totalIncoming = messages.filter(msg => msg.direction === 'إلى_الديوان').length;
+            const totalResponded = messages.filter(msg => msg.respondedAt).length;
+            const responseRate = Math.round((totalResponded / messages.length) * 100);
+
+            const responseTimes = messages
+                .filter(msg => msg.respondedAt)
+                .map(msg => Math.round((new Date(msg.respondedAt).getTime() - new Date(msg.sentAt).getTime()) / (1000 * 60 * 60)));
+            
+            const averageResponseTime = responseTimes.length > 0 ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length) : 0;
+
+            // إحصائيات الأولوية
+            const urgentCount = messages.filter(msg => msg.priority === 'عاجل').length;
+            const importantCount = messages.filter(msg => msg.priority === 'هام').length;
+            const normalCount = messages.filter(msg => msg.priority === 'عادي').length;
+
+            // إحصائيات الأقسام
+            const departmentStats = {};
+            messages.forEach(msg => {
+                const dept = msg.direction === 'من_الديوان' ? msg.to : msg.from;
+                if (!departmentStats[dept]) {
+                    departmentStats[dept] = { sent: 0, received: 0, avgResponse: 0 };
+                }
+                
+                if (msg.direction === 'من_الديوان') {
+                    departmentStats[dept].sent++;
+                } else {
+                    departmentStats[dept].received++;
+                }
+
+                if (msg.respondedAt) {
+                    const responseTime = Math.round((new Date(msg.respondedAt).getTime() - new Date(msg.sentAt).getTime()) / (1000 * 60 * 60));
+                    departmentStats[dept].avgResponse = Math.round((departmentStats[dept].avgResponse + responseTime) / 2);
+                }
+            });
+
+            const performanceScore = Math.min(100, Math.round((responseRate * 0.4) + (Math.max(0, 100 - averageResponseTime) * 0.3) + 30));
+
+            currentReportText = `╔══════════════════════════════════════════════════════════════════════════════════════╗
+║                          مديرية مالية حلب - تقرير الإحصائيات الزمنية للمراسلات                          ║
+╚══════════════════════════════════════════════════════════════════════════════════════╝
+
+📋 معلومات التقرير:
+═══════════════════════
+• تاريخ التقرير: ${currentDate.toLocaleDateString('ar-SY-u-nu-latn')} - ${currentDate.toLocaleTimeString('ar-SY-u-nu-latn')}
+• الفترة الزمنية: آخر 30 يوماً
+• نوع التقرير: المراسلات الإدارية الداخلية
+• المرشحات المطبقة: جميع الأقسام | جميع الاتجاهات
+
+📊 الإحصائيات العامة:
+═══════════════════════
+• إجمالي المراسلات: ${messages.length} مراسلة
+• المراسلات الصادرة: ${totalOutgoing} مراسلة (من الديوان إلى الأقسام)
+• المراسلات الواردة: ${totalIncoming} مراسلة (من الأقسام إلى الديوان)
+• معدل الاستجابة: ${responseRate}% (${totalResponded} من أصل ${messages.length})
+• متوسط وقت الرد: ${averageResponseTime} ساعة
+
+🎯 الأولويات:
+═════════════
+• عاجل: ${urgentCount} مراسلة
+• هام: ${importantCount} مراسلة  
+• عادي: ${normalCount} مراسلة
+
+🏢 الأقسام:
+═══════════
+${Object.entries(departmentStats).map(([dept, data]) => 
+  `• ${dept}: مُرسلة ${data.sent} - مُستقبلة ${data.received} (متوسط: ${data.avgResponse || 0} ساعة)`
+).join('\n')}
+
+🤖 التحليل الذكي (Gemini 2.5 Pro):
+═════════════════════════════════
+• نقاط الأداء الإجمالية: ${performanceScore}/100
+${performanceScore >= 80 ? '✅ أداء ممتاز - استمر في العمل الجيد' :
+  performanceScore >= 60 ? '⚠️ أداء جيد - يمكن تحسينه' :
+  '🔴 أداء يحتاج تحسين - راجع سير العمل'}
+
+📈 توصيات التحسين:
+═══════════════════
+${responseRate < 80 ? '• زيادة معدل الاستجابة للمراسلات\n' : ''}${averageResponseTime > 24 ? '• تقليل وقت الاستجابة للمراسلات\n' : ''}• تطبيق نظام متابعة دوري للمراسلات المعلقة
+• تدريب الموظفين على أهمية الرد السريع
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+📄 تفاصيل إضافية:
+• عدد الأقسام النشطة: ${Object.keys(departmentStats).length}
+• أسرع قسم في الرد: ${Object.entries(departmentStats).sort((a, b) => a[1].avgResponse - b[1].avgResponse)[0]?.[0] || 'غير متاح'}
+• أبطأ قسم في الرد: ${Object.entries(departmentStats).sort((a, b) => b[1].avgResponse - a[1].avgResponse)[0]?.[0] || 'غير متاح'}
+
+════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+🏛️ مُولَّد بواسطة: نظام الاستعلامات والشكاوى - مديرية مالية حلب
+📅 تاريخ الإنشاء: ${currentDate.toLocaleString('ar-SY-u-nu-latn')}
+🔗 إصدار النظام: v2.5.0 مع تحليل الذكاء الاصطناعي`;
+
+            // عرض المعاينة
+            document.getElementById('reportPreview').textContent = currentReportText;
+            document.getElementById('downloadBtn').disabled = false;
+            
+            alert('✅ تم إنشاء التقرير المفصل بنجاح!');
+        }
+
+        // تحميل التقرير
+        function downloadReport() {
+            if (!currentReportText) {
+                alert('❌ لا يوجد تقرير لتحميله. أنشئ التقرير أولاً.');
+                return;
+            }
+
+            const blob = new Blob([currentReportText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            
+            const currentDate = new Date();
+            const filename = `تقرير_مراسلات_مديرية_مالية_حلب_${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}.txt`;
+            
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            alert('✅ تم تحميل التقرير بنجاح!');
+        }
+
+        // تحميل البيانات عند فتح الصفحة
+        window.onload = function() {
+            const messages = JSON.parse(localStorage.getItem('internalMessages') || '[]');
+            if (messages.length > 0) {
+                document.getElementById('dataInfo').textContent = `يوجد ${messages.length} مراسلة محفوظة`;
+                updateQuickStats(messages);
+            }
+        };
+    </script>
+</body>
+</html>

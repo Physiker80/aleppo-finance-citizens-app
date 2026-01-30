@@ -1,5 +1,12 @@
 apply plugin: 'com.android.application'
 
+// Load signing properties if available
+def signingPropsFile = rootProject.file("signing.properties")
+def signingProps = new Properties()
+if (signingPropsFile.exists()) {
+    signingProps.load(new FileInputStream(signingPropsFile))
+}
+
 android {
     namespace "com.aleppo.finance.system"
     compileSdk rootProject.ext.compileSdkVersion
@@ -16,15 +23,28 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    
+    signingConfigs {
+        release {
+            storeFile file("aleppo-finance.keystore")
+            storePassword signingProps.getProperty('KEYSTORE_PASSWORD', 'AleppoFinance2026')
+            keyAlias signingProps.getProperty('KEY_ALIAS', 'aleppo-finance')
+            keyPassword signingProps.getProperty('KEY_PASSWORD', 'AleppoFinance2026')
+        }
+    }
+    
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
 
 repositories {
+    google()
+    mavenCentral()
     flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
     }

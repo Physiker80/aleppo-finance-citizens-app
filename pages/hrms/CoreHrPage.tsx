@@ -1,11 +1,24 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useContext } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import HRSearchComponent from '../../components/HRSearchComponent';
+import { AppContext } from '../../App';
+import { Employee } from '../../types';
 
 const CoreHrPage: React.FC = () => {
   const [showIntro, setShowIntro] = useState<boolean>(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const introBtnRef = useRef<HTMLDivElement | null>(null);
   const introPopRef = useRef<HTMLDivElement | null>(null);
+  const appContext = useContext(AppContext);
+
+  const handleEmployeeSelect = (employee: Employee) => {
+    setSelectedEmployee(employee);
+  };
+
+  const handleClearEmployeeSelection = () => {
+    setSelectedEmployee(null);
+  };
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
@@ -66,9 +79,70 @@ const CoreHrPage: React.FC = () => {
             )}
           </div>
           <Button onClick={() => { window.location.hash = '#/employees'; }}>فتح إدارة الموظفين</Button>
-          <Button variant="secondary" onClick={() => { window.location.hash = '#/hrms'; }}>عودة إلى HRMS</Button>
+          {/* Back to HRMS button removed per policy; rely on global BackToDashboardFab */}
         </div>
       </div>
+
+      {/* HR Search Component */}
+      <div className="mb-6">
+        <HRSearchComponent
+          onEmployeeSelect={handleEmployeeSelect}
+          selectedEmployee={selectedEmployee}
+          onClearSelection={handleClearEmployeeSelection}
+        />
+      </div>
+
+      {/* Employee Details Display */}
+      {selectedEmployee && (
+        <div className="mb-6">
+          <Card>
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
+                تفاصيل الموظف المحدد
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">الاسم الكامل:</span>
+                    <p className="text-gray-800 dark:text-gray-200 font-medium">{selectedEmployee.name}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">القسم:</span>
+                    <p className="text-gray-800 dark:text-gray-200">{selectedEmployee.department}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">المنصب:</span>
+                    <p className="text-gray-800 dark:text-gray-200">{selectedEmployee.role}</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">رقم الموظف:</span>
+                    <p className="text-gray-800 dark:text-gray-200">{selectedEmployee.employeeNumber || 'غير محدد'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">الرقم الوطني:</span>
+                    <p className="text-gray-800 dark:text-gray-200">{selectedEmployee.nationalId || 'غير محدد'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">اسم المستخدم:</span>
+                    <p className="text-gray-800 dark:text-gray-200">{selectedEmployee.username}</p>
+                  </div>
+                </div>
+              </div>
+              {selectedEmployee.lastLogin && (
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">آخر تسجيل دخول:</span>
+                  <p className="text-gray-800 dark:text-gray-200">
+                    {new Date(selectedEmployee.lastLogin).toLocaleString('ar-SY-u-nu-latn')}
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* تم نقل التفاصيل إلى قائمة منبثقة تُفتح من زر "تعريف الوحدة" */}
     </Card>
   );

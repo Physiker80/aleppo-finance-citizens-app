@@ -304,17 +304,15 @@ const RequestsPage: React.FC = () => {
     const allowed = [10, 20];
     return Number.isFinite(v) && allowed.includes(v) ? v : 10;
   });
-  const [compact, setCompact] = useState<boolean>(() => {
-    try { return JSON.parse(localStorage.getItem('requestsCompact') || 'false'); } catch { return false; }
+  const [archiveFilter, setArchiveFilter] = useState<'ALL' | 'ARCHIVED' | 'NOT_ARCHIVED'>(() => {
+    const v = localStorage.getItem('requestsArchiveFilter');
+    return v === 'ARCHIVED' || v === 'NOT_ARCHIVED' ? v : 'ALL';
   });
-  const [onlyMyDept, setOnlyMyDept] = useState<boolean>(() => {
-    try { return JSON.parse(localStorage.getItem('requestsOnlyMyDept') || 'false'); } catch { return false; }
-  });
+  const [exportScope, setExportScope] = useState<'ALL' | 'ARCHIVED' | 'NOT_ARCHIVED'>('ALL');
 
   // Persist preferences
   React.useEffect(() => { localStorage.setItem('requestsPageSize', String(pageSize)); }, [pageSize]);
-  React.useEffect(() => { localStorage.setItem('requestsCompact', JSON.stringify(compact)); }, [compact]);
-  React.useEffect(() => { localStorage.setItem('requestsOnlyMyDept', JSON.stringify(onlyMyDept)); }, [onlyMyDept]);
+  React.useEffect(() => { localStorage.setItem('requestsArchiveFilter', archiveFilter); }, [archiveFilter]);
 
   const ticketStats = useMemo(() => {
     const total = tickets.length;
@@ -340,7 +338,11 @@ const RequestsPage: React.FC = () => {
       if (!isAdmin && employeeDept && String(t.department) !== employeeDept && !(t.forwardedTo || []).includes(employeeDept)) return false;
       if (statusFilter !== 'ALL' && t.status !== statusFilter) return false;
       if (departmentFilter !== 'ALL' && String(t.department) !== departmentFilter) return false;
-      if (onlyMyDept && currentEmployee?.department && String(t.department) !== currentEmployee.department && !(t.forwardedTo || []).includes(currentEmployee.department)) return false;
+      if (archiveFilter !== 'ALL') {
+        if (archiveFilter === 'ARCHIVED' && !t.archived) return false;
+        if (archiveFilter === 'NOT_ARCHIVED' && t.archived) return false;
+      }
+  // إزالة فلترة "قسمي فقط"
       if (from && t.submissionDate < from) return false;
       if (to) {
         const end = new Date(to);
@@ -397,6 +399,10 @@ const RequestsPage: React.FC = () => {
     const avgCloseMs = closeCnt ? Math.round(closeSum / closeCnt) : 0;
     return { total, byStatus, avgReplyMs, avgCloseMs, forwarded };
   }, [filteredSortedTickets]);
+
+  // Archive stats (for mode chip)
+  const archivedCount = useMemo(() => filteredSortedTickets.filter(t => !!t.archived).length, [filteredSortedTickets]);
+  const notArchivedCount = useMemo(() => filteredSortedTickets.length - archivedCount, [filteredSortedTickets, archivedCount]);
 
   const formatAvgDuration = (ms: number) => {
     if (!ms || !isFinite(ms) || ms <= 0) return '—';
@@ -522,15 +528,78 @@ const RequestsPage: React.FC = () => {
     <Card>
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">لوحة الطلبات</h2>
+          <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">أرشيف الطلبات</h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">إدارة ومتابعة جميع الطلبات الواردة.</p>
+          {/* Archive mode chip */}
+          <div className="mt-2 inline-flex items-center gap-2 text-xs">
+            <span
+              className={`px-2 py-1 rounded-full border ${
+                archiveFilter === 'ARCHIVED'
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-300'
+                  : archiveFilter === 'NOT_ARCHIVED'
+                  ? 'bg-gray-50 border-gray-300 text-gray-700 dark:bg-gray-800/40 dark:border-gray-600 dark:text-gray-300'
+                  : 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
+              }`}
+              title="نمط العرض بحسب حالة الأرشفة"
+            >
+              {archiveFilter === 'ARCHIVED' ? `عرض: المؤرشف فقط (${formatArabicNumber(archivedCount)})` :
+               archiveFilter === 'NOT_ARCHIVED' ? `عرض: غير المؤرشف فقط (${formatArabicNumber(notArchivedCount)})` :
+               `عرض: الكل (${formatArabicNumber(filteredSortedTickets.length)})`}
+            </span>
+          </div>
         </div>
-        <button
-          className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200"
-          onClick={() => { window.location.hash = '#/dashboard'; }}
-        >
-          العودة للوحة التحكم
-        </button>
+        <div className="flex items-center gap-2">
+          <select
+            className="px-2 py-2 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 text-sm"
+            title="نطاق التصدير"
+            value={exportScope}
+            onChange={(e) => setExportScope(e.target.value as 'ALL'|'ARCHIVED'|'NOT_ARCHIVED')}
+          >
+            <option value="ALL">تصدير: الكل</option>
+            <option value="ARCHIVED">تصدير: المؤرشف فقط</option>
+            <option value="NOT_ARCHIVED">تصدير: غير المؤرشف فقط</option>
+          </select>
+          <button
+            className="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={async () => {
+              try {
+                const list = filteredSortedTickets.filter(t => (
+                  exportScope === 'ALL' ? true : exportScope === 'ARCHIVED' ? !!t.archived : !t.archived
+                ));
+                const rows = list.map(t => ({
+                  'رقم التتبع': t.id,
+                  'تاريخ التقديم': formatArabicDate(t.submissionDate),
+                  'الاسم': t.fullName || '',
+                  'البريد': t.email || '',
+                  'القسم': String(t.department),
+                  'محوَّل إلى': (t.forwardedTo || []).join('، '),
+                  'الحالة': t.status,
+                  'مؤرشف': t.archived ? 'نعم' : 'لا',
+                  'تاريخ الأرشفة': t.archivedAt ? new Date(t.archivedAt).toLocaleString('ar-SY-u-nu-latn') : '',
+                }));
+                const xlsxMod = await import('xlsx');
+                const XLSX: any = (xlsxMod as any).default || xlsxMod;
+                const ws = XLSX.utils.json_to_sheet(rows);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Archive');
+                const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+                const scope = exportScope === 'ALL' ? 'all' : exportScope === 'ARCHIVED' ? 'archived' : 'not-archived';
+                XLSX.writeFile(wb, `archive-requests-${scope}-${ts}.xlsx`, { bookType: 'xlsx' });
+              } catch (e) {
+                console.error('Excel export failed', e);
+                alert('تعذر تصدير Excel');
+              }
+            }}
+          >
+            تصدير Excel
+          </button>
+          <button
+            className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200"
+            onClick={() => { window.location.hash = '#/dashboard'; }}
+          >
+            العودة للوحة التحكم
+          </button>
+        </div>
       </div>
 
       {/* Stats panel */}
@@ -627,6 +696,17 @@ const RequestsPage: React.FC = () => {
                 {departmentNames.map(dep => <option key={dep} value={dep}>{dep}</option>)}
               </select>
             </div>
+            <div className="md:col-span-2">
+              <select
+                value={archiveFilter}
+                onChange={(e) => setArchiveFilter(e.target.value as 'ALL'|'ARCHIVED'|'NOT_ARCHIVED')}
+                className="w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              >
+                <option value="ALL">كل الأرشفة</option>
+                <option value="ARCHIVED">المؤرشف فقط</option>
+                <option value="NOT_ARCHIVED">غير المؤرشف فقط</option>
+              </select>
+            </div>
             <div className="md:col-span-3 flex gap-2 items-center">
               <DateInputHint
                 value={fromDate}
@@ -645,22 +725,7 @@ const RequestsPage: React.FC = () => {
                 className="w-full min-w-[11rem] p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 text-left font-mono"
               />
             </div>
-            <div className="md:col-span-2 flex items-center justify-end gap-2">
-              <label className="inline-flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
-                <input type="checkbox" checked={compact} onChange={(e) => setCompact(e.target.checked)} />
-                عرض مضغوط
-              </label>
-              {currentEmployee?.department && (
-                <label className="inline-flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
-                  <input type="checkbox" checked={onlyMyDept} onChange={(e) => setOnlyMyDept(e.target.checked)} />
-                  قسمِي فقط
-                </label>
-              )}
-              <button
-                onClick={() => { setStatusFilter('ALL'); setDepartmentFilter('ALL'); setSearch(''); setFromDate(''); setToDate(''); setSortKey('date'); setSortDir('desc'); setPage(1); }}
-                className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm"
-              >تصفير</button>
-            </div>
+            {/* تمت إزالة عناصر: عرض مضغوط، قسمِي فقط، وزر تصفير */}
           </div>
 
           <div className="overflow-x-auto max-h-[70vh] overflow-y-auto rounded border border-gray-200 dark:border-gray-700">
@@ -674,7 +739,10 @@ const RequestsPage: React.FC = () => {
                   <th className="px-4 md:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">محوّل إلى</th>
                   <th className="px-4 md:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الوقت</th>
                   <th onClick={() => onHeaderSort('status')} className="cursor-pointer select-none px-4 md:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الحالة {sortKey==='status' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
-                  <th className="px-4 md:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الإجراءات</th>
+                  <th className="px-4 md:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    نسخة الطباعة
+                    <div className="text-[10px] leading-3 mt-1 text-gray-400 dark:text-gray-500">يعرض حالة الأرشفة</div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -683,14 +751,48 @@ const RequestsPage: React.FC = () => {
                     <td colSpan={8} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد نتائج مطابقة للمرشِّحات الحالية.</td>
                   </tr>
                 ) : visibleTickets.map((ticket) => (
-                  <tr key={ticket.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200">
-                    <td className={`${compact ? 'px-4 py-2' : 'px-6 py-4'} whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100`}>{ticket.id}</td>
-                    <td className={`${compact ? 'px-4 py-2' : 'px-6 py-4'} whitespace-nowrap text-sm text-gray-500 dark:text-gray-400`}>{ticket.submissionDate.toLocaleDateString('ar-SY-u-nu-latn')}</td>
-                    <td className={`${compact ? 'px-4 py-2' : 'px-6 py-4'} whitespace-nowrap text-sm`}>
+                  <tr
+                    key={ticket.id}
+                    className={`transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
+                      archiveFilter === 'ALL'
+                        ? ticket.archived
+                          ? 'border-l-[3px] border-emerald-400/70'
+                          : 'border-l-[3px] border-gray-300/70'
+                        : archiveFilter === 'ARCHIVED'
+                        ? 'bg-emerald-50/60 dark:bg-emerald-900/10'
+                        : 'bg-gray-50/60 dark:bg-gray-800/30'
+                    }`}
+                  >
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100`}>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-mono">{ticket.id}</span>
+                        <span
+                          title={ticket.archivedAt ? `مؤرشف في ${new Date(ticket.archivedAt).toLocaleString('ar-SY-u-nu-latn')}` : undefined}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] leading-4 select-none ring-1 ${ticket.archived
+                            ? 'bg-emerald-100 text-emerald-800 ring-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-800/50'
+                            : 'bg-gray-100 text-gray-600 ring-gray-200 dark:bg-gray-800/40 dark:text-gray-300 dark:ring-gray-700/60'
+                          }`}
+                        >
+                          {ticket.archived ? (
+                            <>
+                              <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.364 7.364a1 1 0 01-1.414 0L3.293 9.435a1 1 0 111.414-1.414l3.223 3.223 6.657-6.657a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                              مؤرشف
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a7 7 0 100 14A7 7 0 0010 3zM9 5h2v6H9V5zm0 8h2v2H9v-2z"/></svg>
+                              غير مؤرشف
+                            </>
+                          )}
+                        </span>
+                      </div>
+                    </td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400`}>{ticket.submissionDate.toLocaleDateString('ar-SY-u-nu-latn')}</td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
                       <div className="text-gray-900 dark:text-gray-100 font-medium">{ticket.fullName}</div>
                       {ticket.email && <div className="text-gray-500 dark:text-gray-400">{ticket.email}</div>}
                     </td>
-                    <td className={`${compact ? 'px-4 py-2' : 'px-6 py-4'} whitespace-nowrap text-sm text-gray-500 dark:text-gray-400`}>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400`}>
                       <div className="flex items-center gap-2">
                         <span className="truncate max-w-[12rem]" title={String(ticket.department)}>{ticket.department}</span>
                         {(isAdmin || (employeeDept && (String(ticket.department) === employeeDept || (ticket.forwardedTo || []).includes(employeeDept)))) && (
@@ -705,7 +807,7 @@ const RequestsPage: React.FC = () => {
                         )}
                       </div>
                     </td>
-                    <td className={`${compact ? 'px-4 py-2' : 'px-6 py-4'} whitespace-nowrap text-xs text-gray-600 dark:text-gray-300 max-w-xs`}>
+                    <td className={`px-6 py-4 whitespace-nowrap text-xs text-gray-600 dark:text-gray-300 max-w-xs`}>
                       {ticket.forwardedTo && ticket.forwardedTo.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {ticket.forwardedTo.map(dep => (
@@ -716,7 +818,7 @@ const RequestsPage: React.FC = () => {
                         <span className="text-gray-400">—</span>
                       )}
                     </td>
-                    <td className={`${compact ? 'px-4 py-2' : 'px-6 py-4'} whitespace-nowrap text-xs text-gray-600 dark:text-gray-300`}>
+                    <td className={`px-6 py-4 whitespace-nowrap text-xs text-gray-600 dark:text-gray-300`}>
                       <div className="space-y-1">
             <div><span className="text-gray-500 dark:text-gray-400">بدء:</span> {formatDateTime(ticket.submissionDate)}</div>
                         <div>
@@ -741,32 +843,22 @@ const RequestsPage: React.FC = () => {
                         </div>
                       </div>
                     </td>
-                    <td className={`${compact ? 'px-4 py-2' : 'px-6 py-4'} whitespace-nowrap text-sm`}><StatusBadge status={ticket.status} /></td>
-                    <td className={`${compact ? 'px-4 py-2' : 'px-6 py-4'} whitespace-nowrap text-sm font-medium space-x-2 rtl:space-x-reverse`}>
-                      {isAdmin || (employeeDept && (String(ticket.department) === employeeDept || (ticket.forwardedTo || []).includes(employeeDept))) ? (
-                        <>
-                          <select
-                            value={ticket.status}
-                            onChange={(e) => handleStatusChange(ticket, e.target.value)}
-                            className="w-auto p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                            aria-label={`Change status for ticket ${ticket.id}`}
-                          >
-                            {Object.values(RequestStatus).map(status => (
-                              <option key={status} value={status}>{status}</option>
-                            ))}
-                          </select>
-                          <Button onClick={() => setReplyModal({ open: true, ticket, text: ticket.response || '', files: ticket.responseAttachments || [] })} variant="secondary" size="sm">رد</Button>
-                          {ticket.responseAttachments && ticket.responseAttachments.length > 0 && (
-                            <Button onClick={() => openGallery(ticket.responseAttachments!, 0)} variant="secondary" size="sm">مرفقات الرد ({ticket.responseAttachments.length})</Button>
-                          )}
-                        </>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm`}><StatusBadge status={ticket.status} /></td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-xs`}>
+                      {ticket.printSnapshotHtml ? (
+                        <button
+                          className={`px-2 py-1 rounded transition-colors ${ticket.archived
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                          title={ticket.archived ? 'نسخة الطباعة (مؤرشف)' : 'نسخة طباعة (غير مؤرشف)'}
+                          onClick={() => {
+                            const w = window.open('', '_blank');
+                            if (w) { w.document.write(ticket.printSnapshotHtml!); w.document.close(); }
+                          }}
+                        >{ticket.archived ? 'فتح النسخة المؤرشفة' : 'فتح النسخة'}</button>
                       ) : (
-                        <span className="text-xs text-gray-400">غير مسموح</span>
-                      )}
-                      {ticket.attachments && ticket.attachments.length > 0 && (
-                        <Button onClick={() => openGallery(ticket.attachments!, 0)} variant="secondary" size="sm">
-                          المرفقات ({ticket.attachments.length})
-                        </Button>
+                        <span className="text-gray-400">—</span>
                       )}
                     </td>
                   </tr>

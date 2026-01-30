@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Fustat:wght@200;300;400;500;600;700;800&amp;family=Amiri:ital,wght@0,400;0,700;1,400;1,700&amp;family=Cairo:wght@200;300;400;500;600;700;800;900&amp;display=swap');
+    </style>
+  </defs>
+  <!-- Background -->
+  <rect width="800" height="200" fill="#ffffff"/>
+  
+  <!-- Left Side - English -->
+  <g font-family="Times New Roman, serif" fill="#054239">
+    <text x="40" y="35" font-size="16" font-weight="bold">SYRIAN ARAB REPUBLIC</text>
+    <text x="40" y="55" font-size="14">MINISTRY OF FINANCE</text>
+    <text x="40" y="73" font-size="14">FINANCE DIRECTORATE</text>
+    <text x="40" y="91" font-size="14">ALEPPO GOVERNORATE</text>
+    <text x="40" y="109" font-size="12">General Administration</text>
+    <text x="40" y="125" font-size="10" style="opacity: 0.8;">Internal Reference Department</text>
+  </g>
+  
+  <!-- Center - Syrian Eagle (Official Logo) -->
+  <g transform="translate(350, 25)">
+    <!-- Official Syrian Logo -->
+    <image x="0" y="0" width="100" height="100" href="https://syrian.zone/syid/materials/logo.ai.svg" />
+    
+    <!-- Enhanced Fallback if image doesn't load -->
+    <g style="display: none;">
+      <!-- Three stars - enhanced -->
+      <g fill="#054239">
+        <polygon points="28,12 30,19 37,19 32,24 34,31 28,27 22,31 24,24 19,19 26,19"/>
+        <polygon points="50,8 52,15 59,15 54,20 56,27 50,23 44,27 46,20 41,15 48,15"/>
+        <polygon points="72,12 74,19 81,19 76,24 78,31 72,27 66,31 68,24 63,19 70,19"/>
+      </g>
+      
+      <!-- Enhanced Eagle body -->
+      <g fill="#054239" stroke="#054239" stroke-width="0.5">
+        <!-- Main body with more detail -->
+        <path d="M50 45 L38 58 L33 63 L28 73 L26 83 L28 93 L33 98 L38 103 L50 108 L62 103 L67 98 L72 93 L74 83 L72 73 L67 63 L62 58 Z"/>
+        <!-- Left wing with feathers -->
+        <path d="M28 73 L13 78 L3 88 L0 98 L3 103 L13 106 L28 103 L25 95 L20 87 L25 80 Z"/>
+        <!-- Right wing with feathers -->
+        <path d="M72 73 L87 78 L97 88 L100 98 L97 103 L87 106 L72 103 L75 95 L80 87 L75 80 Z"/>
+        <!-- Enhanced head -->
+        <ellipse cx="50" cy="58" rx="9" ry="11"/>
+        <!-- Enhanced beak -->
+        <path d="M41 58 L33 60 L36 63 L44 61 Z"/>
+        <!-- Enhanced tail feathers -->
+        <path d="M43 103 L38 118 L43 123 L50 113 Z"/>
+        <path d="M50 106 L43 121 L50 126 L57 116 Z"/>
+        <path d="M57 103 L62 118 L57 123 L50 113 Z"/>
+        <!-- Eye detail -->
+        <circle cx="46" cy="55" r="2" fill="white"/>
+        <circle cx="46" cy="55" r="1" fill="#054239"/>
+      </g>
+    </g>
+  </g>
+  
+  <!-- Right Side - Arabic -->
+  <g font-family="Fustat, Amiri, Traditional Arabic, Arabic Typesetting, serif" text-anchor="end" fill="#054239">
+    <text x="760" y="35" font-size="18" font-weight="bold">الجمهورية العربية السورية</text>
+    <text x="760" y="55" font-size="16">وزارة المالية</text>
+    <text x="760" y="73" font-size="16">مديرية المالية</text>
+    <text x="760" y="91" font-size="16">محافظة حلب</text>
+    <text x="760" y="109" font-size="14">إدارة الديوان العام</text>
+    <text x="760" y="125" font-size="12" style="opacity: 0.8;">قسم الإحالات الداخلية</text>
+  </g>
+  
+  <!-- Decorative elements -->
+  <g fill="#054239" opacity="0.1">
+    <circle cx="100" cy="150" r="3"/>
+    <circle cx="700" cy="150" r="3"/>
+  </g>
+  
+  <!-- Bottom border with gradient effect -->
+  <defs>
+    <linearGradient id="borderGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#054239;stop-opacity:0.3" />
+      <stop offset="50%" style="stop-color:#054239;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#054239;stop-opacity:0.3" />
+    </linearGradient>
+  </defs>
+  <line x1="0" y1="175" x2="800" y2="175" stroke="url(#borderGradient)" stroke-width="3"/>
+  <line x1="50" y1="180" x2="750" y2="180" stroke="#054239" stroke-width="1" opacity="0.5"/>
+</svg>

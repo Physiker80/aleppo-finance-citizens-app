@@ -1,0 +1,114 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Uptime (s)",
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "targets": [
+        {"expr": "alf_summary_uptime_seconds", "refId": "A"}
+      ],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "horizontal"}
+    },
+    {
+      "type": "stat",
+      "title": "Total Requests",
+      "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+      "targets": [
+        {"expr": "alf_summary_requests_total", "refId": "A"}
+      ],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "horizontal"}
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency Percentiles (ms)",
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "alf_summary_latency_ms{quantile=\"p50\"}", "refId": "A"},
+        {"expr": "alf_summary_latency_ms{quantile=\"p95\"}", "refId": "B"},
+        {"expr": "alf_summary_latency_ms{quantile=\"p99\"}", "refId": "C"}
+      ],
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}}
+    },
+    {
+      "type": "bargauge",
+      "title": "Requests by Status",
+      "gridPos": {"x": 0, "y": 12, "w": 12, "h": 6},
+      "targets": [
+        {"expr": "alf_summary_requests_by_status", "refId": "A"}
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Route Focus",
+      "gridPos": {"x": 0, "y": 18, "w": 24, "h": 1}
+    },
+    {
+      "type": "timeseries",
+      "title": "Route Latency (ms)",
+      "gridPos": {"x": 0, "y": 19, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "alf_summary_route_latency_ms{route=\"$route\",quantile=\"p95\"}", "refId": "A"},
+        {"expr": "alf_summary_route_latency_ms{route=\"$route\",quantile=\"p99\"}", "refId": "B"}
+      ],
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Route Error Rate (0..1)",
+      "gridPos": {"x": 12, "y": 19, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "alf_summary_route_error_rate{route=\"$route\"}", "refId": "A"}
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Route Totals",
+      "gridPos": {"x": 0, "y": 27, "w": 24, "h": 8},
+      "targets": [
+        {"expr": "alf_summary_route_requests_total", "refId": "A"}
+      ]
+    },
+    {"type": "row", "title": "IP Focus", "gridPos": {"x": 0, "y": 35, "w": 24, "h": 1}},
+    {"type": "stat", "title": "IP Total Requests", "gridPos": {"x": 0, "y": 36, "w": 6, "h": 4}, "targets": [{"expr": "alf_summary_ip_requests_total{ip=\"$ip\"}", "refId": "A"}]},
+    {"type": "timeseries", "title": "IP Error Rate (0..1)", "gridPos": {"x": 6, "y": 36, "w": 10, "h": 8}, "targets": [{"expr": "alf_summary_ip_error_rate{ip=\"$ip\"}", "refId": "A"}]}
+  ],
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["observability", "routes"],
+  "templating": {
+    "list": [
+      {
+        "name": "route",
+        "label": "Route",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "query": "label_values(alf_summary_route_requests_total, route)",
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1
+      },
+      {
+        "name": "ip",
+        "label": "IP",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "query": "label_values(alf_summary_ip_requests_total, ip)",
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1
+      }
+    ]
+  },
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {"refresh_intervals": ["5s", "10s", "30s", "1m"]},
+  "timezone": "",
+  "title": "Observability Summary (Routes)",
+  "version": 1
+}

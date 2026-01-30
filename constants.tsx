@@ -1,5 +1,23 @@
 import { FaqItem, NewsItem, RequestType } from './types';
 
+// دالة للاحتفاظ بالأرقام العربية (0123456789) - لا حاجة للتحويل
+export const toArabicNumbers = (num: string | number): string => {
+  // الأرقام العربية هي 0123456789 - نحتفظ بها كما هي
+  return num.toString();
+};
+
+// دالة للاحتفاظ بالأرقام العربية في التنسيق
+export const formatArabicNumber = (num: number | string): string => {
+  // الأرقام العربية هي 0123456789 - نحتفظ بها كما هي
+  return num.toString();
+};
+
+// دالة لتحويل التاريخ باستخدام الأرقام العربية (0123456789)
+export const formatArabicDate = (date: Date | string): string => {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return dateObj.toLocaleString('ar-SY-u-nu-latn'); // nu-latn للأرقام العربية 0123456789
+};
+
 export const REQUEST_TYPES: RequestType[] = [
   RequestType.Inquiry,
   RequestType.Complaint,
@@ -41,3 +59,6 @@ export const NEWS_DATA: NewsItem[] = [
     content: 'صدر قرار جديد يتضمن تعديلات على آلية احتساب ضريبة الدخل للشركات الصغيرة والمتوسطة بهدف دعم قطاع الأعمال. للمزيد من التفاصيل، يرجى مراجعة قسم الشركات في المديرية.',
   },
 ];
+
+// مدة إبراز التركيز للعناصر الموجهة عبر الروابط العميقة (بالملي ثانية)
+export const FOCUS_HIGHLIGHT_MS = 3000;

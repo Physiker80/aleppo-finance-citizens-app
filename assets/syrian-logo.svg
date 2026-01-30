@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <style>
+      .arabic-text { font-family: 'Amiri', 'Traditional Arabic', 'Arabic Typesetting', serif; }
+      .english-text { font-family: 'Times New Roman', serif; }
+    </style>
+  </defs>
+  
+  <!-- Syrian Eagle - Official Version -->
+  <g fill="#988561" stroke="none">
+    <!-- Main eagle body -->
+    <path d="M200 80 
+             L185 95 L170 105 L160 120 L155 135 
+             L160 150 L170 165 L185 175 L200 180 
+             L215 175 L230 165 L240 150 L245 135 
+             L240 120 L230 105 L215 95 Z"/>
+    
+    <!-- Left wing spread -->
+    <path d="M160 120
+             C140 125, 120 135, 105 150
+             C95 165, 90 180, 88 195
+             C86 210, 90 220, 100 225
+             C110 227, 120 225, 130 220
+             C140 215, 150 205, 155 190
+             C158 175, 157 160, 155 145
+             L160 120 Z"/>
+             
+    <!-- Right wing spread -->
+    <path d="M240 120
+             C260 125, 280 135, 295 150
+             C305 165, 310 180, 312 195
+             C314 210, 310 220, 300 225
+             C290 227, 280 225, 270 220
+             C260 215, 250 205, 245 190
+             C242 175, 243 160, 245 145
+             L240 120 Z"/>
+             
+    <!-- Detailed feathers on left wing -->
+    <path d="M105 150 L115 160 L120 170 L115 180 L105 175 Z"/>
+    <path d="M115 160 L125 170 L130 180 L125 190 L115 185 Z"/>
+    <path d="M125 170 L135 180 L140 190 L135 200 L125 195 Z"/>
+    <path d="M135 180 L145 190 L150 200 L145 210 L135 205 Z"/>
+    
+    <!-- Detailed feathers on right wing -->
+    <path d="M295 150 L285 160 L280 170 L285 180 L295 175 Z"/>
+    <path d="M285 160 L275 170 L270 180 L275 190 L285 185 Z"/>
+    <path d="M275 170 L265 180 L260 190 L265 200 L275 195 Z"/>
+    <path d="M265 180 L255 190 L250 200 L255 210 L265 205 Z"/>
+    
+    <!-- Eagle head -->
+    <ellipse cx="200" cy="95" rx="15" ry="18"/>
+    
+    <!-- Eagle beak -->
+    <path d="M185 95 L175 98 L180 102 L190 100 Z"/>
+    
+    <!-- Eagle tail feathers -->
+    <path d="M185 175 L180 195 L185 215 L190 205 L190 185 Z"/>
+    <path d="M195 180 L190 200 L195 220 L200 210 L200 190 Z"/>
+    <path d="M200 182 L195 202 L200 222 L205 212 L205 192 Z"/>
+    <path d="M205 180 L210 200 L205 220 L200 210 L200 190 Z"/>
+    <path d="M215 175 L220 195 L215 215 L210 205 L210 185 Z"/>
+    
+    <!-- Eagle talons -->
+    <path d="M185 205 L175 220 L180 225 L190 215 Z"/>
+    <path d="M180 220 L170 235 L175 240 L185 230 Z"/>
+    <path d="M190 210 L185 225 L190 230 L195 215 Z"/>
+    
+    <path d="M215 205 L225 220 L220 225 L210 215 Z"/>
+    <path d="M220 220 L230 235 L225 240 L215 230 Z"/>
+    <path d="M210 210 L215 225 L210 230 L205 215 Z"/>
+  </g>
+  
+  <!-- Three stars above the eagle -->
+  <g fill="#988561">
+    <!-- Left star -->
+    <polygon points="140,45 144,57 156,57 147,66 151,78 140,72 129,78 133,66 124,57 136,57"/>
+    <!-- Center star -->
+    <polygon points="200,35 204,47 216,47 207,56 211,68 200,62 189,68 193,56 184,47 196,47"/>
+    <!-- Right star -->
+    <polygon points="260,45 264,57 276,57 267,66 271,78 260,72 249,78 253,66 244,57 256,57"/>
+  </g>
+</svg>

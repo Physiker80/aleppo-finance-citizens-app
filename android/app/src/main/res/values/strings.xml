@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Aleppo Finance System</string>
-    <string name="title_activity_main">Aleppo Finance System</string>
+    <string name="app_name">مديرية مالية حلب</string>
+    <string name="title_activity_main">مديرية مالية حلب</string>
     <string name="package_name">com.aleppo.finance.system</string>
     <string name="custom_url_scheme">com.aleppo.finance.system</string>
 </resources>

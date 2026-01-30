@@ -3,7 +3,8 @@ import { AppContext } from '../App';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { Employee } from '../types';
+import { Employee, MfaFactorType } from '../types';
+import MFAVerification from '../components/MFAVerification';
 
 // مكتبة للتعامل مع ملفات Excel
 declare const XLSX: any;
@@ -15,6 +16,8 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showCreateEmployee, setShowCreateEmployee] = useState(false);
+  const [showMfaVerification, setShowMfaVerification] = useState(false);
+  const [pendingEmployee, setPendingEmployee] = useState<any>(null);
   const [newEmployee, setNewEmployee] = useState({
     username: '',
     password: '',
@@ -26,35 +29,12 @@ const LoginPage: React.FC = () => {
   // قائمة الموظفين المخزنة محلياً (يمكن تطويرها لاحقاً لتكون مع قاعدة بيانات)
   const getEmployees = (): Employee[] => {
     const stored = localStorage.getItem('employees');
-    if (stored) {
+    if (!stored) return [];
+    try {
       return JSON.parse(stored);
+    } catch {
+      return [];
     }
-    // بيانات افتراضية
-    const defaultEmployees: Employee[] = [
-      {
-        username: 'admin',
-        password: 'admin123',
-        name: 'مدير النظام',
-        department: 'إدارة النظام',
-        role: 'مدير'
-      },
-      {
-        username: 'finance1',
-        password: 'finance123',
-        name: 'يامن صدقي',
-        department: 'المحاسبة',
-        role: 'موظف'
-      },
-      {
-        username: 'hr1',
-        password: 'hr123',
-        name: 'فاطمة علي',
-        department: 'الموارد البشرية',
-        role: 'موظف'
-      }
-    ];
-    localStorage.setItem('employees', JSON.stringify(defaultEmployees));
-    return defaultEmployees;
   };
 
   const saveEmployees = (employees: Employee[]) => {
@@ -62,7 +42,70 @@ const LoginPage: React.FC = () => {
   };
 
   const handleLogin = async () => {
-    alert('This login form is disabled. Please use the login button in the header.');
+    if (!username || !password) {
+      setError('أدخل اسم المستخدم وكلمة المرور');
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      if (appContext?.backendLogin) {
+        const ok = await appContext.backendLogin(username, password);
+        if (ok) {
+          window.location.hash = '#/dashboard';
+        } else {
+          setError(appContext.authError || 'تعذر تسجيل الدخول');
+        }
+      } else {
+        // Local login with MFA support
+        const employees = JSON.parse(localStorage.getItem('employees') || '[]');
+        const employee = employees.find((emp: any) => 
+          emp.username === username && emp.password === password
+        );
+        
+        if (!employee) {
+          setError('بيانات دخول غير صحيحة');
+          return;
+        }
+
+        // Check if employee requires MFA
+        if (appContext?.requiresMFA && appContext.requiresMFA(employee)) {
+          // Store pending employee for MFA verification
+          setPendingEmployee(employee);
+          setShowMfaVerification(true);
+          setPassword(''); // Clear password for security
+        } else {
+          // Direct login without MFA
+          const success = appContext?.employeeLogin(username, password as any);
+          if (success) {
+            window.location.hash = '#/dashboard';
+          } else {
+            setError('فشل في تسجيل الدخول');
+          }
+        }
+      }
+    } catch (error) {
+      setError('حدث خطأ أثناء تسجيل الدخول');
+      console.error('Login error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMfaSuccess = () => {
+    if (pendingEmployee && appContext?.onMfaSuccess) {
+      appContext.onMfaSuccess(pendingEmployee);
+      window.location.hash = '#/dashboard';
+    }
+  };
+
+  const handleMfaCancel = () => {
+    setShowMfaVerification(false);
+    setPendingEmployee(null);
+    setUsername('');
+    setPassword('');
+    setError(null);
   };
 
   const handleCreateEmployee = () => {
@@ -113,15 +156,14 @@ const LoginPage: React.FC = () => {
         emp.name,
         emp.department,
         emp.role,
-  emp.lastLogin ? new Date(emp.lastLogin).toLocaleString('ar-SY-u-nu-latn') : 'لم يدخل بعد'
+        emp.lastLogin ? new Date(emp.lastLogin).toLocaleString('ar-SY-u-nu-latn') : 'لم يدخل بعد'
       ])
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'الموظفين');
-    
-    XLSX.writeFile(workbook, `employees_${new Date().toISOString().slice(0,10)}.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'الموظفون');
+    XLSX.writeFile(workbook, 'employees.xlsx');
   };
 
   const importFromExcel = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -185,7 +227,26 @@ const LoginPage: React.FC = () => {
             </p>
           </div>
 
-          {!showCreateEmployee ? (
+          {showMfaVerification ? (
+            // MFA Verification Screen
+            <div className="mt-8">
+              <div className="text-center mb-6">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  التحقق من الهوية
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  أدخل رمز التحقق للمتابعة
+                </p>
+              </div>
+              
+              <MFAVerification
+                employee={pendingEmployee}
+                onSuccess={handleMfaSuccess}
+                onCancel={handleMfaCancel}
+              />
+            </div>
+          ) : !showCreateEmployee ? (
+            // Login Form
             <div className="mt-8 space-y-6">
               <div className="space-y-4">
                 <Input
@@ -236,6 +297,7 @@ const LoginPage: React.FC = () => {
                   >
                     تصدير إلى Excel
                   </button>
+                  
                   <label className="text-sm text-purple-600 dark:text-purple-400 hover:underline cursor-pointer">
                     استيراد من Excel
                     <input
@@ -255,6 +317,7 @@ const LoginPage: React.FC = () => {
               </div>
             </div>
           ) : (
+            // Create Employee Form
             <div className="mt-8 space-y-6">
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">إضافة موظف جديد</h3>
               
@@ -295,11 +358,10 @@ const LoginPage: React.FC = () => {
                   <select
                     value={newEmployee.role}
                     onChange={(e) => setNewEmployee({...newEmployee, role: e.target.value})}
-                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
                   >
                     <option value="موظف">موظف</option>
                     <option value="مدير">مدير</option>
-                    <option value="مشرف">مشرف</option>
                   </select>
                 </div>
               </div>
@@ -310,16 +372,13 @@ const LoginPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex space-x-4 rtl:space-x-reverse">
+              <div className="flex gap-4">
                 <Button onClick={handleCreateEmployee} className="flex-1">
-                  إضافة الموظف
+                  إنشاء الحساب
                 </Button>
                 <Button 
-                  onClick={() => {
-                    setShowCreateEmployee(false);
-                    setError(null);
-                  }} 
                   variant="secondary" 
+                  onClick={() => setShowCreateEmployee(false)}
                   className="flex-1"
                 >
                   إلغاء
@@ -327,15 +386,6 @@ const LoginPage: React.FC = () => {
               </div>
             </div>
           )}
-
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => window.location.hash = '#/'}
-              className="text-sm text-gray-600 dark:text-gray-400 hover:underline"
-            >
-              العودة للصفحة الرئيسية
-            </button>
-          </div>
         </Card>
       </div>
     </div>

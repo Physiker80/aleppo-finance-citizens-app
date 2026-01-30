@@ -1,0 +1,86 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: backend-alerts
+    folder: Backend Alerts
+    interval: 1m
+    rules:
+      - uid: error_rate_high
+        title: High Error Rate (> 5%)
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: sum(rate(http_requests_total{status_code=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))
+              instant: false
+              interval: ""
+              legendFormat: error_rate
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: 0.05
+              instant: true
+              legendFormat: threshold
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: A > B
+              refId: C
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: 'Error rate is above 5%'
+        labels:
+          severity: warning
+        isPaused: false
+      - uid: latency_p95_high
+        title: High Latency p95
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
+              instant: false
+              legendFormat: p95
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: constant
+              name: threshold
+              refId: B
+              # Threshold in seconds (e.g., 1.0 = 1s)
+              # You can override via provisioning or UI later
+              value: 1.0
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: A > B
+              refId: C
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: 'p95 latency above threshold'
+        labels:
+          severity: warning
+        isPaused: false

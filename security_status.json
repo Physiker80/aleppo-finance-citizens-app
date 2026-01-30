@@ -1,0 +1,74 @@
+{
+  "generatedAt": "2025-09-20T00:00:00Z",
+  "version": 1.1,
+  "issues": [
+    {"id":1, "title":"Central Database Migration", "priority":"critical", "category":"data", "plannedWeek":"1-2", "status":"in_progress", "dependencies":[], "riskIfDeferred":"Client-side tampering persists"},
+    {"id":2, "title":"Password Hashing & Identity Move", "priority":"critical", "category":"identity", "plannedWeek":"1-2", "status":"in_progress", "dependencies":[1], "riskIfDeferred":"Credential compromise"},
+    {"id":3, "title":"Secure Sessions", "priority":"critical", "category":"auth", "plannedWeek":"1-2", "status":"planned", "dependencies":[2]},
+    {"id":4, "title":"Server Authorization Middleware", "priority":"critical", "category":"authz", "plannedWeek":"3", "status":"planned", "dependencies":[3]},
+    {"id":5, "title":"Enforce HTTPS + HSTS", "priority":"critical", "category":"transport", "plannedWeek":"1", "status":"planned", "dependencies":[]},
+    {"id":6, "title":"Login Attempt Rate Limiting", "priority":"high", "category":"identity", "plannedWeek":"6", "status":"planned", "dependencies":[3]},
+    {"id":7, "title":"Content Security Policy", "priority":"high", "category":"browser", "plannedWeek":"5", "status":"planned", "dependencies":[5]},
+    {"id":8, "title":"Comprehensive Audit Logging", "priority":"high", "category":"audit", "plannedWeek":"4", "status":"planned", "dependencies":[1,4]},
+    {"id":9, "title":"CSRF Protection", "priority":"high", "category":"app", "plannedWeek":"7", "status":"planned", "dependencies":[3]},
+    {"id":10, "title":"Admin MFA", "priority":"high", "category":"identity", "plannedWeek":"8", "status":"planned", "dependencies":[3,2]},
+    {"id":11, "title":"Flexible RBAC", "priority":"medium", "category":"authz", "plannedWeek":"7", "status":"planned", "dependencies":[4]},
+    {"id":12, "title":"Secrets Management (Vault)", "priority":"medium", "category":"infrastructure", "plannedWeek":"post-8", "status":"planned", "dependencies":[1]},
+    {"id":13, "title":"Data Retention & Archiving", "priority":"medium", "category":"governance", "plannedWeek":"8", "status":"planned", "dependencies":[8]},
+    {"id":14, "title":"XSS Hardening (Encoding + SRI)", "priority":"medium", "category":"browser", "plannedWeek":"5", "status":"planned", "dependencies":[7]},
+    {"id":15, "title":"Anomaly Behavior Detection", "priority":"low", "category":"detection", "plannedWeek":"post-8", "status":"planned", "dependencies":[8,1]},
+    {"id":16, "title":"SIEM Integration", "priority":"low", "category":"detection", "plannedWeek":"post-8", "status":"planned", "dependencies":[8]},
+    {"id":17, "title":"SAST/DAST CI Pipeline", "priority":"low", "category":"quality", "plannedWeek":"post-8", "status":"planned", "dependencies":[1,5]},
+    {"id":18, "title":"At-Rest Encryption", "priority":"medium", "category":"data", "plannedWeek":"post-8", "status":"planned", "dependencies":[1,12]},
+    {"id":19, "title":"Key / Secret Rotation", "priority":"low", "category":"governance", "plannedWeek":"post-8", "status":"planned", "dependencies":[12]},
+    {"id":20, "title":"Server Ticket ID Generation", "priority":"medium", "category":"integrity", "plannedWeek":"2-3", "status":"planned", "dependencies":[1]},
+    {"id":21, "title":"Data-Level Authorization System", "priority":"critical", "category":"data_security", "plannedWeek":"completed", "status":"done", "dependencies":[], "riskIfDeferred":"Sensitive data exposure", "description":"Comprehensive ABAC system with 4 classification levels"},
+    {"id":22, "title":"Deploy Data Authorization Across System", "priority":"high", "category":"data_security", "plannedWeek":"1", "status":"planned", "dependencies":[21], "riskIfDeferred":"Inconsistent data protection"},
+    {"id":23, "title":"Server-Side ABAC Integration", "priority":"high", "category":"data_security", "plannedWeek":"3-4", "status":"planned", "dependencies":[21,4], "riskIfDeferred":"Client-side authorization bypass"},
+    {"id":24, "title":"Sensitive Data Encryption", "priority":"high", "category":"data_security", "plannedWeek":"5-6", "status":"planned", "dependencies":[21,1], "riskIfDeferred":"Data exposure at rest"},
+    {"id":25, "title":"AI-Powered Data Classification", "priority":"medium", "category":"data_security", "plannedWeek":"post-8", "status":"planned", "dependencies":[21], "riskIfDeferred":"Manual classification overhead"}
+  ],
+  "progress": {
+    "totals": {
+      "all": 25,
+      "planned": 18,
+      "in_progress": 2,
+      "done": 1,
+      "deferred": 4
+    },
+    "percentCompleteCriticalPath": 8,
+    "riskScoreModel": {
+      "weights": {"critical":5, "high":3, "medium":2, "low":1},
+      "remainingWeightedSum": 71,
+      "completedWeightedSum": 5,
+      "explanation": "Critical Data-Level Authorization completed (#21=5 points). Remaining: critical #1-5=25, high #6-10,22-24=24, medium #11-14,18,20,25=14, low #15-17,19=4; total remaining=67, with future scope => 71"
+    },
+    "newCapabilities": [
+      {
+        "name": "Data-Level Authorization (ABAC)",
+        "status": "operational",
+        "coverage": "4 classification levels, 5 resource types, comprehensive audit trail",
+        "benefits": ["Granular data protection", "Compliance with government standards", "Comprehensive audit logging"]
+      }
+    ]
+  },
+  "securityMaturityScores": {
+    "identity_authorization": 3.5,
+    "data_protection": 4.2,
+    "observability_detection": 3.8,
+    "incident_response": 3.2,
+    "governance_auditability": 4.5,
+    "defense_in_depth": 4.4,
+    "legal_compliance": 4.6,
+    "data_access_control": 4.8
+  },
+  "recentAchievements": [
+    {
+      "date": "2025-09-20",
+      "achievement": "Implemented comprehensive Data-Level Authorization system",
+      "impact": "Major security enhancement - granular control over sensitive government data",
+      "files": ["utils/dataLevelAuthorization.ts", "utils/dataAuthIntegration.ts", "pages/SecureRequestsPage.tsx"]
+    }
+  ],
+  "nextReview": "2025-09-27"
+}

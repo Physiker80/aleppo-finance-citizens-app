@@ -127,12 +127,7 @@ const HrmsPage: React.FC = () => {
               </div>
             )}
           </div>
-          <Button 
-            variant="secondary" 
-            onClick={() => window.location.hash = '#/dashboard'}
-          >
-            العودة للوحة التحكم
-          </Button>
+          {/* Back button removed per policy; floating BackToDashboardFab handles navigation */}
         </div>
       </div>
 

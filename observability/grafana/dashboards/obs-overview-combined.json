@@ -1,0 +1,38 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {"type": "stat", "title": "Uptime (s)", "gridPos": {"x": 0, "y": 0, "w": 4, "h": 4}, "targets": [{"expr": "alf_summary_uptime_seconds", "refId": "A"}]},
+    {"type": "stat", "title": "Total Requests", "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4}, "targets": [{"expr": "alf_summary_requests_total", "refId": "A"}]},
+    {"type": "bargauge", "title": "Requests by Status", "gridPos": {"x": 8, "y": 0, "w": 8, "h": 4}, "targets": [{"expr": "alf_summary_requests_by_status", "refId": "A"}]},
+    {"type": "timeseries", "title": "Latency Percentiles (ms)", "gridPos": {"x": 0, "y": 4, "w": 24, "h": 8}, "targets": [
+      {"expr": "alf_summary_latency_ms{quantile=\"p50\"}", "refId": "A"},
+      {"expr": "alf_summary_latency_ms{quantile=\"p95\"}", "refId": "B"},
+      {"expr": "alf_summary_latency_ms{quantile=\"p99\"}", "refId": "C"}
+    ], "options": {"legend": {"displayMode": "list", "placement": "bottom"}}},
+    {"type": "row", "title": "Routes", "gridPos": {"x": 0, "y": 12, "w": 24, "h": 1}},
+  {"type": "stat", "title": "Route Total Requests", "gridPos": {"x": 0, "y": 13, "w": 6, "h": 4}, "targets": [{"expr": "alf_summary_route_requests_total{route=\"$route\"}", "refId": "A"}]},
+    {"type": "timeseries", "title": "Route Latency (p95/p99)", "gridPos": {"x": 6, "y": 13, "w": 10, "h": 8}, "targets": [
+      {"expr": "alf_summary_route_latency_ms{route=\"$route\",quantile=\"p95\"}", "refId": "A"},
+      {"expr": "alf_summary_route_latency_ms{route=\"$route\",quantile=\"p99\"}", "refId": "B"}
+    ]},
+  {"type": "timeseries", "title": "Route Error Rate (0..1)", "gridPos": {"x": 16, "y": 13, "w": 8, "h": 8}, "targets": [{"expr": "alf_summary_route_error_rate{route=\"$route\"}", "refId": "A"}]},
+  {"type": "row", "title": "IPs", "gridPos": {"x": 0, "y": 21, "w": 24, "h": 1}},
+  {"type": "stat", "title": "IP Total Requests", "gridPos": {"x": 0, "y": 22, "w": 6, "h": 4}, "targets": [{"expr": "alf_summary_ip_requests_total{ip=\"$ip\"}", "refId": "A"}]},
+  {"type": "timeseries", "title": "IP Error Rate (0..1)", "gridPos": {"x": 6, "y": 22, "w": 10, "h": 8}, "targets": [{"expr": "alf_summary_ip_error_rate{ip=\"$ip\"}", "refId": "A"}]}
+  ],
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["observability", "overview"],
+  "templating": {"list": [
+    {"name": "route", "type": "query", "label": "Route", "datasource": {"type": "prometheus", "uid": "prometheus"}, "query": "label_values(alf_summary_route_requests_total, route)", "refresh": 1},
+    {"name": "ip", "type": "query", "label": "IP", "datasource": {"type": "prometheus", "uid": "prometheus"}, "query": "label_values(alf_summary_ip_requests_total, ip)", "refresh": 1}
+  ]},
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "",
+  "title": "Observability Overview (Combined)",
+  "version": 1
+}

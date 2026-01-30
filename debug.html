@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Page</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: #f5f5f5; 
+            color: #333;
+        }
+        .debug-box { 
+            background: white; 
+            border: 2px solid #007bff; 
+            padding: 20px; 
+            margin: 10px 0; 
+            border-radius: 8px;
+        }
+        .error { border-color: #dc3545; background: #f8d7da; }
+        .success { border-color: #28a745; background: #d4edda; }
+    </style>
+</head>
+<body>
+    <h1>🔍 تشخيص النظام</h1>
+    
+    <div class="debug-box">
+        <h2>1. اختبار HTML الأساسي</h2>
+        <p>✅ هذا النص يظهر - HTML يعمل بشكل طبيعي</p>
+        <p>📅 التاريخ: <span id="current-date"></span></p>
+        <p>🌐 المتصفح: <span id="browser-info"></span></p>
+    </div>
+
+    <div class="debug-box">
+        <h2>2. اختبار JavaScript</h2>
+        <p id="js-test">❌ JavaScript لم يتم تحميله بعد...</p>
+        <button onclick="testJavaScript()">اختبار JavaScript</button>
+    </div>
+
+    <div class="debug-box">
+        <h2>3. اختبار التحميل من الخادم</h2>
+        <p>🔗 الرابط الحالي: <span id="current-url"></span></p>
+        <p>📊 حالة الصفحة: <span id="page-status"></span></p>
+    </div>
+
+    <div class="debug-box">
+        <h2>4. اختبار الشبكة والموارد</h2>
+        <div id="network-tests"></div>
+        <button onclick="testNetwork()">اختبار الشبكة</button>
+    </div>
+
+    <script>
+        // اختبار JavaScript الأساسي
+        document.getElementById('current-date').textContent = new Date().toLocaleString('ar');
+        document.getElementById('browser-info').textContent = navigator.userAgent;
+        document.getElementById('current-url').textContent = window.location.href;
+        document.getElementById('js-test').innerHTML = '✅ JavaScript يعمل بشكل طبيعي!';
+        document.getElementById('js-test').style.color = 'green';
+        document.getElementById('page-status').innerHTML = '✅ تم تحميل الصفحة بنجاح';
+        document.getElementById('page-status').style.color = 'green';
+
+        function testJavaScript() {
+            alert('✅ JavaScript يعمل! التفاعل ناجح.');
+            console.log('✅ Debug: JavaScript interactivity working');
+        }
+
+        async function testNetwork() {
+            const networkDiv = document.getElementById('network-tests');
+            networkDiv.innerHTML = '<p>⏳ جاري اختبار الشبكة...</p>';
+            
+            try {
+                // اختبار تحميل React من CDN
+                const reactTest = await fetch('https://aistudiocdn.com/react@^19.1.1', { method: 'HEAD' });
+                
+                let results = '<ul>';
+                results += `<li>React CDN: ${reactTest.ok ? '✅' : '❌'} (${reactTest.status})</li>`;
+                
+                // اختبار تحميل الخطوط العربية
+                const fontTest = await fetch('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+                results += `<li>Arabic Fonts: ${fontTest.ok ? '✅' : '❌'} (${fontTest.status})</li>`;
+                
+                // اختبار تحميل الصور
+                const imgTest = await fetch('https://syrian.zone/syid/materials/logo.ai.svg', { method: 'HEAD' });
+                results += `<li>Syrian Logo: ${imgTest.ok ? '✅' : '❌'} (${imgTest.status})</li>`;
+                
+                results += '</ul>';
+                networkDiv.innerHTML = results;
+                
+            } catch (error) {
+                networkDiv.innerHTML = `<p style="color: red">❌ خطأ في الشبكة: ${error.message}</p>`;
+            }
+        }
+
+        // تشغيل اختبار الشبكة تلقائياً
+        window.addEventListener('load', () => {
+            setTimeout(testNetwork, 1000);
+        });
+
+        console.log('🔍 Debug page loaded successfully');
+    </script>
+</body>
+</html>

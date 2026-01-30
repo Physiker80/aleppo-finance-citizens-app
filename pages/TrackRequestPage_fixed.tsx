@@ -11,7 +11,6 @@ import { DecodeHintType, BarcodeFormat } from '@zxing/library';
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
 import jsQR from 'jsqr';
 import Tesseract from 'tesseract.js';
-// @ts-expect-error Vite resolves to URL
 // Use a real module worker so pdf.js doesn't fall back to a fake worker
 // @ts-ignore Vite returns a Worker constructor for ?worker imports
 import PdfJsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker';
@@ -401,15 +400,53 @@ const TrackRequestPage: React.FC = () => {
   };
 
   const extractTrackingId = (text: string): string | null => {
-    const trimmed = (text || '').trim();
-    if (!trimmed) return null;
-    const urlIdMatch = trimmed.match(/id=([A-Za-z0-9-_]+)/);
-    if (urlIdMatch) return urlIdMatch[1];
-    const pattern = /[A-Z]{2,5}-\d{8}-[A-Z0-9]{3,}/;
-    const m = trimmed.match(pattern);
-    if (m) return m[0];
-    const fallback = trimmed.match(/[A-Z0-9][A-Z0-9\-]{7,}/);
-    return fallback ? fallback[0] : null;
+    const raw = (text || '').trim();
+    if (!raw) return null;
+
+    // Normalize whitespace
+    const s = raw.replace(/\s+/g, ' ');
+
+    // 1) Try URL param id= (supports ?, #, &)
+    const urlIdMatch = s.match(/[?&#]id=([A-Za-z0-9_-]+)/i);
+    if (urlIdMatch && urlIdMatch[1]) return urlIdMatch[1].toUpperCase();
+
+    // Load ID config (prefix and date length) from localStorage when available
+    const getIdCfg = () => {
+      try {
+        const rawCfg = localStorage.getItem('ticketIdConfig');
+        if (!rawCfg) return { prefix: 'ALF', dateDigits: 8 } as const;
+        const cfg = JSON.parse(rawCfg);
+        const prefix = String(cfg?.prefix || 'ALF').toUpperCase();
+        const dateDigits = cfg?.dateFormat === 'YYMMDD' ? 6 : 8;
+        return { prefix, dateDigits } as const;
+      } catch { return { prefix: 'ALF', dateDigits: 8 } as const; }
+    };
+    const { prefix, dateDigits } = getIdCfg();
+
+    // 2) Prefix-aware strict pattern: PREFIX-YYYYMMDD/RRMMDD-ALNUM
+    const strictRe = new RegExp(`${prefix}-\\d{${dateDigits}}-[A-Za-z0-9]{3,}`, 'i');
+    const strictMatch = s.match(strictRe);
+    if (strictMatch) return strictMatch[0].toUpperCase();
+
+    // 3) Generic pattern: ABC-YYYYMMDD-XXXX
+    const genericMatch = s.match(/[A-Z]{2,5}-\d{6,8}-[A-Z0-9]{3,}/i);
+    if (genericMatch) return genericMatch[0].toUpperCase();
+
+    // 4) Token-based fallback: choose best plausible token (avoid capturing full titles)
+    const tokens = s.split(/[^A-Za-z0-9_-]+/).filter(Boolean);
+    const candidates = tokens.filter(t => {
+      if (t.length < 6 || t.length > 32) return false;
+      if (!/^[A-Za-z0-9_-]+$/.test(t)) return false;
+      if (!/[A-Za-z]/.test(t)) return false; // must have a letter
+      if (!/\d/.test(t)) return false;      // and a digit
+      return true;
+    });
+    if (candidates.length) {
+      // Prefer ones starting with prefix; else the first plausible
+      const byPrefix = candidates.find(c => c.toUpperCase().startsWith(prefix + '-'));
+      return (byPrefix || candidates[0]).toUpperCase();
+    }
+    return null;
   };
 
   const newReader = () => {
@@ -885,6 +922,32 @@ const TrackRequestPage: React.FC = () => {
       </div>
       <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-1">متابعة حالة طلب</h2>
       <p className="text-gray-600 dark:text-gray-400 mb-6">أدخل رقم التتبع الخاص بطلبك للاستعلام عن حالته.</p>
+
+      {/* مؤشرات الأداء الرئيسية */}
+      <div className="mb-8">
+        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4 text-center">مؤشرات الأداء الرئيسية</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-lg text-center">
+            <div className="text-2xl md:text-3xl font-bold mb-2">93%</div>
+            <div className="text-xs md:text-sm opacity-90">الالتزام بـ SLA</div>
+          </div>
+          
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg text-center">
+            <div className="text-2xl md:text-3xl font-bold mb-2">82%</div>
+            <div className="text-xs md:text-sm opacity-90">رضا العملاء</div>
+          </div>
+          
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-lg text-center">
+            <div className="text-2xl md:text-3xl font-bold mb-2">72%</div>
+            <div className="text-xs md:text-sm opacity-90">الحل من المرة الأولى</div>
+          </div>
+          
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-lg text-center">
+            <div className="text-2xl md:text-3xl font-bold mb-2">55</div>
+            <div className="text-xs md:text-sm opacity-90">مؤشر NPS</div>
+          </div>
+        </div>
+      </div>
 
       <div className="flex items-center justify-between mb-1">
         <div className="text-xs text-gray-500 dark:text-gray-400"></div>

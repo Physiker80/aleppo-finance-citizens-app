@@ -4,6 +4,7 @@ import { FaFileUpload, FaSpinner, FaFilePdf, FaFileWord, FaFileImage, FaCheck, F
 import { useFilePreview } from '../hooks/useFilePreview';
 import { NewsItem, FaqItem } from '../types';
 import { NEWS_DATA, FAQ_DATA } from '../constants';
+import { formatDate, formatDateTime, formatNumber } from '../utils/arabicNumerals';
 import { 
   PdfTemplate,
   getSavedTemplates, 
@@ -29,6 +30,70 @@ const ARABIC_FONTS = [
   { name: 'Markazi Text', displayName: 'نص مركزي - خط حديث متعدد الاستخدامات', url: 'https://fonts.googleapis.com/css2?family=Markazi+Text:wght@400;500;600;700&display=swap' },
   { name: 'Noto Naskh Arabic', displayName: 'نوتو نسخ عربي - خط نسخي احترافي', url: 'https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap' }
 ];
+
+// Small helper: SHA-256 Hex
+async function sha256Hex(text: string): Promise<string> {
+  const enc = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+const PasswordSetup: React.FC = () => {
+  const [hasPwd, setHasPwd] = useState<boolean>(() => !!localStorage.getItem('observabilityPasswordHash'));
+  const [pwd1, setPwd1] = useState('');
+  const [pwd2, setPwd2] = useState('');
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const save = async () => {
+    try {
+      if (!pwd1 || pwd1.length < 4) { setMsg('الحد الأدنى 4 محارف'); return; }
+      if (pwd1 !== pwd2) { setMsg('كلمتا المرور غير متطابقتين'); return; }
+      const hex = await sha256Hex(pwd1);
+      localStorage.setItem('observabilityPasswordHash', hex);
+      setHasPwd(true);
+      setPwd1(''); setPwd2('');
+      setMsg('تم ضبط كلمة المرور.');
+      setTimeout(()=>setMsg(null), 1500);
+    } catch (e: any) {
+      setMsg(`فشل الحفظ: ${e?.message || e}`);
+    }
+  };
+
+  const clear = () => {
+    localStorage.removeItem('observabilityPasswordHash');
+    try { sessionStorage.removeItem('observabilitySessionOk'); } catch {}
+    setHasPwd(false);
+    setPwd1(''); setPwd2('');
+    setMsg('تمت إزالة كلمة المرور.');
+    setTimeout(()=>setMsg(null), 1500);
+  };
+
+  return (
+    <div className="rounded border border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-800/40">
+      <h4 className="text-sm font-semibold mb-2">حماية صفحة المراقبة بكلمة مرور</h4>
+      {hasPwd ? (
+        <div className="text-sm">
+          <div className="mb-2 text-emerald-700 dark:text-emerald-300">حالة: مفعّلة</div>
+          <button onClick={clear} className="px-3 py-1.5 rounded border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:bg-red-900/30 text-sm">إزالة كلمة المرور</button>
+        </div>
+      ) : (
+        <div className="grid gap-2 text-sm">
+          <label>كلمة المرور
+            <input type="password" className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={pwd1} onChange={e=>setPwd1(e.target.value)} />
+          </label>
+          <label>تأكيد كلمة المرور
+            <input type="password" className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={pwd2} onChange={e=>setPwd2(e.target.value)} />
+          </label>
+          <div className="flex gap-2">
+            <button onClick={save} className="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">حفظ كلمة المرور</button>
+          </div>
+        </div>
+      )}
+      {msg && <div className="text-xs mt-2 text-gray-700 dark:text-gray-300">{msg}</div>}
+      <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">تُخزن كلمة المرور كقيمة SHA-256 في المتصفح. الفتح يتم لكل جلسة.</div>
+    </div>
+  );
+};
 
 // تحميل الخطوط العربية الجميلة
 const loadArabicFonts = () => {
@@ -372,7 +437,7 @@ const LegalEditor: React.FC<{
 
 // نموذج إضافة خبر فقط
 const NewsAddForm: React.FC<{ onAdded?: () => void; onSwitchToManage?: () => void }> = ({ onAdded, onSwitchToManage }) => {
-  const [draft, setDraft] = useState<NewsItem>({ title: '', date: new Date().toLocaleDateString('ar-SY-u-nu-latn'), content: '' });
+  const [draft, setDraft] = useState<NewsItem>({ title: '', date: formatDate(new Date()), content: '' });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -385,7 +450,7 @@ const NewsAddForm: React.FC<{ onAdded?: () => void; onSwitchToManage?: () => voi
       list.unshift({ ...draft });
       localStorage.setItem('newsItems', JSON.stringify(list));
       setMessage('تمت إضافة الخبر بنجاح.');
-  setDraft({ title: '', date: new Date().toLocaleDateString('ar-SY-u-nu-latn'), content: '' });
+  setDraft({ title: '', date: formatDate(new Date()), content: '' });
       onAdded?.();
     } finally {
       setSaving(false);
@@ -422,7 +487,7 @@ const NewsAddForm: React.FC<{ onAdded?: () => void; onSwitchToManage?: () => voi
 const NewsManager: React.FC<{ onChanged?: () => void; onSwitchToAdd?: () => void }> = ({ onChanged, onSwitchToAdd }) => {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [draft, setDraft] = useState<NewsItem>({ title: '', date: new Date().toLocaleDateString('ar-SY-u-nu-latn'), content: '' });
+  const [draft, setDraft] = useState<NewsItem>({ title: '', date: formatDate(new Date()), content: '' });
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -1165,7 +1230,7 @@ const PdfTemplateManager: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                               className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800"
                             />
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                              القيمة الحالية: {(draft.header.logoWidth || 60).toLocaleString('ar')}px
+                              القيمة الحالية: {formatNumber(draft.header.logoWidth || 60)}px
                             </p>
                           </div>
                           <div>
@@ -1179,7 +1244,7 @@ const PdfTemplateManager: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                               className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800"
                             />
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                              القيمة الحالية: {(draft.header.logoHeight || 60).toLocaleString('ar')}px
+                              القيمة الحالية: {formatNumber(draft.header.logoHeight || 60)}px
                             </p>
                           </div>
                         </div>
@@ -1196,7 +1261,7 @@ const PdfTemplateManager: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                             ></div>
                             <div className="text-xs font-medium text-gray-700 dark:text-gray-300">عنوان الهيدر</div>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                              معاينة المسافة: {(draft.header.logoSpacing || 15).toLocaleString('ar')}px
+                              معاينة المسافة: {formatNumber(draft.header.logoSpacing || 15)}px
                             </p>
                           </div>
 
@@ -1210,7 +1275,7 @@ const PdfTemplateManager: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                           />
                           <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
                             <span>ملتصق (٠px)</span>
-                            <span className="font-medium text-blue-600 dark:text-blue-400">{(draft.header.logoSpacing || 15).toLocaleString('ar')}px</span>
+                            <span className="font-medium text-blue-600 dark:text-blue-400">{formatNumber(draft.header.logoSpacing || 15)}px</span>
                             <span>متباعد (٥٠px)</span>
                           </div>
                           
@@ -1384,7 +1449,7 @@ const PdfTemplateManager: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                       className="w-full mb-1"
                     />
                     <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                      {(draft.header.titleFontSize || 18).toLocaleString('ar')} نقطة
+                      {formatNumber(draft.header.titleFontSize || 18)} نقطة
                     </div>
                   </div>
 
@@ -1399,7 +1464,7 @@ const PdfTemplateManager: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                       className="w-full mb-1"
                     />
                     <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                      {(draft.header.subtitleFontSize || 14).toLocaleString('ar')} نقطة
+                      {formatNumber(draft.header.subtitleFontSize || 14)} نقطة
                     </div>
                   </div>
                 </div>
@@ -1416,7 +1481,7 @@ const PdfTemplateManager: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                       className="w-full mb-1"
                     />
                     <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                      {(draft.footer.fontSize || 11).toLocaleString('ar')} نقطة
+                      {formatNumber(draft.footer.fontSize || 11)} نقطة
                     </div>
                   </div>
 
@@ -1431,7 +1496,7 @@ const PdfTemplateManager: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                       className="w-full mb-1"
                     />
                     <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                      {(draft.footer.subFooterFontSize || 9).toLocaleString('ar')} نقطة
+                      {formatNumber(draft.footer.subFooterFontSize || 9)} نقطة
                     </div>
                   </div>
                 </div>
@@ -1627,7 +1692,7 @@ const PdfTemplateManager: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                   <div><strong>الهاتف:</strong> +963 11 1234567</div>
                   <div><strong>النوع:</strong> استعلام</div>
                   <div><strong>القسم:</strong> قسم الضرائب</div>
-                  <div><strong>التاريخ:</strong> {new Date().toLocaleString('ar-SY-u-nu-latn')}</div>
+                  <div><strong>التاريخ:</strong> {formatDateTime(new Date())}</div>
                   <div><strong>الحالة:</strong> <span style={{color: '#2563eb'}}>جديد</span></div>
                 </div>
 
@@ -1643,7 +1708,7 @@ const PdfTemplateManager: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                   </div>
                   {draft.footer.qrCode && <div className="mt-2 text-xs">[QR CODE]</div>}
                   {draft.footer.timestamp && (
-                    <div className="mt-2 text-xs">تم الإصدار: {new Date().toLocaleString('ar-SY-u-nu-latn')}</div>
+                    <div className="mt-2 text-xs">تم الإصدار: {formatDateTime(new Date())}</div>
                   )}
                   
                   {/* الفوتر الإضافي الفرعي مع الخط الفاصل */}
@@ -1739,8 +1804,8 @@ const PdfTemplateManager: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                     </div>
                   </td>
                   <td className="p-3 text-gray-600 dark:text-gray-400">
-                    {template.updatedAt ? new Date(template.updatedAt).toLocaleString('ar-SY-u-nu-latn') : 
-                     template.createdAt ? new Date(template.createdAt).toLocaleString('ar-SY-u-nu-latn') : '—'}
+                    {template.updatedAt ? formatDateTime(new Date(template.updatedAt)) : 
+                     template.createdAt ? formatDateTime(new Date(template.createdAt)) : '—'}
                   </td>
                   <td className="p-3">
                     <div className="flex gap-2">
@@ -1798,7 +1863,7 @@ const PdfTemplateManager: React.FC<{ onChanged?: () => void }> = ({ onChanged })
 };
 
 const ToolsPage: React.FC = () => {
-  const [active, setActive] = useState<null | 'ocr' | 'newsAdd' | 'newsManage' | 'faqAdd' | 'faqManage' | 'privacyEdit' | 'termsEdit' | 'idConfig' | 'pdfTemplates'>(null);
+  const [active, setActive] = useState<null | 'ocr' | 'newsAdd' | 'newsManage' | 'faqAdd' | 'faqManage' | 'privacyEdit' | 'termsEdit' | 'idConfig' | 'pdfTemplates' | 'observability'>(null);
   const [newsCount, setNewsCount] = useState<number>(0);
   const [faqCount, setFaqCount] = useState<number>(0);
   const [ocrStats, setOcrStats] = useState<OcrStats | null>(null);
@@ -1813,6 +1878,10 @@ const ToolsPage: React.FC = () => {
   const [idDateFormat, setIdDateFormat] = useState<'YYYYMMDD' | 'YYMMDD'>('YYYYMMDD');
   const [idMsg, setIdMsg] = useState<string | null>(null);
   const [seqInfo, setSeqInfo] = useState<{date:string; seq:number}>({date:'', seq:0});
+  // مراقبة وتتبع
+  const [traceEnabled, setTraceEnabled] = useState<boolean>(() => (localStorage.getItem('VITE_TRACING_ENABLED') || 'false') === 'true');
+  const [uxEnabled, setUxEnabled] = useState<boolean>(() => (localStorage.getItem('VITE_UX_ENABLED') || 'false') === 'true');
+  const [lastRequestId, setLastRequestId] = useState<string | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setActive(null); };
@@ -1954,12 +2023,110 @@ const ToolsPage: React.FC = () => {
     return list;
   }
 
+  async function pingTraceId() {
+    try {
+      const r = await fetch('/api/trace-id');
+      const j = await r.json();
+      setLastRequestId(j.request_id || null);
+    } catch {
+      setLastRequestId(null);
+    }
+  }
+
+  async function sendDemoTrace() {
+    const tryFetch = async (url: string) => {
+      try {
+        const r = await fetch(url, { method: 'GET' });
+        return r;
+      } catch (e) {
+        return null as any;
+      }
+    };
+
+    // 1) Try via Vite proxy → backend
+    let r = await tryFetch('/api/demo-trace');
+    if (r && r.ok) {
+      const j = await r.json();
+      alert(`تم تنفيذ طلب تجريبي خلال ${j.ms}ms`);
+      return;
+    }
+
+    // 2) Fallback directly to backend default port
+    const directUrl = 'http://localhost:4000/api/demo-trace';
+    const r2 = await tryFetch(directUrl);
+    if (r2 && r2.ok) {
+      const j = await r2.json();
+      alert(`تم تنفيذ طلب تجريبي خلال ${j.ms}ms (عبر ${directUrl})`);
+      return;
+    }
+
+    const body1 = r ? await r.text().catch(() => '') : '';
+    const body2 = r2 ? await r2.text().catch(() => '') : '';
+    alert(
+      `فشل الطلب التجريبي\n` +
+      `Proxy: ${r ? r.status + ' ' + r.statusText : 'no-response'}\n` +
+      (body1 ? `${body1}\n` : '') +
+      `Direct 4000: ${r2 ? r2.status + ' ' + r2.statusText : 'no-response'}\n` +
+      (body2 ? `${body2}\n` : '') +
+      `ملاحظة: تأكد أن الخلفية تعمل على 4000 (npm run server) وأن المنفذ غير مشغول.`
+    );
+  }
+
+  async function testApiHealth() {
+    const tryTxt = async (url: string) => {
+      try {
+        const r = await fetch(url);
+        const txt = await r.text();
+        return { r, txt } as const;
+      } catch (e) {
+        return null;
+      }
+    };
+    const viaProxy = await tryTxt('/api/health');
+    if (viaProxy?.r) {
+      alert(`/api/health → ${viaProxy.r.status} ${viaProxy.r.statusText}\n${viaProxy.txt}`);
+      if (viaProxy.r.ok) return;
+    }
+    const direct = await tryTxt('http://localhost:4000/api/health');
+    if (direct?.r) {
+      alert(`http://localhost:4000/api/health → ${direct.r.status} ${direct.r.statusText}\n${direct.txt}`);
+      return;
+    }
+    alert('تعذر الوصول إلى /api/health عبر الوكيل أو مباشرة. يرجى التأكد من تشغيل الخادم: npm run server');
+  }
+
+  function applyObservabilityToggles() {
+    try {
+      localStorage.setItem('VITE_TRACING_ENABLED', String(traceEnabled));
+      localStorage.setItem('VITE_UX_ENABLED', String(uxEnabled));
+      alert('تم الحفظ. يرجى إعادة تحميل الصفحة لتطبيق الإعدادات.');
+    } catch {
+      alert('تعذر حفظ الإعدادات');
+    }
+  }
+
   return (
     <div className="rounded-2xl p-8 animate-fade-in-up transition-all duration-300 border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-900/60 backdrop-blur shadow-lg">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">قسم المعلوماتية</h1>
 
   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Observability Card */}
+          <div className="relative">
+            <div
+              role="button" tabIndex={0}
+              onClick={() => setActive(active === 'observability' ? null : 'observability')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'observability' ? null : 'observability'); } }}
+              className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <h3 className="text-xl font-semibold mb-1">مراقبة وتتبع (Observability)</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">تفعيل تتبع OpenTelemetry وتجربة التتبّع وUX.</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className={`px-2 py-0.5 rounded ${traceEnabled ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700/40 dark:text-gray-200'}`}>Tracing {traceEnabled ? 'ON' : 'OFF'}</span>
+                <span className={`px-2 py-0.5 rounded ${uxEnabled ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700/40 dark:text-gray-200'}`}>UX {uxEnabled ? 'ON' : 'OFF'}</span>
+              </div>
+            </div>
+          </div>
           {/* Ticket ID Config Card */}
           <div className="relative">
             <div
@@ -1992,7 +2159,7 @@ const ToolsPage: React.FC = () => {
                   <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-800 dark:bg-gray-700/40 dark:text-gray-200">آخر نوع {ocrStats.lastKind === 'image' ? 'صور' : ocrStats.lastKind === 'pdf' ? 'PDF' : ocrStats.lastKind === 'docx' ? 'Word' : 'أخرى'}</span>
                 )}
                 {ocrStats?.lastDateISO && (
-                  <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">آخر مرة {new Date(ocrStats.lastDateISO).toLocaleString('ar-SY-u-nu-latn')}</span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">آخر مرة {formatDateTime(new Date(ocrStats.lastDateISO))}</span>
                 )}
               </div>
             </div>
@@ -2129,6 +2296,7 @@ const ToolsPage: React.FC = () => {
                 {active === 'privacyEdit' && 'تحرير سياسة الخصوصية'}
                 {active === 'termsEdit' && 'تحرير الشروط والأحكام'}
                 {active === 'pdfTemplates' && 'إعداد قوالب PDF'}
+                {active === 'observability' && 'مراقبة وتتبع النظام'}
               </h3>
               <button onClick={() => setActive(null)} aria-label="إغلاق" className="w-8 h-8 rounded hover:bg-black/5 dark:hover:bg-white/10">✕</button>
             </div>
@@ -2183,6 +2351,40 @@ const ToolsPage: React.FC = () => {
               {active === 'privacyEdit' && <LegalEditor storageKey="privacyHtml" title="تحرير سياسة الخصوصية" onChanged={refreshStats} />}
               {active === 'termsEdit' && <LegalEditor storageKey="termsHtml" title="تحرير الشروط والأحكام" onChanged={refreshStats} />}
               {active === 'pdfTemplates' && <PdfTemplateManager onChanged={refreshStats} />}
+              {active === 'observability' && (
+                <div className="space-y-4" dir="rtl">
+                  {/* Open in new tab + password setup */}
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <button onClick={() => window.open('#/observability','_blank')} className="px-4 py-2 rounded bg-indigo-600 text-white text-sm hover:bg-indigo-700">
+                      فتح مراقبة وتتبع في صفحة جديدة
+                    </button>
+                    <span className="text-xs text-gray-600 dark:text-gray-400">(متوفرة للمسؤول فقط)</span>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <PasswordSetup />
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <label className="flex items-center gap-2 p-3 rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40">
+                      <input type="checkbox" checked={traceEnabled} onChange={(e)=>setTraceEnabled(e.target.checked)} />
+                      <span className="text-sm">تفعيل تتبّع OpenTelemetry في الواجهة الأمامية</span>
+                    </label>
+                    <label className="flex items-center gap-2 p-3 rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40">
+                      <input type="checkbox" checked={uxEnabled} onChange={(e)=>setUxEnabled(e.target.checked)} />
+                      <span className="text-sm">تفعيل مراقبة تجربة المستخدم (Clarity/Hotjar)</span>
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={applyObservabilityToggles} className="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">حفظ الإعدادات</button>
+                    <button onClick={pingTraceId} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">قراءة request_id</button>
+                    <button onClick={sendDemoTrace} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">طلب تجريبي (Trace)</button>
+                    <button onClick={testApiHealth} className="px-4 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">فحص صحة الـ API</button>
+                  </div>
+                  <div className="text-sm text-gray-700 dark:text-gray-300">
+                    <div>آخر request_id: <span className="font-mono">{lastRequestId || '—'}</span></div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">للتتبع الكامل نحو Tempo/Jaeger استخدم جامع OTEL على <code>http://localhost:4318</code> أو وفّر عنواناً في <code>VITE_OTLP_HTTP_URL</code>.</div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

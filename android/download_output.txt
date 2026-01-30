@@ -1,0 +1,14 @@
+Downloading gradle-wrapper.jar...
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    14  100    14    0     0     72      0 --:--:-- --:--:-- --:--:--    73
+Done! Checking file size:
+ Volume in drive E has no label.
+ Volume Serial Number is 288B-DF08
+
+ Directory of E:\Syrian_Project\???? ????????? ?????? 1\android\gradle\wrapper
+
+30/01/2026  04:55                14 gradle-wrapper.jar
+               1 File(s)             14 bytes
+               0 Dir(s)  2.613.217.964.032 bytes free
+Press any key to continue . . . 

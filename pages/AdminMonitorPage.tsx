@@ -169,6 +169,40 @@ const AdminMonitorPage: React.FC = () => {
   // إشعارات جديدة غير مقروءة
   const unreadNotifications = notifications.filter(n=>!n.read).length;
 
+  // تخصيص التنبيهات: تقسيم بين قسم الإدارة وبقية الأقسام
+  const ADMIN_DEPARTMENT_NAME = 'الإدارة';
+
+  const adminDepartmentNotifications = useMemo(() => {
+    return notifications
+      .filter(n => String(n.department) === ADMIN_DEPARTMENT_NAME)
+      .slice()
+      .sort((a,b)=> b.createdAt.getTime() - a.createdAt.getTime());
+  }, [notifications]);
+
+  const otherDepartmentsNotifications = useMemo(() => {
+    return notifications
+      .filter(n => String(n.department) !== ADMIN_DEPARTMENT_NAME)
+      .slice()
+      .sort((a,b)=> b.createdAt.getTime() - a.createdAt.getTime());
+  }, [notifications]);
+
+  const unreadAdminCount = adminDepartmentNotifications.filter(n=>!n.read).length;
+  const unreadOthersCount = otherDepartmentsNotifications.filter(n=>!n.read).length;
+
+  const uniqueOtherDepartments = useMemo(() => {
+    const set = new Set<string>();
+    otherDepartmentsNotifications.forEach(n => set.add(String(n.department)));
+    return Array.from(set.values()).sort();
+  }, [otherDepartmentsNotifications]);
+
+  const markAdminRead = () => {
+    ctx?.markNotificationsReadForDepartment && ctx.markNotificationsReadForDepartment(ADMIN_DEPARTMENT_NAME as any);
+  };
+  const markOthersRead = () => {
+    if (!ctx?.markNotificationsReadForDepartment) return;
+    uniqueOtherDepartments.forEach(dep => ctx.markNotificationsReadForDepartment(dep as any));
+  };
+
   const departmentsList = useMemo(() => {
     try {
       const raw = localStorage.getItem('departmentsList');
@@ -256,16 +290,17 @@ const AdminMonitorPage: React.FC = () => {
           <h1 className="text-4xl font-bold text-gray-800 dark:text-gray-100">مركز المراقبة والتحليل</h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">نظرة شاملة مباشرة عن أداء النظام وحركة الطلبات والرسائل.</p>
         </div>
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-3">
           <button
-            onClick={() => { window.location.hash = '#/dashboard'; }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+            onClick={() => { window.location.hash = '#/privacy-editor'; }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 shadow-md hover:shadow-lg"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
-            العودة إلى لوحة التحكم
+            محرر سياسة الخصوصية
           </button>
+          {/* Back button removed per policy; rely on global BackToDashboardFab */}
         </div>
         <Card className="w-full md:w-auto md:min-w-[380px] flex flex-col gap-3">
           <div className="flex gap-3">
@@ -393,6 +428,74 @@ const AdminMonitorPage: React.FC = () => {
       </div>
 
       {/* جدول عينات لأحدث التذاكر */}
+      {/* التنبيهات مقسمة (الإدارة / بقية الأقسام) */}
+      <Card>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">التنبيهات حسب القسم</h3>
+          <div className="flex items-center gap-2 text-xs">
+            <button
+              onClick={markAdminRead}
+              disabled={!unreadAdminCount}
+              className={`px-3 py-1.5 rounded border text-[11px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${unreadAdminCount ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700/40' : 'bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300'}`}
+            >تعليم (الإدارة) كمقروء</button>
+            <button
+              onClick={markOthersRead}
+              disabled={!unreadOthersCount}
+              className={`px-3 py-1.5 rounded border text-[11px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${unreadOthersCount ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700/40' : 'bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300'}`}
+            >تعليم (بقية الأقسام) كمقروء</button>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-base font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">قسم الإدارة
+                {unreadAdminCount > 0 && <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-600 text-white">{unreadAdminCount} جديد</span>}
+              </h4>
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">{adminDepartmentNotifications.length} مجموع</span>
+            </div>
+            <ul className="space-y-2 max-h-72 overflow-auto pr-1 text-xs">
+              {adminDepartmentNotifications.map(n => (
+                <li key={n.id} className={`p-2 rounded border flex flex-col gap-1 transition-colors ${n.read ? 'bg-white/60 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/40 opacity-70' : 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-400/40 dark:border-emerald-600/40'} `}>
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold truncate" title={n.message || n.kind}>{n.message || n.kind}</span>
+                    <span className="text-[10px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{n.createdAt.toLocaleTimeString('ar-SY-u-nu-latn',{hour:'2-digit',minute:'2-digit'})}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-gray-600 dark:text-gray-400">
+                    <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700/70 border border-gray-200 dark:border-gray-600/60">{n.kind}</span>
+                    {n.ticketId && <span className="font-mono">#{n.ticketId}</span>}
+                  </div>
+                </li>
+              ))}
+              {!adminDepartmentNotifications.length && <li className="text-gray-500 dark:text-gray-400">لا توجد تنبيهات</li>}
+            </ul>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-base font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">بقية الأقسام
+                {unreadOthersCount > 0 && <span className="px-2 py-0.5 rounded-full text-[10px] bg-blue-600 text-white">{unreadOthersCount} جديد</span>}
+              </h4>
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">{otherDepartmentsNotifications.length} مجموع • {uniqueOtherDepartments.length} أقسام</span>
+            </div>
+            <ul className="space-y-2 max-h-72 overflow-auto pr-1 text-xs">
+              {otherDepartmentsNotifications.map(n => (
+                <li key={n.id} className={`p-2 rounded border flex flex-col gap-1 transition-colors ${n.read ? 'bg-white/60 dark:bg-gray-800/50 border-white/30 dark:border-gray-700/40 opacity-70' : 'bg-blue-50 dark:bg-blue-900/30 border-blue-400/40 dark:border-blue-600/40'} `}>
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold truncate" title={n.message || n.kind}>{n.message || n.kind}</span>
+                    <span className="text-[10px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{n.createdAt.toLocaleTimeString('ar-SY-u-nu-latn',{hour:'2-digit',minute:'2-digit'})}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-gray-600 dark:text-gray-400 flex-wrap">
+                    <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700/70 border border-gray-200 dark:border-gray-600/60">{n.kind}</span>
+                    {n.ticketId && <span className="font-mono">#{n.ticketId}</span>}
+                    <span className="px-1.5 py-0.5 rounded bg-white/70 dark:bg-gray-700/60 border border-white/30 dark:border-gray-600/50" title="القسم">{String(n.department) || '—'}</span>
+                  </div>
+                </li>
+              ))}
+              {!otherDepartmentsNotifications.length && <li className="text-gray-500 dark:text-gray-400">لا توجد تنبيهات</li>}
+            </ul>
+          </div>
+        </div>
+      </Card>
+
       <Card>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">أحدث التذاكر (10)</h3>

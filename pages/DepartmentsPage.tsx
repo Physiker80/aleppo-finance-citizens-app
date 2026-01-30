@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { FaCrown, FaUpload, FaTrash, FaDownload, FaChevronRight, FaChevronDown, FaChevronUp, FaBuilding, FaSearch, FaSearchPlus, FaSearchMinus, FaSync, FaAngleDoubleDown, FaAngleDoubleUp } from 'react-icons/fa';
+import { Crown, Upload, Trash2, Download, ChevronRight, ChevronDown, ChevronUp, Building2, Search, ZoomIn, ZoomOut, RotateCw, ChevronsDown, ChevronsUp } from 'lucide-react';
 import { AppContext } from '../App';
+import { aiAssistant } from '../utils/aiAssistant';
 
 type DepartmentInfo = {
   id: string;
@@ -10,6 +11,9 @@ type DepartmentInfo = {
   phone?: string;
   email?: string;
   subunits?: string[];
+  // Optional AI routing helpers
+  aliases?: string[]; // alternative names/keywords pointing to this department
+  negatives?: string[]; // keywords that should not route here
 };
 
 const DEFAULT_DEPARTMENTS: DepartmentInfo[] = [
@@ -260,16 +264,12 @@ const DepartmentsPage: React.FC = () => {
   const bulkPdfRef = React.useRef<HTMLInputElement | null>(null);
   const [detailsDept, setDetailsDept] = useState<DepartmentInfo | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [draft, setDraft] = useState<DepartmentInfo>({ id: '', name: '', head: '', description: '', phone: '', email: '', subunits: [] });
+  const [draft, setDraft] = useState<DepartmentInfo>({ id: '', name: '', head: '', description: '', phone: '', email: '', subunits: [], aliases: [], negatives: [] });
   const fileRef = React.useRef<HTMLInputElement | null>(null);
   const isManager = useMemo(() => {
-    try {
-      const u = localStorage.getItem('currentUser');
-      if (!u) return false;
-      const p = JSON.parse(u);
-      return p?.role === 'مدير';
-    } catch { return false; }
-  }, []);
+    // Prefer AppContext which reflects secure session storage state
+    return appContext?.currentEmployee?.role === 'مدير';
+  }, [appContext?.currentEmployee?.role]);
   // Allow manage UI only when manager and explicitly launched with manage=1 (from dashboard)
   const allowManage = useMemo(() => {
     const hash = window.location.hash || '';
@@ -408,6 +408,308 @@ const DepartmentsPage: React.FC = () => {
     } catch { /* noop */ }
   };
 
+  // =========================
+  // Test Routing Panel (admins)
+  // =========================
+  const [testOpen, setTestOpen] = useState(false);
+  const [testText, setTestText] = useState('');
+  const [testResult, setTestResult] = useState<null | ReturnType<typeof aiAssistant.debugSuggest>>(null);
+  // Rule-family and dynamic-signal toggles
+  const [ruleInclude, setRuleInclude] = useState<Record<string, boolean>>({
+    'الموارد البشرية': true,
+    'الخزينة': true,
+    'الشؤون القانونية': true,
+    'تكنولوجيا المعلومات': true,
+    'التدقيق': true,
+    'الديوان': true,
+    'الخدمة المواطنية': true,
+  });
+  const [dynName, setDynName] = useState(true);
+  const [dynAliases, setDynAliases] = useState(true);
+  const [dynNegatives, setDynNegatives] = useState(true);
+  // Weights tuning
+  const [ruleOverrides, setRuleOverrides] = useState<Record<string, { base?: number; weight?: number }>>({});
+  const [dynNameBoost, setDynNameBoost] = useState<number>(0.72);
+  const [dynAliasBoost, setDynAliasBoost] = useState<number>(0.08);
+  const [ruleNegPenalty, setRuleNegPenalty] = useState<number>(0.12);
+  const [dynNegPenalty, setDynNegPenalty] = useState<number>(0.12);
+  // Persist/restore tuning defaults from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('routing_tuning_defaults');
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d && typeof d === 'object') {
+        if (d.ruleInclude) setRuleInclude({ ...ruleInclude, ...d.ruleInclude });
+        if (d.ruleOverrides) setRuleOverrides(d.ruleOverrides);
+        if (typeof d.dynName === 'boolean') setDynName(d.dynName);
+        if (typeof d.dynAliases === 'boolean') setDynAliases(d.dynAliases);
+        if (typeof d.dynNegatives === 'boolean') setDynNegatives(d.dynNegatives);
+        if (typeof d.dynNameBoost === 'number') setDynNameBoost(d.dynNameBoost);
+        if (typeof d.dynAliasBoost === 'number') setDynAliasBoost(d.dynAliasBoost);
+        if (typeof d.ruleNegPenalty === 'number') setRuleNegPenalty(d.ruleNegPenalty);
+        if (typeof d.dynNegPenalty === 'number') setDynNegPenalty(d.dynNegPenalty);
+      }
+    } catch { /* noop */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const saveTuningDefaults = () => {
+    try {
+      const payload = { ruleInclude, ruleOverrides, dynName, dynAliases, dynNegatives, dynNameBoost, dynAliasBoost, ruleNegPenalty, dynNegPenalty };
+      localStorage.setItem('routing_tuning_defaults', JSON.stringify(payload));
+      alert('تم حفظ الإعدادات الافتراضية للتجارب.');
+    } catch { alert('تعذر حفظ الإعدادات.'); }
+  };
+  const resetTuningDefaults = () => {
+    try { localStorage.removeItem('routing_tuning_defaults'); } catch { /* noop */ }
+    setRuleInclude({ 'الموارد البشرية': true, 'الخزينة': true, 'الشؤون القانونية': true, 'تكنولوجيا المعلومات': true, 'التدقيق': true, 'الديوان': true, 'الخدمة المواطنية': true });
+    setRuleOverrides({});
+    setDynName(true); setDynAliases(true); setDynNegatives(true);
+    setDynNameBoost(0.72); setDynAliasBoost(0.08);
+    setRuleNegPenalty(0.12); setDynNegPenalty(0.12);
+  };
+  // System defaults that affect production suggestDepartment
+  const saveSystemDefaults = () => {
+    if (!confirm('سيتم تطبيق هذه الإعدادات بشكل افتراضي على نظام التوجيه الفعلي. متابعة؟')) return;
+    try {
+      const payload = { ruleInclude, ruleOverrides, dynName, dynAliases, dynNegatives, dynNameBoost, dynAliasBoost, ruleNegPenalty, dynNegPenalty };
+      localStorage.setItem('routing_system_defaults', JSON.stringify(payload));
+      setHasSystemDefaults(true);
+      alert('تم حفظ الإعدادات كنظام افتراضي للتوجيه.');
+    } catch { alert('تعذر حفظ الإعدادات كنظام افتراضي.'); }
+  };
+  const resetSystemDefaults = () => {
+    if (!confirm('سيتم إزالة الإعدادات الافتراضية للنظام والعودة للسلوك الأصلي. متابعة؟')) return;
+    try { localStorage.removeItem('routing_system_defaults'); setHasSystemDefaults(false); alert('تمت إزالة الإعدادات الافتراضية للنظام.'); } catch { /* noop */ }
+  };
+  // Track presence of system defaults and support export/import
+  const [hasSystemDefaults, setHasSystemDefaults] = useState<boolean>(() => {
+    try { return !!localStorage.getItem('routing_system_defaults'); } catch { return false; }
+  });
+  useEffect(() => {
+    // Re-check when test panel opens
+    try { setHasSystemDefaults(!!localStorage.getItem('routing_system_defaults')); } catch { /* noop */ }
+  }, [testOpen]);
+  useEffect(() => {
+    // Also re-check on mount
+    try { setHasSystemDefaults(!!localStorage.getItem('routing_system_defaults')); } catch { /* noop */ }
+  }, []);
+  const sysDefaultsFileRef = React.useRef<HTMLInputElement | null>(null);
+  const exportSystemDefaults = () => {
+    try {
+      const raw = localStorage.getItem('routing_system_defaults');
+      if (!raw) { alert('لا توجد افتراضيات نظام محفوظة للتصدير.'); return; }
+      const data = JSON.stringify(JSON.parse(raw), null, 2);
+      const blob = new Blob([data], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ts = new Date().toISOString().slice(0, 19).replace(/[.:T]/g, '-');
+      a.download = `routing_system_defaults-${ts}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { alert('تعذر تصدير افتراضيات النظام.'); }
+  };
+  const onImportSystemDefaults: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      const text = await f.text();
+      const d = JSON.parse(text);
+      if (d && typeof d === 'object') {
+        // Light validation of expected keys
+        const payload = {
+          ruleInclude: d.ruleInclude || ruleInclude,
+          ruleOverrides: d.ruleOverrides || {},
+          dynName: typeof d.dynName === 'boolean' ? d.dynName : true,
+          dynAliases: typeof d.dynAliases === 'boolean' ? d.dynAliases : true,
+          dynNegatives: typeof d.dynNegatives === 'boolean' ? d.dynNegatives : true,
+          dynNameBoost: typeof d.dynNameBoost === 'number' ? d.dynNameBoost : 0.72,
+          dynAliasBoost: typeof d.dynAliasBoost === 'number' ? d.dynAliasBoost : 0.08,
+          ruleNegPenalty: typeof d.ruleNegPenalty === 'number' ? d.ruleNegPenalty : 0.12,
+          dynNegPenalty: typeof d.dynNegPenalty === 'number' ? d.dynNegPenalty : 0.12,
+        };
+        localStorage.setItem('routing_system_defaults', JSON.stringify(payload));
+        setHasSystemDefaults(true);
+        alert('تم استيراد افتراضيات النظام بنجاح.');
+      } else {
+        throw new Error('bad');
+      }
+    } catch {
+      alert('فشل استيراد افتراضيات النظام. تحقق من تنسيق JSON.');
+    } finally { e.target.value = ''; }
+  };
+  // Toggle to preview with system defaults
+  const [previewWithSystemDefaults, setPreviewWithSystemDefaults] = useState(false);
+  // Export/Import tuning defaults JSON
+  const tuningFileRef = React.useRef<HTMLInputElement | null>(null);
+  const exportTuning = () => {
+    try {
+      const payload = { ruleInclude, ruleOverrides, dynName, dynAliases, dynNegatives, dynNameBoost, dynAliasBoost, ruleNegPenalty, dynNegPenalty };
+      const data = JSON.stringify(payload, null, 2);
+      const blob = new Blob([data], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ts = new Date().toISOString().slice(0, 19).replace(/[.:T]/g, '-');
+      a.download = `routing_tuning_defaults-${ts}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { alert('تعذر تصدير الإعدادات.'); }
+  };
+  const onImportTuning: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      const text = await f.text();
+      const d = JSON.parse(text);
+      if (d && typeof d === 'object') {
+        if (d.ruleInclude) setRuleInclude((m) => ({ ...m, ...d.ruleInclude }));
+        if (d.ruleOverrides) setRuleOverrides(d.ruleOverrides);
+        if (typeof d.dynName === 'boolean') setDynName(d.dynName);
+        if (typeof d.dynAliases === 'boolean') setDynAliases(d.dynAliases);
+        if (typeof d.dynNegatives === 'boolean') setDynNegatives(d.dynNegatives);
+        if (typeof d.dynNameBoost === 'number') setDynNameBoost(d.dynNameBoost);
+        if (typeof d.dynAliasBoost === 'number') setDynAliasBoost(d.dynAliasBoost);
+        if (typeof d.ruleNegPenalty === 'number') setRuleNegPenalty(d.ruleNegPenalty);
+        if (typeof d.dynNegPenalty === 'number') setDynNegPenalty(d.dynNegPenalty);
+        alert('تم استيراد إعدادات التجارب بنجاح.');
+      } else {
+        throw new Error('bad');
+      }
+    } catch {
+      alert('فشل استيراد إعدادات التجارب. تحقق من تنسيق JSON.');
+    } finally { e.target.value = ''; }
+  };
+  const [history, setHistory] = useState<Record<string, { samples: { text: string; ts: string }[] }>>(() => {
+    try {
+      const raw = localStorage.getItem('routing_history');
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch { return {}; }
+  });
+  const persistHistory = (next: typeof history) => {
+    setHistory(next);
+    try { localStorage.setItem('routing_history', JSON.stringify(next)); } catch { /* noop */ }
+  };
+  const runTestRouting = () => {
+    const txt = (testText || '').trim();
+    if (!txt) { alert('أدخل نصاً للاختبار'); return; }
+    let options: any = null;
+    if (previewWithSystemDefaults) {
+      try {
+        const raw = localStorage.getItem('routing_system_defaults');
+        if (raw) {
+          const d = JSON.parse(raw);
+          options = {
+            ruleInclude: d.ruleInclude || ruleInclude,
+            ruleOverrides: d.ruleOverrides || {},
+            enableDynamicName: typeof d.dynName === 'boolean' ? d.dynName : true,
+            enableDynamicAliases: typeof d.dynAliases === 'boolean' ? d.dynAliases : true,
+            enableDynamicNegatives: typeof d.dynNegatives === 'boolean' ? d.dynNegatives : true,
+            boosts: { dynName: typeof d.dynNameBoost === 'number' ? d.dynNameBoost : 0.72, dynAlias: typeof d.dynAliasBoost === 'number' ? d.dynAliasBoost : 0.08 },
+            penalties: { ruleNeg: typeof d.ruleNegPenalty === 'number' ? d.ruleNegPenalty : 0.12, dynNeg: typeof d.dynNegPenalty === 'number' ? d.dynNegPenalty : 0.12 },
+          };
+        } else {
+          alert('لا توجد افتراضيات نظام محفوظة. سيتم استخدام إعدادات التجارب الحالية.');
+        }
+      } catch { /* fallback to current settings */ }
+    }
+    const dbg = aiAssistant.debugSuggest(txt, options || {
+      ruleInclude,
+      ruleOverrides,
+      enableDynamicName: dynName,
+      enableDynamicAliases: dynAliases,
+      enableDynamicNegatives: dynNegatives,
+      boosts: { dynName: dynNameBoost, dynAlias: dynAliasBoost },
+      penalties: { ruleNeg: ruleNegPenalty, dynNeg: dynNegPenalty },
+    });
+    setTestResult(dbg);
+    // Save small routing history per selected department
+    const dep = dbg.result.department;
+    const entry = { text: txt.slice(0, 400), ts: new Date().toISOString() };
+    const next = { ...history };
+    const list = next[dep]?.samples || [];
+    const updated = [entry, ...list].slice(0, 10);
+    next[dep] = { samples: updated };
+    persistHistory(next);
+  };
+
+  // Export/Import routing history
+  const historyFileRef = React.useRef<HTMLInputElement | null>(null);
+  const exportHistory = () => {
+    try {
+      const data = JSON.stringify(history, null, 2);
+      const blob = new Blob([data], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ts = new Date().toISOString().slice(0, 19).replace(/[.:T]/g, '-');
+      a.download = `routing_history-${ts}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { alert('تعذر تصدير السجل.'); }
+  };
+  const onImportHistory: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      const text = await f.text();
+      const data = JSON.parse(text);
+      if (!data || typeof data !== 'object') throw new Error('bad');
+      const merged: typeof history = { ...history };
+      Object.keys(data).forEach((dep) => {
+        const arr = Array.isArray(data[dep]?.samples) ? data[dep].samples : [];
+        const existing = merged[dep]?.samples || [];
+        // Merge and de-duplicate by text+ts, then keep latest 10
+        const map = new Map<string, { text: string; ts: string }>();
+        [...arr, ...existing].forEach((s: any) => {
+          const rec = { text: String(s?.text || '').slice(0, 400), ts: String(s?.ts || '') };
+          if (rec.text) map.set(`${rec.text}::${rec.ts}`, rec);
+        });
+        const mergedList = Array.from(map.values())
+          .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+          .slice(0, 10);
+        merged[dep] = { samples: mergedList };
+      });
+      persistHistory(merged);
+      alert('تم استيراد سجل التوجيه بنجاح.');
+    } catch {
+      alert('فشل استيراد سجل التوجيه. تحقق من تنسيق JSON.');
+    } finally { e.target.value = ''; }
+  };
+
+  // Helper: add alias to a department by name (case-insensitive)
+  const addAliasToDepartment = (depName: string, alias: string) => {
+    if (!alias || !depName) return;
+    const idx = departments.findIndex(d => d.name.toLowerCase() === depName.toLowerCase());
+    if (idx === -1) { alert('تعذر العثور على القسم لإضافة المرادف.'); return; }
+    const next = [...departments];
+    const item = { ...next[idx] } as DepartmentInfo;
+    const aliases = Array.isArray(item.aliases) ? [...item.aliases] : [];
+    if (aliases.includes(alias)) { alert('المرادف موجود مسبقاً.'); return; }
+    aliases.push(alias);
+    item.aliases = aliases;
+    next[idx] = item;
+    persistDepartments(next);
+    alert(`تمت إضافة المرادف إلى قسم "${item.name}"`);
+  };
+  const addNegativeToDepartment = (depName: string, neg: string) => {
+    if (!neg || !depName) return;
+    const idx = departments.findIndex(d => d.name.toLowerCase() === depName.toLowerCase());
+    if (idx === -1) { alert('تعذر العثور على القسم لإضافة الكلمة السلبية.'); return; }
+    const next = [...departments];
+    const item = { ...next[idx] } as DepartmentInfo;
+    const negatives = Array.isArray(item.negatives) ? [...item.negatives] : [];
+    if (negatives.includes(neg)) { alert('الكلمة السلبية موجودة مسبقاً.'); return; }
+    negatives.push(neg);
+    item.negatives = negatives;
+    next[idx] = item;
+    persistDepartments(next);
+    alert(`تمت إضافة كلمة سلبية إلى قسم "${item.name}"`);
+  };
+
   const resetDepartments = () => {
     if (!confirm('هل تريد استعادة الأقسام الافتراضية؟ ستفقد التغييرات الحالية.')) return;
     try { localStorage.removeItem('departmentsList'); } catch { /* noop */ }
@@ -416,7 +718,7 @@ const DepartmentsPage: React.FC = () => {
 
   const startAdd = () => {
     setEditingIndex(null);
-    setDraft({ id: '', name: '', head: '', description: '', phone: '', email: '', subunits: [] });
+  setDraft({ id: '', name: '', head: '', description: '', phone: '', email: '', subunits: [], aliases: [], negatives: [] });
     setManageOpen(true);
   };
   const startEdit = (idx: number) => {
@@ -434,15 +736,17 @@ const DepartmentsPage: React.FC = () => {
     if (!draft.name.trim()) return alert('الاسم مطلوب.');
     const next = [...departments];
     const subunits = (draft.subunits || []).filter(Boolean);
+    const aliases = (draft.aliases || []).map(s => s.trim()).filter(Boolean);
+    const negatives = (draft.negatives || []).map(s => s.trim()).filter(Boolean);
     if (editingIndex === null) {
       const id = `dep-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
-      next.unshift({ ...draft, id, subunits });
+      next.unshift({ ...draft, id, subunits, aliases, negatives });
     } else {
-      next[editingIndex] = { ...draft, subunits };
+      next[editingIndex] = { ...draft, subunits, aliases, negatives };
     }
     persistDepartments(next);
     setEditingIndex(null);
-    setDraft({ id: '', name: '', head: '', description: '', phone: '', email: '', subunits: [] });
+    setDraft({ id: '', name: '', head: '', description: '', phone: '', email: '', subunits: [], aliases: [], negatives: [] });
   };
   const onImportDeps: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
     const f = e.target.files?.[0];
@@ -459,6 +763,8 @@ const DepartmentsPage: React.FC = () => {
         phone: x?.phone ? String(x.phone) : undefined,
         email: x?.email ? String(x.email) : undefined,
         subunits: Array.isArray(x?.subunits) ? x.subunits.map((s: any) => String(s)) : [],
+        aliases: Array.isArray(x?.aliases) ? x.aliases.map((s: any) => String(s)) : undefined,
+        negatives: Array.isArray(x?.negatives) ? x.negatives.map((s: any) => String(s)) : undefined,
       })).filter((d) => d.name.trim());
       persistDepartments(list);
     } catch {
@@ -715,7 +1021,7 @@ const DepartmentsPage: React.FC = () => {
             {/* Leader card */}
             <div className="max-w-3xl mx-auto rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm mb-5 text-center">
               <div className="mx-auto w-14 h-14 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-2xl text-amber-600 mb-3">
-                <FaCrown />
+                <Crown />
               </div>
               {!editingLeader ? (
                 <>
@@ -840,9 +1146,353 @@ const DepartmentsPage: React.FC = () => {
                   </button>
                   <button onClick={startAdd} className="px-4 py-2 rounded-lg text-sm bg-blue-600 text-white hover:bg-blue-700">إضافة قسم</button>
                   <button onClick={() => setBulkOpen((v) => !v)} className="px-4 py-2 rounded-lg text-sm border border-gray-300 dark:border-gray-600 bg-white/70 dark:bg-gray-800/70">إدخال مجمّع</button>
+                  <button onClick={() => setTestOpen((v) => !v)} className="px-4 py-2 rounded-lg text-sm border border-gray-300 dark:border-gray-600 bg-white/70 dark:bg-gray-800/70">اختبار التوجيه</button>
                 </div>
               )}
             </div>
+
+            {allowManage && testOpen && (
+              <div className="mb-5 rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-4 shadow-sm" dir="rtl">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">أداة اختبار التوجيه (ذكاء مساعد)</h3>
+                    {hasSystemDefaults ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] border border-emerald-300 text-emerald-700 bg-emerald-50 dark:border-emerald-700 dark:text-emerald-200 dark:bg-emerald-900/30" title="الإعدادات الافتراضية للنظام مفعّلة وستؤثر على التوجيه الإنتاجي.">افتراضيات النظام: مفعّلة</span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] border border-gray-300 text-gray-700 bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:bg-gray-800/40" title="لا توجد افتراضيات نظام محفوظة. يعمل النظام بالإعدادات الافتراضية المدمجة.">افتراضيات النظام: غير محددة</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={exportHistory} className="text-sm px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600">تصدير السجل</button>
+                    <button onClick={() => historyFileRef.current?.click()} className="text-sm px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600">استيراد السجل</button>
+                    <input ref={historyFileRef} type="file" accept="application/json" onChange={onImportHistory} hidden />
+                    <button onClick={() => setTestOpen(false)} className="text-sm px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600">إغلاق</button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600 dark:text-gray-300 mb-2">ألصق نص رسالة أو شكوى وشاهد القسم المقترح مع تفصيل نقاط التقييم. تدعم المرادفات صيغة regex مثل <code className="px-1 rounded bg-gray-100 dark:bg-gray-800">/\bدائرة\s+الدخل\b/i</code>.</p>
+                <textarea value={testText} onChange={(e) => setTestText(e.target.value)} className="w-full min-h-[100px] p-3 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-sm" placeholder="الصق نصاً للاختبار..." />
+                {/* Toggles + tuning for rule families and dynamic signals */}
+                <div className="mt-2 grid md:grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-2">
+                    <div className="text-[13px] font-semibold mb-1">عائلات القواعد</div>
+                    <div className="flex flex-wrap gap-3 text-sm">
+                      {Object.keys(ruleInclude).map((k) => (
+                        <label key={k} className="inline-flex items-center gap-1">
+                          <input type="checkbox" checked={ruleInclude[k]} onChange={(e) => setRuleInclude((m) => ({ ...m, [k]: e.target.checked }))} />
+                          <span>{k}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {/* Per-family base/weight override */}
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      {Object.keys(ruleInclude).map((k) => (
+                        <div key={`ov-${k}`} className="flex items-center gap-2">
+                          <span className="shrink-0 w-24 truncate" title={k}>{k}</span>
+                          <label className="inline-flex items-center gap-1">
+                            <span>base</span>
+                            <input
+                              type="number" step="0.01" min={0} max={1}
+                              value={ruleOverrides[k]?.base ?? ''}
+                              onChange={(e) => setRuleOverrides((m) => ({ ...m, [k]: { ...m[k], base: e.target.value === '' ? undefined : Number(e.target.value) } }))}
+                              className="w-20 px-1 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70"
+                            />
+                          </label>
+                          <label className="inline-flex items-center gap-1">
+                            <span>weight</span>
+                            <input
+                              type="number" step="0.01" min={0} max={1}
+                              value={ruleOverrides[k]?.weight ?? ''}
+                              onChange={(e) => setRuleOverrides((m) => ({ ...m, [k]: { ...m[k], weight: e.target.value === '' ? undefined : Number(e.target.value) } }))}
+                              className="w-20 px-1 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70"
+                            />
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-2">
+                    <div className="text-[13px] font-semibold mb-1">إشارات ديناميكية</div>
+                    <div className="flex flex-wrap gap-3 text-sm">
+                      <label className="inline-flex items-center gap-1">
+                        <input type="checkbox" checked={dynName} onChange={(e) => setDynName(e.target.checked)} />
+                        <span>ذكر اسم القسم</span>
+                      </label>
+                      <label className="inline-flex items-center gap-1">
+                        <input type="checkbox" checked={dynAliases} onChange={(e) => setDynAliases(e.target.checked)} />
+                        <span>مطابقة المرادفات</span>
+                      </label>
+                      <label className="inline-flex items-center gap-1">
+                        <input type="checkbox" checked={dynNegatives} onChange={(e) => setDynNegatives(e.target.checked)} />
+                        <span>الكلمات السلبية</span>
+                      </label>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                      <label className="inline-flex items-center gap-1">
+                        <span>boost الاسم</span>
+                        <input type="number" step="0.01" min={0} max={1} value={dynNameBoost} onChange={(e) => setDynNameBoost(Number(e.target.value))} className="w-20 px-1 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70" />
+                      </label>
+                      <label className="inline-flex items-center gap-1">
+                        <span>boost مرادف</span>
+                        <input type="number" step="0.01" min={0} max={1} value={dynAliasBoost} onChange={(e) => setDynAliasBoost(Number(e.target.value))} className="w-20 px-1 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70" />
+                      </label>
+                      <label className="inline-flex items-center gap-1">
+                        <span>penalty قاعدة-سلبية</span>
+                        <input type="number" step="0.01" min={0} max={1} value={ruleNegPenalty} onChange={(e) => setRuleNegPenalty(Number(e.target.value))} className="w-28 px-1 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70" />
+                      </label>
+                      <label className="inline-flex items-center gap-1">
+                        <span>penalty سلبية-ديناميكية</span>
+                        <input type="number" step="0.01" min={0} max={1} value={dynNegPenalty} onChange={(e) => setDynNegPenalty(Number(e.target.value))} className="w-28 px-1 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button onClick={runTestRouting} className="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">تحليل الآن</button>
+                  <label className="inline-flex items-center gap-1 text-sm">
+                    <input type="checkbox" checked={previewWithSystemDefaults} onChange={(e) => setPreviewWithSystemDefaults(e.target.checked)} disabled={!hasSystemDefaults} />
+                    <span className={hasSystemDefaults ? '' : 'opacity-60'}>معاينة باستخدام افتراضيات النظام</span>
+                  </label>
+                  <button onClick={saveTuningDefaults} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">حفظ إعدادات التجارب</button>
+                  <button onClick={resetTuningDefaults} className="px-3 py-2 rounded border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:bg-amber-900/30 text-sm">إعادة الضبط</button>
+                  <button onClick={exportTuning} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">تصدير إعدادات التجارب</button>
+                  <button onClick={() => tuningFileRef.current?.click()} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">استيراد إعدادات التجارب</button>
+                  <input ref={tuningFileRef} type="file" accept="application/json" onChange={onImportTuning} hidden />
+                  <span className="inline-flex items-center gap-2 ms-auto"></span>
+                  <button onClick={saveSystemDefaults} className="px-3 py-2 rounded border border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 dark:border-emerald-700 dark:text-emerald-200 dark:bg-emerald-900/30 text-sm">حفظ كنظام افتراضي</button>
+                  <button onClick={resetSystemDefaults} className="px-3 py-2 rounded border border-rose-300 text-rose-800 bg-rose-50 hover:bg-rose-100 dark:border-rose-700 dark:text-rose-200 dark:bg-rose-900/30 text-sm">إزالة الافتراضي للنظام</button>
+                  <button onClick={exportSystemDefaults} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">تصدير افتراضيات النظام</button>
+                  <button onClick={() => sysDefaultsFileRef.current?.click()} className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm">استيراد افتراضيات النظام</button>
+                  <input ref={sysDefaultsFileRef} type="file" accept="application/json" onChange={onImportSystemDefaults} hidden />
+                </div>
+                {testResult && (
+                  <div className="mt-4 grid md:grid-cols-2 gap-4">
+                    <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+                      <div className="text-sm text-gray-700 dark:text-gray-300">القسم المقترح</div>
+                      <div className="text-xl font-bold text-gray-900 dark:text-white">{testResult.result.department}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">السبب: {testResult.result.reason}</div>
+                      <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">الثقة: {(testResult.result.confidence * 100).toFixed(0)}%</div>
+                      {/* Promote to alias/negative directly for suggested department */}
+                      {(() => {
+                        const depName = testResult.result.department;
+                        const dep = departments.find(d => d.name.toLowerCase() === depName.toLowerCase());
+                        if (!dep) return null;
+                        let aliasInputRef = React.createRef<HTMLInputElement>();
+                        let negInputRef = React.createRef<HTMLInputElement>();
+                        return (
+                          <div className="mt-3 text-xs">
+                            <div className="font-semibold mb-1">ترقية سريعة للقسم المقترح</div>
+                            <div className="flex gap-1 items-center mb-1">
+                              <input ref={aliasInputRef} type="text" className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70" placeholder="أضف مرادف/نمط" />
+                              <button
+                                className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                onClick={() => {
+                                  const val = (aliasInputRef.current?.value || '').trim();
+                                  if (!val) { alert('أدخل مرادفاً لإضافته.'); return; }
+                                  addAliasToDepartment(dep.name, val);
+                                  if (aliasInputRef.current) aliasInputRef.current.value = '';
+                                }}
+                              >إضافة مرادف</button>
+                            </div>
+                            <div className="flex gap-1 items-center">
+                              <input ref={negInputRef} type="text" className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70" placeholder="أضف كلمة سلبية" />
+                              <button
+                                className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                onClick={() => {
+                                  const val = (negInputRef.current?.value || '').trim();
+                                  if (!val) { alert('أدخل كلمة سلبية لإضافتها.'); return; }
+                                  addNegativeToDepartment(dep.name, val);
+                                  if (negInputRef.current) negInputRef.current.value = '';
+                                }}
+                              >إضافة سلبية</button>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      {/* Quick view editor for department aliases/negatives */}
+                      {(() => {
+                        const depName = testResult.result.department;
+                        const dep = departments.find(d => d.name.toLowerCase() === depName.toLowerCase());
+                        if (!dep) return null;
+                        const aliases = dep.aliases || [];
+                        const negatives = dep.negatives || [];
+                        return (
+                          <div className="mt-3 text-xs">
+                            <div className="font-semibold mb-1">مرادفات القسم</div>
+                            <div className="flex flex-wrap gap-1">
+                              {aliases.length ? aliases.map((a, i) => (
+                                <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800">
+                                  <span title={a}>{a}</span>
+                                  <button
+                                    className="text-rose-600"
+                                    title="حذف"
+                                    onClick={() => {
+                                      const idx = departments.findIndex(dd => dd.id === dep.id);
+                                      if (idx === -1) return;
+                                      const next = [...departments];
+                                      const item = { ...next[idx] } as DepartmentInfo;
+                                      item.aliases = (item.aliases || []).filter((x, j) => j !== i);
+                                      next[idx] = item; persistDepartments(next);
+                                    }}
+                                  >×</button>
+                                </span>
+                              )) : <span className="text-gray-500">لا يوجد</span>}
+                            </div>
+                            <div className="mt-2 font-semibold mb-1">كلمات سلبية</div>
+                            <div className="flex flex-wrap gap-1">
+                              {negatives.length ? negatives.map((n, i) => (
+                                <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800">
+                                  <span title={n}>{n}</span>
+                                  <button
+                                    className="text-rose-600"
+                                    title="حذف"
+                                    onClick={() => {
+                                      const idx = departments.findIndex(dd => dd.id === dep.id);
+                                      if (idx === -1) return;
+                                      const next = [...departments];
+                                      const item = { ...next[idx] } as DepartmentInfo;
+                                      item.negatives = (item.negatives || []).filter((x, j) => j !== i);
+                                      next[idx] = item; persistDepartments(next);
+                                    }}
+                                  >×</button>
+                                </span>
+                              )) : <span className="text-gray-500">لا يوجد</span>}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-3 overflow-auto">
+                      <div className="text-sm font-semibold mb-1">المرشحون (حسب النقاط)</div>
+                      <table className="min-w-full text-xs">
+                        <thead className="bg-gray-100 dark:bg-gray-800">
+                          <tr>
+                            <th className="p-1 text-right">القسم</th>
+                            <th className="p-1">النقاط</th>
+                            <th className="p-1">المصدر</th>
+                            <th className="p-1 text-right">تفاصيل</th>
+                            <th className="p-1 text-center">إجراءات</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                          {testResult.candidates.map((c, i) => (
+                            <tr key={i}>
+                              <td className="p-1 font-medium">{c.department}</td>
+                              <td className="p-1 text-center">{c.score.toFixed(2)}</td>
+                              <td className="p-1 text-center">{c.source}</td>
+                              <td className="p-1">
+                                <div className="text-[11px] space-y-1">
+                                  {c.ruleReason && <div>قاعدة: {c.ruleReason}</div>}
+                                  {c.ruleMatches && c.ruleMatches.length > 0 && <div>مطابقات: {c.ruleMatches.join(', ')}</div>}
+                                  {c.aliasHits && c.aliasHits.length > 0 && <div>مرادفات: {c.aliasHits.join(', ')}</div>}
+                                  {c.negativeHits && c.negativeHits.length > 0 && <div>سلبية: {c.negativeHits.join(', ')}</div>}
+                                </div>
+                              </td>
+                              <td className="p-1 text-center">
+                                <div className="flex flex-col gap-1 items-center">
+                                  <div className="flex gap-1 items-center">
+                                    <input
+                                      type="text"
+                                      className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70"
+                                      placeholder="نمط/مرادف مخصص"
+                                      defaultValue={(c.aliasHits && c.aliasHits[0]) || (c.ruleMatches && c.ruleMatches[0]) || ''}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          const val = (e.currentTarget as HTMLInputElement).value.trim();
+                                          if (val) addAliasToDepartment(c.department, val);
+                                        }
+                                      }}
+                                    />
+                                    <button
+                                      className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                      title="ترقية لما في الخانة كمرادف"
+                                      onClick={(e) => {
+                                        const input = (e.currentTarget.parentElement?.querySelector('input') as HTMLInputElement | null);
+                                        const val = (input?.value || '').trim();
+                                        if (!val) {
+                                          const alias = (c.aliasHits && c.aliasHits[0]) || (c.ruleMatches && c.ruleMatches[0]) || '';
+                                          if (!alias) { alert('لا يوجد مرادف أو نمط لإضافته من هذا الصف.'); return; }
+                                          addAliasToDepartment(c.department, alias);
+                                        } else {
+                                          addAliasToDepartment(c.department, val);
+                                        }
+                                      }}
+                                    >ترقية لمرادف</button>
+                                  </div>
+                                  <div className="flex gap-1 items-center">
+                                    <input
+                                      type="text"
+                                      className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70"
+                                      placeholder="سلبية مخصصة"
+                                      defaultValue={(c.negativeHits && c.negativeHits[0]) || ''}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          const val = (e.currentTarget as HTMLInputElement).value.trim();
+                                          if (val) addNegativeToDepartment(c.department, val);
+                                        }
+                                      }}
+                                    />
+                                    <button
+                                      className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                      title="ترقية لما في الخانة ككلمة سلبية"
+                                      onClick={(e) => {
+                                        const input = (e.currentTarget.parentElement?.querySelector('input') as HTMLInputElement | null);
+                                        const val = (input?.value || '').trim();
+                                        if (!val) {
+                                          const neg = (c.negativeHits && c.negativeHits[0]) || '';
+                                          if (!neg) { alert('لا يوجد سلبية لإضافتها من هذا الصف.'); return; }
+                                          addNegativeToDepartment(c.department, neg);
+                                        } else {
+                                          addNegativeToDepartment(c.department, val);
+                                        }
+                                      }}
+                                    >ترقية لسلبية</button>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {testResult.candidates.length === 0 && (
+                            <tr><td colSpan={5} className="p-2 text-center text-gray-500">لا توجد مرشحات</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    {testResult.invalidRegex.length > 0 && (
+                      <div className="md:col-span-2 rounded-xl border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20 p-3 text-amber-800 dark:text-amber-200">
+                        <div className="text-sm font-semibold mb-1">تحذير: مرادفات/سلبية غير صالحة (Regex)</div>
+                        <ul className="list-disc ps-6 text-xs">
+                          {testResult.invalidRegex.map((e, idx) => (
+                            <li key={idx}>[{e.kind}] قسم "{e.dep}": {e.alias} — {e.error}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <div className="md:col-span-2 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+                      <div className="text-sm font-semibold mb-2">تاريخ الاختبارات لكل قسم (آخر 10)</div>
+                      <div className="grid md:grid-cols-2 gap-3">
+                        {Object.keys(history).map((k) => (
+                          <div key={k} className="rounded-lg border border-gray-200 dark:border-gray-700 p-2">
+                            <div className="text-xs font-semibold mb-1">{k}</div>
+                            <ul className="text-[11px] space-y-1 max-h-40 overflow-auto">
+                              {history[k].samples.map((s, i) => (
+                                <li key={i} className="border-b border-dashed border-gray-200 dark:border-gray-700 pb-1">
+                                  <div className="text-gray-500">{new Date(s.ts).toLocaleString('ar-SY-u-nu-latn')}</div>
+                                  <div className="line-clamp-2">{s.text}</div>
+                                </li>
+                              ))}
+                              {history[k].samples.length === 0 && <li className="text-gray-500">لا سجلات</li>}
+                            </ul>
+                          </div>
+                        ))}
+                        {Object.keys(history).length === 0 && (
+                          <div className="text-xs text-gray-500">لا يوجد تاريخ بعد.</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {allowManage && bulkOpen && (
               <div className="mb-5 rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-4 shadow-sm">
@@ -907,6 +1557,12 @@ const DepartmentsPage: React.FC = () => {
                   </label>
                   <label className="text-sm md:col-span-2">الشعب التابعة (كل سطر شعبة)
                     <textarea className="mt-1 w-full min-h-[80px] p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={(draft.subunits || []).join('\n')} onChange={(e) => setDraft({ ...draft, subunits: e.target.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean) })} />
+                  </label>
+                  <label className="text-sm md:col-span-1">أسماء بديلة/مرادفات (كل سطر كلمة)
+                    <textarea className="mt-1 w-full min-h-[80px] p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={(draft.aliases || []).join('\n')} onChange={(e) => setDraft({ ...draft, aliases: e.target.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean) })} />
+                  </label>
+                  <label className="text-sm md:col-span-1">كلمات سلبية (لا تحيل لهذا القسم)
+                    <textarea className="mt-1 w-full min-h-[80px] p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800" value={(draft.negatives || []).join('\n')} onChange={(e) => setDraft({ ...draft, negatives: e.target.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean) })} />
                   </label>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -1065,19 +1721,19 @@ const DepartmentsPage: React.FC = () => {
                 <div className="ms-auto flex items-center gap-2">
                   {allowManage && (
                     <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer text-sm bg-white/70 dark:bg-gray-800/70">
-                      <FaUpload size={16} />
+                      <Upload size={16} />
                       <span>إضافة</span>
                       <input type="file" accept="application/pdf,image/*" className="hidden" onChange={onOrgChartSelect} />
                     </label>
                   )}
                   {orgChart && (
                     <button onClick={downloadOrgChart} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white/70 dark:bg-gray-800/70">
-                      <FaDownload size={16} /> تنزيل
+                      <Download size={16} /> تنزيل
                     </button>
                   )}
                   {allowManage && orgChart && (
                     <button onClick={clearOrgChart} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 dark:border-rose-700 dark:text-rose-200 dark:bg-rose-900/30 text-sm">
-                      <FaTrash size={16} /> إزالة
+                      <Trash2 size={16} /> إزالة
                     </button>
                   )}
                 </div>
@@ -1135,7 +1791,7 @@ const ChartTree: React.FC<{ departments: DepartmentInfo[] }> = ({ departments })
         <div className="text-lg font-bold text-gray-900 dark:text-white mb-2">تفاصيل الوحدة</div>
         {!selected && (
           <div className="flex flex-col items-center justify-center text-center text-sm text-gray-600 dark:text-gray-300 min-h-[140px]">
-            <FaBuilding size={28} />
+            <Building2 size={28} />
             <div className="mt-2">اختر وحدة من الهيكل التنظيمي لعرض تفاصيلها</div>
           </div>
         )}
@@ -1182,7 +1838,7 @@ const ChartTree: React.FC<{ departments: DepartmentInfo[] }> = ({ departments })
                 <li key={key} className="">
                   <div className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer" onClick={() => { toggle(key); setSelected({ kind: 'dep', depIdx: i }); }}>
                     <div className="flex items-center gap-2">
-                      {open ? <FaChevronDown size={14} /> : <FaChevronRight size={14} />}
+                      {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       <span className="text-green-500 text-xs">قسم</span>
                       <span className="font-medium text-gray-900 dark:text-gray-100">{d.name}</span>
                     </div>
@@ -1305,18 +1961,18 @@ const InteractiveOrgChart: React.FC<{ departments: DepartmentInfo[] }> = ({ depa
         <div className="text-base font-semibold text-gray-900 dark:text-gray-100">الفلوشارت التفاعلي — الهيكل الإداري والتنظيمي</div>
         <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center w-full md:w-auto">
           <div className="relative w-full sm:w-72">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"><FaSearch size={14} /></span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"><Search size={14} /></span>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ابحث عن قسم/دائرة/شعبة..." className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70 text-sm" />
           </div>
           <div className="flex gap-2">
-            <button onClick={expandAll} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70"><FaAngleDoubleDown /> فتح الكل</button>
-            <button onClick={collapseAll} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70"><FaAngleDoubleUp /> طيّ الكل</button>
+            <button onClick={expandAll} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70"><ChevronsDown /> فتح الكل</button>
+            <button onClick={collapseAll} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70"><ChevronsUp /> طيّ الكل</button>
           </div>
           <div className="flex items-center gap-2">
-            <FaSearchMinus />
+            <ZoomOut />
             <input type="range" min={0.5} max={2} step={0.01} value={scale} onChange={(e) => setScale(parseFloat(e.target.value))} className="w-40" />
-            <FaSearchPlus />
-            <button onClick={() => setScale(1)} className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70" title="إعادة الضبط"><FaSync /></button>
+            <ZoomIn />
+            <button onClick={() => setScale(1)} className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-800/70" title="إعادة الضبط"><RotateCw /></button>
           </div>
         </div>
       </div>
@@ -1375,7 +2031,7 @@ const InteractiveTreeNode: React.FC<{ name: string; type: NodeType; hasChildren:
     <div className="inline-flex items-center gap-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 shadow-sm hover:shadow transition-shadow">
       {hasChildren ? (
         <button onClick={onToggle} aria-label={isOpen ? 'طي الفرع' : 'فتح الفرع'} className="w-8 h-8 inline-flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-800">
-          {isOpen ? <FaChevronUp /> : <FaChevronDown />}
+          {isOpen ? <ChevronUp /> : <ChevronDown />}
         </button>
       ) : (
         <span className="inline-flex w-8" />

@@ -1,0 +1,23 @@
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: default-contacts
+    receivers:
+      # Slack example (configure env GF_SECURE_JSON_DATA or use webhook url here)
+      - uid: slack
+        type: slack
+        disableResolveMessage: false
+        settings:
+          url: ${SLACK_WEBHOOK_URL}
+          recipient: "#alerts"
+          username: "Grafana"
+          title: '{{ template "slack.title" . }}'
+          text: '{{ template "slack.text" . }}'
+      # Telegram example
+      - uid: telegram
+        type: telegram
+        disableResolveMessage: false
+        settings:
+          bottoken: ${TELEGRAM_BOT_TOKEN}
+          chatid: ${TELEGRAM_CHAT_ID}
+          message: '{{ template "telegram.message" . }}'

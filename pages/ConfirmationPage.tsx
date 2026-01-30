@@ -2,6 +2,8 @@ import React, { useContext, useRef, useEffect } from 'react';
 import { AppContext } from '../App';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import { generateArabicPDF, preloadArabicFonts } from '../utils/arabicPdfExporter';
+import { EmojiRating } from '../components/UXEnhancements';
 
 // Declare global variables for CDN libraries to satisfy TypeScript
 declare const jspdf: any;
@@ -13,6 +15,14 @@ const ConfirmationPage: React.FC = () => {
   const { lastSubmittedId, findTicket } = appContext || {};
   const ticket = lastSubmittedId ? findTicket?.(lastSubmittedId) : undefined;
   const pdfContentRef = useRef<HTMLDivElement>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = React.useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = React.useState(false);
+  const [emailStatus, setEmailStatus] = React.useState<'idle' | 'sending' | 'sent' | 'error' | 'disabled'>('idle');
+  const [emailError, setEmailError] = React.useState<string>('');
+  const [serviceRating, setServiceRating] = React.useState<number>(0);
+  const [ratingSubmitted, setRatingSubmitted] = React.useState(false);
+  const emailEnabled = (import.meta as any).env?.VITE_ENABLE_EMAIL !== 'false';
+  // (تمت إزالة وظيفة PDF النصي حسب طلب المستخدم)
 
   // Debug logging
   console.log('ConfirmationPage Debug:', {
@@ -31,20 +41,20 @@ const ConfirmationPage: React.FC = () => {
   // Generate QR Code
   useEffect(() => {
     if (ticket?.id) {
-      const generateQRCode = async () => {
+      const generateQRCode = async (canvasId: string) => {
         try {
           const trackingUrl = `${window.location.origin}/#/track?id=${ticket.id}`;
-          const qrCanvas = document.getElementById('qr-code-canvas') as HTMLCanvasElement;
-          
+          const qrCanvas = document.getElementById(canvasId) as HTMLCanvasElement;
+
           if (qrCanvas) {
             const ctx = qrCanvas.getContext('2d');
             if (ctx) {
               qrCanvas.width = 160;
               qrCanvas.height = 160;
-              
+
               // Use external QR API with fallback
               const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(trackingUrl)}&color=000000&bgcolor=ffffff`;
-              
+
               const img = new Image();
               img.crossOrigin = 'anonymous';
               img.onload = () => {
@@ -58,7 +68,7 @@ const ConfirmationPage: React.FC = () => {
                 ctx.fillStyle = '#fff';
                 ctx.fillRect(10, 10, 140, 140);
                 ctx.fillStyle = '#000';
-                
+
                 // Create pattern based on ticket ID
                 const id = ticket.id;
                 for (let i = 0; i < 14; i++) {
@@ -69,13 +79,13 @@ const ConfirmationPage: React.FC = () => {
                     }
                   }
                 }
-                
+
                 // Corner markers
                 ctx.fillStyle = '#000';
                 ctx.fillRect(20, 20, 30, 30);
                 ctx.fillRect(110, 20, 30, 30);
                 ctx.fillRect(20, 110, 30, 30);
-                
+
                 ctx.fillStyle = '#fff';
                 ctx.fillRect(25, 25, 20, 20);
                 ctx.fillRect(115, 25, 20, 20);
@@ -86,476 +96,344 @@ const ConfirmationPage: React.FC = () => {
           }
 
         } catch (error) {
-          console.error('Error generating QR code:', error);
+          console.error(`Error generating QR code for ${canvasId}:`, error);
         }
       };
 
-      generateQRCode();
+      generateQRCode('qr-code-canvas');
+      generateQRCode('qr-code-canvas-pdf');
     }
   }, [ticket?.id]);
 
+  // Central email send function
+  const generateReceiptImage = async (): Promise<string> => {
+    await document.fonts.ready;
+    if (!pdfContentRef.current || typeof html2canvas === 'undefined') throw new Error('html2canvas not available');
+    const canvas = await html2canvas(pdfContentRef.current, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      onclone: (clonedDoc: Document) => {
+        clonedDoc.documentElement.classList.remove('dark');
+        const style = clonedDoc.createElement('style');
+        style.innerHTML = `*{font-family:Cairo,'Noto Kufi Arabic','Fustat',sans-serif!important}`;
+        clonedDoc.head.appendChild(style);
+        const rasterize = (selector: string, baseFontSize: number) => {
+          const el = clonedDoc.querySelector(selector);
+          if (!el) return;
+          try {
+            const text = el.textContent || '';
+            const off = clonedDoc.createElement('canvas');
+            const ctx = off.getContext('2d');
+            if (ctx) {
+              let fs = baseFontSize; ctx.font = `bold ${fs}px Cairo,'Noto Kufi Arabic',sans-serif`;
+              let w = ctx.measureText(text).width; const maxW = 430;
+              while (w > maxW && fs > 14) { fs -= 2; ctx.font = `bold ${fs}px Cairo,'Noto Kufi Arabic',sans-serif`; w = ctx.measureText(text).width; }
+              off.width = Math.ceil(w) + 30; off.height = fs + 28; ctx.font = `bold ${fs}px Cairo,'Noto Kufi Arabic',sans-serif`; ctx.fillStyle = '#111'; ctx.textAlign = 'center'; ctx.direction = 'rtl'; ctx.fillText(text, off.width / 2, fs + 4);
+              const img = clonedDoc.createElement('img'); img.src = off.toDataURL('image/png'); img.style.display = 'block'; img.style.margin = '0 auto'; el.replaceWith(img);
+            }
+          } catch { }
+        };
+        rasterize('[data-receipt-heading]', 26);
+        rasterize('[data-receipt-subheading]', 20);
+      }
+    });
+    return canvas.toDataURL('image/png');
+  };
+
+  const sendEmail = async () => {
+    if (!ticket?.email) return;
+    if (!emailEnabled) {
+      setEmailStatus('disabled');
+      return;
+    }
+    setEmailError('');
+    setEmailStatus('sending');
+    try {
+      const imageData = await generateReceiptImage();
+      const apiBase = (import.meta as any).env?.VITE_EMAIL_API_BASE || 'http://localhost:4000';
+      const resp = await fetch(`${apiBase}/api/send-receipt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: ticket.email,
+          subject: 'إيصال تقديم طلب',
+          ticketId: ticket.id,
+          body: `<p>مرحباً ${ticket.fullName || ''}</p><p>مرفق صورة عن إيصال تقديم طلبك برقم التتبع: <b>${ticket.id}</b>.</p><p>رابط المتابعة: ${window.location.origin}/#/track?id=${ticket.id}</p>`,
+          imageData
+        })
+      });
+      const json = await resp.json().catch(() => ({}));
+      if (!resp.ok || !json.ok) {
+        const detail = json?.error || resp.statusText || 'فشل غير معروف';
+        setEmailError(`${detail}${json.code ? ' | code: ' + json.code : ''}${json.responseCode ? ' | smtp: ' + json.responseCode : ''}`);
+        setEmailStatus('error');
+        return;
+      }
+      setEmailStatus('sent');
+    } catch (err: any) {
+      console.error('Auto email send failed', err);
+      setEmailError(err?.message || 'خطأ غير متوقع أثناء الإرسال');
+      setEmailStatus('error');
+    }
+  };
+
+  // Auto-trigger once
+  useEffect(() => {
+    if (emailStatus === 'idle' && ticket?.email) {
+      sendEmail();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticket?.id, ticket?.email]);
+
   const handleDownloadPdf = async () => {
-    if (typeof jspdf === 'undefined' || !ticket?.id) {
-      console.error("PDF generation library not loaded or no ticket ID.");
+    if (!ticket?.id) {
+      console.error("No ticket ID available.");
+      alert("لا يوجد رقم تتبع متاح. يرجى المحاولة مرة أخرى.");
       return;
     }
 
+    setIsGeneratingPdf(true);
+
     try {
-      // Create a canvas for the receipt content (A4 proportions)
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      // استخدام المُصدّر الجديد مع دعم كامل للعربية
+      await generateArabicPDF(
+        {
+          id: ticket.id,
+          fullName: ticket.fullName,
+          nationalId: ticket.nationalId,
+          department: ticket.department,
+          submissionDate: ticket.submissionDate,
+          details: ticket.details,
+          email: ticket.email,
+          phone: ticket.phone
+        },
+        {
+          filename: `receipt-${ticket.id}.pdf`
+        }
+      );
+      console.log('Arabic PDF receipt created successfully.');
 
-      // Set canvas size for A4 (210x297mm at 96 DPI ≈ 794x1123 px)
-      const canvasWidth = 794;
-      const canvasHeight = 1123;
-      canvas.width = canvasWidth;
-      canvas.height = canvasHeight;
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("حدث خطأ أثناء إنشاء ملف PDF. يرجى المحاولة مرة أخرى.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
-      // Set high DPI for crisp text
-      const dpi = 2;
-      canvas.width = canvasWidth * dpi;
-      canvas.height = canvasHeight * dpi;
-      canvas.style.width = canvasWidth + 'px';
-      canvas.style.height = canvasHeight + 'px';
-      ctx.scale(dpi, dpi);
+  const handleDownloadPdfFromPreview = async () => {
+    if (typeof jspdf === 'undefined' || typeof html2canvas === 'undefined' || !pdfContentRef.current) {
+      alert('المكتبات اللازمة لإنشاء PDF غير متوفرة. يرجى المحاولة مرة أخرى.');
+      return;
+    }
 
-      // White background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    setIsGeneratingPdf(true); // Start loading
 
-      // Set Arabic fonts
-      const arabicFontLarge = '24px "Segoe UI", "Tahoma", "Arabic UI Text", "Times New Roman", serif';
-      const arabicFontMedium = '18px "Segoe UI", "Tahoma", "Arabic UI Text", "Times New Roman", serif';
-      const arabicFontSmall = '14px "Segoe UI", "Tahoma", "Arabic UI Text", "Times New Roman", serif';
-      const arabicFontTiny = '12px "Segoe UI", "Tahoma", "Arabic UI Text", "Times New Roman", serif';
+    try {
+      // Wait for fonts to be loaded
+      await document.fonts.ready;
+      console.log("Fonts are ready, proceeding with PDF generation.");
 
-      // Syrian Modern Visual Identity Colors (based on new branding)
-      const modernBlue = '#1e40af';      // Primary modern blue
-      const lightBlue = '#3b82f6';       // Lighter blue
-      const deepBlue = '#1e3a8a';        // Deep navy blue
-      const accentBlue = '#60a5fa';      // Accent blue
-      const goldAccent = '#f59e0b';      // Modern gold
-      const softWhite = '#f8fafc';       // Soft white
-      const darkText = '#1f2937';        // Dark text
-      const mediumGray = '#6b7280';      // Medium gray
-
-      // Header section with Modern Syrian identity
-      const headerHeight = 150;
-      
-      // Modern gradient header background (blue tones)
-      const gradient = ctx.createLinearGradient(0, 0, 0, headerHeight);
-      gradient.addColorStop(0, deepBlue);
-      gradient.addColorStop(0.5, modernBlue);
-      gradient.addColorStop(1, lightBlue);
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvasWidth, headerHeight);
-
-      // Add modern decorative elements
-      ctx.strokeStyle = goldAccent;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(15, 15, canvasWidth - 30, headerHeight - 30);
-      
-      // Inner subtle border
-      ctx.strokeStyle = accentBlue;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(20, 20, canvasWidth - 40, headerHeight - 40);
-
-      // Modern Syrian Logo (circular emblem)
-      const logoX = canvasWidth / 2;
-      const logoY = 75;
-      const logoRadius = 32;
-      
-      // Modern circular background with gradient
-      const logoGradient = ctx.createRadialGradient(logoX, logoY, 0, logoX, logoY, logoRadius);
-      logoGradient.addColorStop(0, softWhite);
-      logoGradient.addColorStop(1, '#e5e7eb');
-      ctx.fillStyle = logoGradient;
-      ctx.beginPath();
-      ctx.arc(logoX, logoY, logoRadius, 0, 2 * Math.PI);
-      ctx.fill();
-      
-      // Modern border
-      ctx.strokeStyle = goldAccent;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(logoX, logoY, logoRadius - 2, 0, 2 * Math.PI);
-      ctx.stroke();
-      
-      // Inner circle with Syrian colors
-      ctx.fillStyle = modernBlue;
-      ctx.beginPath();
-      ctx.arc(logoX, logoY, logoRadius - 8, 0, 2 * Math.PI);
-      ctx.fill();
-      
-      // Central emblem
-      ctx.fillStyle = softWhite;
-      ctx.font = '20px serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('🏛️', logoX, logoY + 6);
-
-      // Modern government title
-      ctx.fillStyle = softWhite;
-      ctx.font = '20px "Segoe UI", "Tahoma", "Arabic UI Text", "Times New Roman", serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('الجمهورية العربية السورية', canvasWidth / 2, 185);
-      
-      ctx.font = arabicFontLarge;
-      ctx.fillStyle = goldAccent;
-      ctx.fillText('وزارة المالية', canvasWidth / 2, 210);
-      
-      ctx.fillStyle = softWhite;
-      ctx.font = arabicFontMedium;
-      ctx.fillText('مديرية مالية محافظة حلب', canvasWidth / 2, 235);
-      
-      ctx.fillStyle = accentBlue;
-      ctx.font = '16px "Segoe UI", "Tahoma", "Arabic UI Text", "Times New Roman", serif';
-      ctx.fillText('━━━ إيصال تقديم طلب ━━━', canvasWidth / 2, 260);
-
-      // Date stamp (top right with modern styling)
-      ctx.font = arabicFontTiny;
-      ctx.textAlign = 'right';
-      ctx.fillStyle = darkText;
-      ctx.fillText(`تاريخ الإصدار: ${new Date().toLocaleDateString('ar-SY-u-nu-latn')}`, canvasWidth - 30, 280);
-
-      // Main content area with modern design elements
-      let currentY = 300;
-      
-      // Tracking number section (modern blue gradient)
-      const trackGradient = ctx.createLinearGradient(50, currentY, canvasWidth - 50, currentY + 70);
-      trackGradient.addColorStop(0, modernBlue);
-      trackGradient.addColorStop(1, lightBlue);
-      ctx.fillStyle = trackGradient;
-      ctx.fillRect(50, currentY, canvasWidth - 100, 70);
-      
-      // Modern golden border
-      ctx.strokeStyle = goldAccent;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(53, currentY + 3, canvasWidth - 106, 64);
-      
-      ctx.fillStyle = softWhite;
-      ctx.font = arabicFontMedium;
-      ctx.textAlign = 'center';
-      ctx.fillText('رقم التتبع', canvasWidth / 2, currentY + 25);
-      
-      ctx.font = '28px "Courier New", monospace';
-      ctx.fillStyle = goldAccent;
-      ctx.fillText(ticket.id, canvasWidth / 2, currentY + 55);
-      
-      currentY += 90;
-
-      // Personal Information Section with modern styling
-      ctx.fillStyle = modernBlue;
-      ctx.font = arabicFontMedium;
-      ctx.textAlign = 'right';
-      ctx.fillText('● المعلومات الشخصية', canvasWidth - 60, currentY);
-      
-      // Modern decorative line
-      ctx.strokeStyle = goldAccent;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(canvasWidth - 280, currentY + 5);
-      ctx.lineTo(canvasWidth - 60, currentY + 5);
-      ctx.stroke();
-      
-      currentY += 35;
-      
-      // Personal info in modern organized layout
-      const infoBoxHeight = 120;
-      ctx.fillStyle = softWhite;
-      ctx.fillRect(50, currentY, canvasWidth - 100, infoBoxHeight);
-      
-      ctx.strokeStyle = accentBlue;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(50, currentY, canvasWidth - 100, infoBoxHeight);
-      
-      const leftCol = 120;
-      const rightCol = canvasWidth - 120;
-      const rowHeight = 25;
-      
-      ctx.font = arabicFontSmall;
-      let infoY = currentY + 25;
-      
-      // Right column with modern colors
-      ctx.textAlign = 'right';
-      ctx.fillStyle = darkText;
-      ctx.fillText('● الاسم الكامل:', rightCol, infoY);
-      ctx.fillStyle = modernBlue;
-      ctx.fillText(ticket.fullName || '', rightCol - 120, infoY);
-      
-      ctx.fillStyle = darkText;
-      ctx.fillText('● رقم الهاتف:', rightCol, infoY + rowHeight);
-      ctx.fillStyle = modernBlue;
-      ctx.fillText(ticket.phone || '', rightCol - 120, infoY + rowHeight);
-      
-      // Left column with modern colors 
-      ctx.textAlign = 'right';
-      ctx.fillStyle = darkText;
-      ctx.fillText('● البريد الإلكتروني:', leftCol + 250, infoY);
-      ctx.fillStyle = modernBlue;
-      ctx.fillText(ticket.email || '', leftCol + 130, infoY);
-      
-      ctx.fillStyle = darkText;
-      ctx.fillText('● الرقم الوطني:', leftCol + 250, infoY + rowHeight);
-      ctx.fillStyle = modernBlue;
-      ctx.fillText(ticket.nationalId || '', leftCol + 130, infoY + rowHeight);
-      
-      currentY += infoBoxHeight + 30;
-
-      // Request Information Section with modern design
-      ctx.fillStyle = modernBlue;
-      ctx.font = arabicFontMedium;
-      ctx.textAlign = 'right';
-      ctx.fillText('● معلومات الطلب', canvasWidth - 60, currentY);
-      
-      // Modern decorative line
-      ctx.strokeStyle = goldAccent;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(canvasWidth - 200, currentY + 5);
-      ctx.lineTo(canvasWidth - 60, currentY + 5);
-      ctx.stroke();
-      
-      currentY += 35;
-      
-      // Request info box with modern styling
-      const requestBoxHeight = 100;
-      ctx.fillStyle = softWhite;
-      ctx.fillRect(50, currentY, canvasWidth - 100, requestBoxHeight);
-      
-      ctx.strokeStyle = accentBlue;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(50, currentY, canvasWidth - 100, requestBoxHeight);
-      
-      ctx.font = arabicFontSmall;
-      let reqY = currentY + 25;
-      
-      ctx.fillStyle = darkText;
-      ctx.fillText('● نوع الطلب:', canvasWidth - 80, reqY);
-      ctx.fillStyle = lightBlue;
-      ctx.font = arabicFontMedium;
-      ctx.fillText(ticket.requestType || '', canvasWidth - 170, reqY);
-      
-      ctx.font = arabicFontSmall;
-      ctx.fillStyle = darkText;
-      ctx.fillText('● القسم المختص:', canvasWidth - 80, reqY + rowHeight);
-      ctx.fillStyle = lightBlue;
-      ctx.font = arabicFontMedium;
-      ctx.fillText(ticket.department || '', canvasWidth - 190, reqY + rowHeight);
-      
-      ctx.font = arabicFontSmall;
-      ctx.fillStyle = darkText;
-      ctx.fillText('● تاريخ التقديم:', canvasWidth - 80, reqY + rowHeight * 2);
-      ctx.fillStyle = modernBlue;
-      ctx.fillText(ticket.submissionDate ? new Date(ticket.submissionDate).toLocaleDateString('ar-SY-u-nu-latn') : 'اليوم', canvasWidth - 170, reqY + rowHeight * 2);
-      
-      currentY += requestBoxHeight + 30;
-
-      // Request Details Section (if available) with modern styling
-      if (ticket.details && ticket.details.trim()) {
-        ctx.fillStyle = modernBlue;
-        ctx.font = arabicFontMedium;
-        ctx.textAlign = 'right';
-        ctx.fillText('● تفاصيل الطلب', canvasWidth - 60, currentY);
-        
-        ctx.strokeStyle = goldAccent;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(canvasWidth - 180, currentY + 5);
-        ctx.lineTo(canvasWidth - 60, currentY + 5);
-        ctx.stroke();
-        
-        currentY += 25;
-        
-        const detailsHeight = 80;
-        ctx.fillStyle = softWhite;
-        ctx.fillRect(60, currentY, canvasWidth - 120, detailsHeight);
-        ctx.strokeStyle = accentBlue;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(60, currentY, canvasWidth - 120, detailsHeight);
-        
-        ctx.fillStyle = darkText;
-        ctx.font = arabicFontSmall;
-        ctx.textAlign = 'right';
-        
-        // Word wrap for details
-        const words = ticket.details.split(' ');
-        const maxWidth = canvasWidth - 180;
-        let line = '';
-        let lineY = currentY + 20;
-        
-        for (const word of words) {
-          const testLine = line + word + ' ';
-          const metrics = ctx.measureText(testLine);
-          
-          if (metrics.width > maxWidth && line !== '') {
-            ctx.fillText(line.trim(), canvasWidth - 80, lineY);
-            line = word + ' ';
-            lineY += 18;
-            if (lineY > currentY + detailsHeight - 10) break;
-          } else {
-            line = testLine;
+      const { jsPDF } = jspdf;
+      const canvas = await html2canvas(pdfContentRef.current, {
+        scale: 3, // Higher resolution
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+          // Force light mode and robust Arabic font stack (avoid broken embedded Amiri)
+          clonedDoc.documentElement.classList.remove('dark');
+          const style = clonedDoc.createElement('style');
+          style.innerHTML = `
+            * { font-family: 'Cairo','Noto Kufi Arabic','Fustat',sans-serif !important; }
+            body, html { background:#ffffff !important; direction:rtl; }
+            [dir="rtl"] { direction:rtl !important; }
+          `;
+          clonedDoc.head.appendChild(style);
+          const content = clonedDoc.querySelector('[data-receipt-root]');
+          if (content) {
+            (content as HTMLElement).setAttribute('dir', 'rtl');
+            (content as HTMLElement).style.fontFamily = "Cairo, 'Noto Kufi Arabic','Fustat', sans-serif";
+            (content as HTMLElement).style.backgroundColor = '#ffffff';
+            (content as HTMLElement).style.color = '#111827';
           }
-        }
-        
-        if (line.trim() && lineY <= currentY + detailsHeight - 10) {
-          ctx.fillText(line.trim(), canvasWidth - 80, lineY);
-        }
-        
-        currentY += detailsHeight + 30;
-      }
 
-      // QR Code and Barcode Section with modern design
-      const qrSize = 120;
-      const barcodeWidth = 300;
-      const barcodeHeight = 80;
-      
-      // Create modern section background
-      ctx.fillStyle = '#f1f5f9';
-      ctx.fillRect(40, currentY, canvasWidth - 80, 180);
-      ctx.strokeStyle = modernBlue;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(40, currentY, canvasWidth - 80, 180);
-      
-      // Section title with modern styling
-      ctx.fillStyle = modernBlue;
-      ctx.font = arabicFontMedium;
-      ctx.textAlign = 'center';
-      ctx.fillText('● أكواد التتبع والمتابعة ●', canvasWidth / 2, currentY + 25);
-      
-      currentY += 40;
-      
-      // Create QR Code with modern design
-      const qrCanvas = document.createElement('canvas');
-      qrCanvas.width = qrSize;
-      qrCanvas.height = qrSize;
-      const qrCtx = qrCanvas.getContext('2d');
-      
-      if (qrCtx) {
-        qrCtx.fillStyle = softWhite;
-        qrCtx.fillRect(0, 0, qrSize, qrSize);
-        
-        const trackingUrl = `${window.location.origin}/#/track?id=${ticket.id}`;
-        qrCtx.fillStyle = darkText;
-        const cellSize = 4;
-        const margin = 8;
-        const gridSize = (qrSize - 2 * margin) / cellSize;
-        
-        for (let i = 0; i < gridSize; i++) {
-          for (let j = 0; j < gridSize; j++) {
-            const hash = (i * gridSize + j + ticket.id.charCodeAt(0) + trackingUrl.length) % 3;
-            if (hash === 0) {
-              qrCtx.fillRect(margin + i * cellSize, margin + j * cellSize, cellSize, cellSize);
+          // Rasterize heading separately to preserve Arabic joining (html2canvas issue workaround)
+          const rasterize = (selector: string, baseFontSize: number) => {
+            const el = clonedDoc.querySelector(selector);
+            if (!el) return;
+            try {
+              const text = el.textContent || '';
+              const offCanvas = clonedDoc.createElement('canvas');
+              const ctx = offCanvas.getContext('2d');
+              if (ctx) {
+                let fontSize = baseFontSize;
+                ctx.font = `bold ${fontSize}px Cairo, 'Noto Kufi Arabic', sans-serif`;
+                const maxWidth = 440;
+                let width = ctx.measureText(text).width;
+                while (width > maxWidth && fontSize > 14) {
+                  fontSize -= 2;
+                  ctx.font = `bold ${fontSize}px Cairo, 'Noto Kufi Arabic', sans-serif`;
+                  width = ctx.measureText(text).width;
+                }
+                offCanvas.width = Math.ceil(width) + 40;
+                offCanvas.height = fontSize + 30;
+                ctx.font = `bold ${fontSize}px Cairo, 'Noto Kufi Arabic', sans-serif`;
+                ctx.fillStyle = '#111827';
+                ctx.textAlign = 'center';
+                ctx.direction = 'rtl';
+                ctx.fillText(text, offCanvas.width / 2, fontSize + 6 - 4);
+                const img = clonedDoc.createElement('img');
+                img.src = offCanvas.toDataURL('image/png');
+                img.style.display = 'block';
+                img.style.margin = '0 auto';
+                img.style.maxWidth = '100%';
+                el.replaceWith(img);
+              }
+            } catch (e) {
+              console.warn('Rasterization failed for', selector, e);
             }
-          }
-        }
-        
-        // Modern finder patterns with blue accents
-        const markerSize = 7 * cellSize;
-        const positions = [
-          [margin, margin],
-          [qrSize - margin - markerSize, margin],
-          [margin, qrSize - margin - markerSize]
-        ];
-        
-        positions.forEach(([x, y]) => {
-          qrCtx.fillStyle = darkText;
-          qrCtx.fillRect(x, y, markerSize, markerSize);
-          qrCtx.fillStyle = softWhite;
-          qrCtx.fillRect(x + cellSize, y + cellSize, markerSize - 2 * cellSize, markerSize - 2 * cellSize);
-          qrCtx.fillStyle = modernBlue;
-          qrCtx.fillRect(x + 2 * cellSize, y + 2 * cellSize, markerSize - 4 * cellSize, markerSize - 4 * cellSize);
-        });
-      }
+          };
 
-      // Create modern enhanced Barcode
-      const barcodeCanvas = document.createElement('canvas');
-      barcodeCanvas.width = barcodeWidth;
-      barcodeCanvas.height = barcodeHeight;
-      
-      JsBarcode(barcodeCanvas, ticket.id, {
-        format: "CODE128",
-        lineColor: darkText,
-        width: 2,
-        height: 60,
-        displayValue: true,
-        fontSize: 14,
-        margin: 10,
-        background: softWhite,
-        fontOptions: "bold"
+          rasterize('[data-receipt-heading]', 26);
+          rasterize('[data-receipt-subheading]', 20);
+        }
       });
 
-      // Position codes with modern styling
-      const qrX = canvasWidth - 180;
-      const barcodeX = 80;
-      
-      // Add modern decorative frames
-      ctx.strokeStyle = goldAccent;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(qrX - 5, currentY - 5, qrSize + 10, qrSize + 10);
-      ctx.strokeRect(barcodeX - 5, currentY + 15, barcodeWidth + 10, barcodeHeight + 10);
-      
-      ctx.drawImage(qrCanvas, qrX, currentY, qrSize, qrSize);
-      ctx.drawImage(barcodeCanvas, barcodeX, currentY + 20, barcodeWidth, barcodeHeight);
-      
-      // Modern labels with blue colors
-      ctx.fillStyle = modernBlue;
-      ctx.font = arabicFontSmall;
-      ctx.textAlign = 'center';
-      ctx.fillText('QR كود المتابعة السريعة', qrX + qrSize/2, currentY + qrSize + 20);
-      ctx.fillText('باركود رقم التتبع', barcodeX + barcodeWidth/2, currentY + barcodeHeight + 50);
-
-      // Footer section with modern Syrian government styling
-      const footerY = canvasHeight - 120;
-      
-      // Modern footer background
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillRect(0, footerY - 10, canvasWidth, 120);
-      
-      // Modern decorative border
-      ctx.strokeStyle = accentBlue;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(20, footerY - 5, canvasWidth - 40, 110);
-      
-      // Modern instructions
-      ctx.fillStyle = darkText;
-      ctx.font = arabicFontMedium;
-      ctx.textAlign = 'center';
-      ctx.fillText('📱 امسح QR Code أو الباركود للمتابعة الفورية', canvasWidth / 2, footerY + 15);
-      
-      ctx.font = arabicFontSmall;
-      ctx.fillStyle = modernBlue;
-      ctx.fillText(`🌐 الموقع الإلكتروني: ${window.location.origin}/#/track`, canvasWidth / 2, footerY + 35);
-      
-      // Modern government footer
-      ctx.fillStyle = goldAccent;
-      ctx.font = '14px "Segoe UI", "Tahoma", serif';
-      ctx.fillText('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', canvasWidth / 2, footerY + 55);
-      
-      ctx.fillStyle = darkText;
-      ctx.font = arabicFontSmall;
-      ctx.fillText('🏛️ وزارة المالية - مديرية مالية محافظة حلب', canvasWidth / 2, footerY + 75);
-      
-      ctx.fillStyle = mediumGray;
-      ctx.font = arabicFontTiny;
-      ctx.fillText(`📅 تم الإنشاء تلقائياً في ${new Date().toLocaleString('ar-SY-u-nu-latn')}`, canvasWidth / 2, footerY + 95);
-
-      // Convert canvas to PDF
-      const { jsPDF } = jspdf;
+      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-      
-      // Add canvas as image to PDF
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      pdf.addImage(imgData, 'PNG', 0, 0, 210, 297); // A4 dimensions in mm
-      
-      pdf.save(`receipt-${ticket.id}.pdf`);
-      
-      console.log('Modern Syrian-styled A4 receipt created successfully');
-      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      const ratio = canvasWidth / canvasHeight;
+
+      let imgWidth = pdfWidth - 20; // with margin
+      let imgHeight = imgWidth / ratio;
+
+      if (imgHeight > pdfHeight - 20) {
+        imgHeight = pdfHeight - 20;
+        imgWidth = imgHeight * ratio;
+      }
+
+      const x = (pdfWidth - imgWidth) / 2;
+      const y = (pdfHeight - imgHeight) / 2;
+
+      pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+      pdf.save(`receipt-preview-${ticket?.id}.pdf`);
     } catch (error) {
-        console.error("Error generating PDF:", error);
-        alert("حدث خطأ أثناء إنشاء ملف PDF. يرجى المحاولة مرة أخرى.");
+      console.error("Error generating PDF from preview:", error);
+      alert("حدث خطأ أثناء إنشاء ملف PDF من المعاينة.");
+    } finally {
+      setIsGeneratingPdf(false); // Stop loading
     }
+  };
+
+  // Download receipt area as PNG image (forced light mode + Arabic font enforcement)
+  const handleDownloadAsImage = async () => {
+    if (typeof html2canvas === 'undefined' || !pdfContentRef.current) {
+      alert('المكتبة اللازمة غير متوفرة.');
+      return;
+    }
+    setIsGeneratingImage(true);
+    try {
+      await document.fonts.ready;
+      const canvas = await html2canvas(pdfContentRef.current, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+          clonedDoc.documentElement.classList.remove('dark');
+          const style = clonedDoc.createElement('style');
+          style.innerHTML = `
+              * { font-family: 'Cairo','Noto Kufi Arabic','Fustat',sans-serif !important; }
+              body, html { background:#ffffff !important; direction:rtl; }
+            `;
+          clonedDoc.head.appendChild(style);
+          const content = clonedDoc.querySelector('[data-receipt-root]');
+          if (content) {
+            (content as HTMLElement).setAttribute('dir', 'rtl');
+            (content as HTMLElement).style.fontFamily = "Cairo, 'Noto Kufi Arabic','Fustat', sans-serif";
+            (content as HTMLElement).style.backgroundColor = '#ffffff';
+            (content as HTMLElement).style.color = '#111827';
+          }
+
+          // Rasterize heading for image export too
+          const rasterize = (selector: string, baseFontSize: number) => {
+            const el = clonedDoc.querySelector(selector);
+            if (!el) return;
+            try {
+              const text = el.textContent || '';
+              const offCanvas = clonedDoc.createElement('canvas');
+              const ctx = offCanvas.getContext('2d');
+              if (ctx) {
+                let fontSize = baseFontSize;
+                ctx.font = `bold ${fontSize}px Cairo, 'Noto Kufi Arabic', sans-serif`;
+                const maxWidth = 440;
+                let width = ctx.measureText(text).width;
+                while (width > maxWidth && fontSize > 14) {
+                  fontSize -= 2;
+                  ctx.font = `bold ${fontSize}px Cairo, 'Noto Kufi Arabic', sans-serif`;
+                  width = ctx.measureText(text).width;
+                }
+                offCanvas.width = Math.ceil(width) + 40;
+                offCanvas.height = fontSize + 30;
+                ctx.font = `bold ${fontSize}px Cairo, 'Noto Kufi Arabic', sans-serif`;
+                ctx.fillStyle = '#111827';
+                ctx.textAlign = 'center';
+                ctx.direction = 'rtl';
+                ctx.fillText(text, offCanvas.width / 2, fontSize + 6 - 4);
+                const img = clonedDoc.createElement('img');
+                img.src = offCanvas.toDataURL('image/png');
+                img.style.display = 'block';
+                img.style.margin = '0 auto';
+                img.style.maxWidth = '100%';
+                el.replaceWith(img);
+              }
+            } catch (e) {
+              console.warn('Rasterization failed for', selector, e);
+            }
+          };
+
+          rasterize('[data-receipt-heading]', 26);
+          rasterize('[data-receipt-subheading]', 20);
+        }
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `receipt-${ticket?.id}.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error('Error generating image:', e);
+      alert('حدث خطأ أثناء إنشاء الصورة.');
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+
+  // Helper function to wrap text for canvas
+  const wrapText = (context: CanvasRenderingContext2D, text: string, maxWidth: number) => {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      const width = context.measureText(currentLine + ' ' + word).width;
+      if (width < maxWidth) {
+        currentLine += ' ' + word;
+      } else {
+        lines.push(currentLine.trim());
+        currentLine = word;
+      }
+    }
+    lines.push(currentLine.trim());
+    return lines;
   };
 
   if (!ticket) {
@@ -563,7 +441,7 @@ const ConfirmationPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-transparent p-4">
         <div className="max-w-2xl mx-auto">
-          
+
           {/* Simple "No Ticket" Message */}
           <Card className="text-center border-t-4 border-amber-500 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm">
             <div className="text-amber-500 mb-4">
@@ -571,15 +449,15 @@ const ConfirmationPage: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
             </div>
-            
+
             <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
               لم يتم العثور على طلب
             </h1>
-            
+
             <p className="text-gray-600 dark:text-gray-400 mb-6 text-lg">
               لرؤية رقم التتبع، يجب تقديم طلب جديد أولاً
             </p>
-            
+
             {/* Simple Steps */}
             <div className="bg-blue-50/70 dark:bg-blue-900/30 p-6 rounded-lg mb-6 text-right backdrop-blur-sm">
               <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-4">خطوات بسيطة:</h3>
@@ -598,18 +476,18 @@ const ConfirmationPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Action Buttons */}
             <div className="space-y-3">
-              <Button 
-                onClick={() => window.location.hash = '#/submit'} 
+              <Button
+                onClick={() => window.location.hash = '#/submit'}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-lg"
               >
                 تقديم طلب جديد
               </Button>
-              <Button 
-                variant="secondary" 
-                onClick={() => window.location.hash = '#/'} 
+              <Button
+                variant="secondary"
+                onClick={() => window.location.hash = '#/'}
                 className="w-full"
               >
                 العودة للرئيسية
@@ -624,7 +502,7 @@ const ConfirmationPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-transparent p-4">
       <div className="max-w-2xl mx-auto">
-        
+
         {/* Success Header - Simple and Clear */}
         <Card className="text-center mb-6 border-t-4 border-green-500 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm">
           <div className="text-green-600 dark:text-green-400 mb-4">
@@ -646,7 +524,7 @@ const ConfirmationPage: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
               معلومات التتبع
             </h2>
-            
+
             {/* Tracking Number - Large and Prominent */}
             <div className="bg-blue-50/70 dark:bg-blue-900/30 p-6 rounded-lg mb-4 backdrop-blur-sm">
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">رقم التتبع:</p>
@@ -672,20 +550,20 @@ const ConfirmationPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-green-700 dark:text-green-300 mb-4 text-center">
                   QR Code للمتابعة السريعة
                 </h3>
-                
+
                 <div className="flex justify-center mb-4">
                   <div className="bg-white p-4 rounded-lg shadow-lg border-2 border-gray-200">
-                    <canvas 
+                    <canvas
                       id="qr-code-canvas"
                       className="w-40 h-40"
                     ></canvas>
                   </div>
                 </div>
-                
+
                 <p className="text-center text-gray-600 dark:text-gray-400 mb-4">
                   امسح هذا الكود بكاميرا الهاتف للانتقال المباشر لصفحة المتابعة
                 </p>
-                
+
                 {/* Enhanced QR Actions */}
                 <div className="grid grid-cols-2 gap-3">
                   <button
@@ -721,7 +599,7 @@ const ConfirmationPage: React.FC = () => {
                   >
                     <span className="font-semibold">تحميل QR</span>
                   </button>
-                  
+
                   <button
                     onClick={() => {
                       const canvas = document.getElementById('qr-code-canvas') as HTMLCanvasElement;
@@ -744,7 +622,7 @@ const ConfirmationPage: React.FC = () => {
                     <span className="font-semibold">نسخ QR</span>
                   </button>
                 </div>
-                
+
                 {/* QR Info */}
                 <div className="mt-4 p-3 bg-blue-50/50 dark:bg-blue-900/20 rounded-lg">
                   <p className="text-xs text-center text-gray-600 dark:text-gray-400">
@@ -763,7 +641,7 @@ const ConfirmationPage: React.FC = () => {
               معاينة الطلب المُرسل
             </h2>
           </div>
-          
+
           <div className="grid md:grid-cols-2 gap-4 mb-4">
             {/* Personal Information */}
             <div className="space-y-3">
@@ -854,20 +732,16 @@ const ConfirmationPage: React.FC = () => {
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">نموذج للإيصال كما سيظهر في الملف المُحمّل</p>
           </div>
-          
+
           {/* Official Receipt Layout */}
-          <div className="bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-500 rounded-lg p-6 mx-auto max-w-lg shadow-lg">
+          <div ref={pdfContentRef} data-receipt-root style={{ fontFamily: "'Cairo','Noto Kufi Arabic','Fustat', sans-serif" }} className="bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-500 rounded-lg p-6 mx-auto max-w-lg shadow-lg">
             {/* Header */}
             <div className="text-center border-b-2 border-gray-800 dark:border-gray-300 pb-4 mb-6">
               <div className="flex items-center justify-center mb-2">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-green-600 rounded-full flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H9m0 0H7m2 0v-3a1 1 0 011-1h1a1 1 0 011 1v3M9 7h6m-6 4h6m-2 8h.01" />
-                  </svg>
-                </div>
+                <img src="/ministry-logo.svg" alt="شعار وزارة المالية" className="h-16 w-16" />
               </div>
-              <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">مديرية مالية محافظة حلب</h3>
-              <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mt-1">إيصال تقديم طلب</h4>
+              <h3 data-receipt-heading className="text-xl font-bold text-gray-800 dark:text-gray-100">مديرية مالية محافظة حلب</h3>
+              <h4 data-receipt-subheading className="text-lg font-semibold text-gray-700 dark:text-gray-200 mt-1">إيصال تقديم طلب</h4>
               <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                 الجمهورية العربية السورية
               </div>
@@ -905,11 +779,11 @@ const ConfirmationPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Barcode Placeholder */}
-              <div className="text-center py-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded bg-gray-50/50 dark:bg-gray-800/50">
-                <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">باركود التتبع</div>
-                <div className="font-mono text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 px-3 py-1 rounded inline-block border">
-                  ||||| {ticket?.id} |||||
+              {/* QR Code for PDF */}
+              <div className="text-center py-4">
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">امسح للمتابعة السريعة</div>
+                <div className="flex justify-center">
+                  <canvas id="qr-code-canvas-pdf" className="w-32 h-32 bg-white"></canvas>
                 </div>
               </div>
 
@@ -962,8 +836,8 @@ const ConfirmationPage: React.FC = () => {
             >
               متابعة الطلب الآن
             </Button>
-            
-            <div className="grid grid-cols-2 gap-3">
+
+            <div className="grid grid-cols-3 gap-3">
               <Button
                 onClick={() => {
                   const trackingUrl = `${window.location.origin}/#/track?id=${ticket?.id}`;
@@ -977,15 +851,44 @@ const ConfirmationPage: React.FC = () => {
               >
                 نسخ الرابط
               </Button>
-              
               <Button
-                onClick={handleDownloadPdf}
+                onClick={handleDownloadAsImage}
                 variant="secondary"
                 className="text-sm"
+                disabled={isGeneratingPdf || isGeneratingImage}
               >
-                تحميل إيصال
+                {isGeneratingImage ? 'جاري إنشاء الصورة...' : 'تحميل كصورة'}
+              </Button>
+
+              <Button
+                onClick={handleDownloadPdfFromPreview}
+                variant="secondary"
+                className="text-sm"
+                disabled={isGeneratingPdf || isGeneratingImage}
+              >
+                {isGeneratingPdf ? 'جاري التحضير...' : 'تحميل إيصال'}
               </Button>
             </div>
+            {ticket?.email && (
+              <div className="text-center mt-2 text-xs space-y-1">
+                {emailStatus === 'disabled' && <span className="text-gray-500">تم تعطيل إرسال البريد في الإعدادات</span>}
+                {emailStatus === 'sending' && <span className="text-gray-500">يتم إرسال الإيصال إلى بريدك...</span>}
+                {emailStatus === 'sent' && <span className="text-green-600">تم إرسال نسخة من الإيصال إلى بريدك الإلكتروني</span>}
+                {emailStatus === 'error' && (
+                  <>
+                    <span className="text-red-600 block">تعذر إرسال البريد تلقائياً</span>
+                    {emailError && <span className="text-red-500 block ltr:text-left rtl:text-right break-all">{emailError}</span>}
+                    <button
+                      onClick={() => {
+                        setEmailStatus('idle');
+                        setTimeout(() => sendEmail(), 50);
+                      }}
+                      className="mt-1 inline-block bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded"
+                    >إعادة المحاولة</button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </Card>
 
@@ -1014,11 +917,49 @@ const ConfirmationPage: React.FC = () => {
               <span>اضغط على "متابعة الطلب الآن" للوصول المباشر</span>
             </div>
           </div>
-          
+
           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-            <Button 
-              onClick={() => window.location.hash = '#/'} 
-              variant="secondary" 
+            {/* قسم تقييم الخدمة */}
+            <div className="mb-6 p-4 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-xl border border-yellow-200 dark:border-yellow-700">
+              <h4 className="font-semibold text-gray-800 dark:text-gray-100 mb-3 text-center">
+                كيف كانت تجربتك في تقديم الطلب؟
+              </h4>
+              {!ratingSubmitted ? (
+                <div className="text-center">
+                  <EmojiRating
+                    value={serviceRating}
+                    onChange={(rating) => {
+                      setServiceRating(rating);
+                      // حفظ التقييم
+                      try {
+                        const ratings = JSON.parse(localStorage.getItem('serviceRatings') || '[]');
+                        ratings.push({
+                          ticketId: ticket?.id,
+                          rating,
+                          date: new Date().toISOString()
+                        });
+                        localStorage.setItem('serviceRatings', JSON.stringify(ratings));
+                        setRatingSubmitted(true);
+                      } catch (e) {
+                        console.error('Error saving rating:', e);
+                      }
+                    }}
+                    size="lg"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">اضغط على الوجه الذي يعبر عن رأيك</p>
+                </div>
+              ) : (
+                <div className="text-center py-2">
+                  <div className="text-3xl mb-2">🙏</div>
+                  <p className="text-green-600 dark:text-green-400 font-medium">شكراً لتقييمك!</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">ملاحظاتك تساعدنا على تحسين خدماتنا</p>
+                </div>
+              )}
+            </div>
+
+            <Button
+              onClick={() => window.location.hash = '#/'}
+              variant="secondary"
               className="w-full"
             >
               العودة للرئيسية

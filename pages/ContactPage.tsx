@@ -5,7 +5,7 @@ import Select from '../components/ui/Select';
 import TextArea from '../components/ui/TextArea';
 import Button from '../components/ui/Button';
 import { AppContext } from '../App';
-import { ContactMessageType } from '../types';
+import { ContactMessageType, Employee } from '../types';
 import { useDepartmentNames } from '../utils/departments';
 
 declare const jspdf: any;
@@ -24,6 +24,8 @@ const ContactPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [submittedAt, setSubmittedAt] = useState<Date | null>(null);
+  const [foundEmployee, setFoundEmployee] = useState<Employee | null>(null);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const pdfContentRef = useRef<HTMLDivElement | null>(null);
   const app = useContext(AppContext);
   const departmentNames = useDepartmentNames();
@@ -152,19 +154,72 @@ const ContactPage: React.FC = () => {
     }
   };
 
+  // البحث التلقائي عند كتابة الاسم
+  const handleNameChange = (value: string) => {
+    setName(value);
+
+    // إلغاء البحث السابق
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    // البحث بعد 500ms من التوقف عن الكتابة
+    const newTimeout = setTimeout(() => {
+      if (value.trim().length >= 3 && app) {
+        const employees = app.searchEmployeeByName(value.trim());
+        const exactMatch = employees.find(emp => 
+          emp.name.toLowerCase() === value.trim().toLowerCase()
+        );
+        setFoundEmployee(exactMatch || null);
+      } else {
+        setFoundEmployee(null);
+      }
+    }, 500);
+
+    setSearchTimeout(newTimeout);
+  };
+
+  // تنظيف timeout عند إلغاء المكون
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  if (!name || !message || !type) return;
+    if (!name || !message || !type) return;
     setIsLoading(true);
     // Simulate send
     setTimeout(() => {
+      // تحديد المصدر بناءً على النتائج
+      let source: 'مواطن' | 'موظف' = 'مواطن';
+      let finalDepartment = department || undefined;
+      let employeeUsername: string | undefined = undefined;
+      
+      if (foundEmployee) {
+        // إذا تم العثور على الموظف من البحث التلقائي
+        source = 'موظف';
+        finalDepartment = foundEmployee.department || finalDepartment;
+        employeeUsername = foundEmployee.username;
+      } else if (app?.isEmployeeLoggedIn && app?.currentEmployee) {
+        // إذا كان الموظف متصل
+        source = 'موظف';
+        finalDepartment = app.currentEmployee.department || finalDepartment;
+        employeeUsername = app.currentEmployee.username;
+      }
+      
       const id = app?.addContactMessage ? app.addContactMessage({
         name,
         email,
         subject,
         message,
         type,
-        department: department || undefined,
+        department: finalDepartment,
+        source,
+        employeeUsername,
       }) : null;
       setIsLoading(false);
       setCreatedId(id || null);
@@ -277,7 +332,35 @@ const ContactPage: React.FC = () => {
           </Select>
         </div>
         <div className="md:col-span-1">
-          <Input id="name" label="الاسم" placeholder="الاسم الكامل" value={name} onChange={(e) => setName(e.target.value)} required />
+          <div className="relative">
+            <Input 
+              id="name" 
+              label="الاسم" 
+              placeholder="الاسم الكامل" 
+              value={name} 
+              onChange={(e) => handleNameChange(e.target.value)} 
+              required 
+            />
+            {foundEmployee && (
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-2 py-1 rounded-full text-xs font-medium border border-green-300 dark:border-green-600 shadow-sm z-10"
+                   title={`موظف في ${foundEmployee.department} - ${foundEmployee.role}`}>
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                موظف
+              </div>
+            )}
+          </div>
+          {foundEmployee && (
+            <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-md">
+              <p className="text-xs text-green-700 dark:text-green-300">
+                <span className="font-medium">تم التعرف على:</span> {foundEmployee.name} - {foundEmployee.department} ({foundEmployee.role})
+              </p>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                سيتم إرسال الرسالة تحت تصنيف "{type} من موظف"
+              </p>
+            </div>
+          )}
         </div>
         <div className="md:col-span-1">
           <Input id="email" label="البريد الإلكتروني" type="email" placeholder="example@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />

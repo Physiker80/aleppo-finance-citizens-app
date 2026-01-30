@@ -1,0 +1,7 @@
+[
+  "/api/metrics-summary",
+  "/api/errors",
+  "/api/errors-stats",
+  "/api/send-receipt",
+  "/api/demo-trace"
+]
