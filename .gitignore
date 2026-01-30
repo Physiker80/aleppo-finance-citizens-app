@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Large binary files
+*.exe
+*.dll
+*.so
+*.dylib
+observability/prometheus/
+observability/grafana/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
