@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار صفحة إدارة الصلاحيات</title>
+    <script>
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('🔍 اختبار اتصال المتصفح بالخادم...');
+            
+            // اختبار تحميل الصفحة
+            fetch('http://localhost:3003')
+                .then(response => {
+                    console.log('✅ الخادم يعمل بشكل صحيح:', response.status);
+                    return response.text();
+                })
+                .then(html => {
+                    console.log('✅ تم تحميل HTML بنجاح');
+                    // اختبار تحميل صفحة إدارة الصلاحيات
+                    window.location.href = 'http://localhost:3003/#/role-management';
+                })
+                .catch(error => {
+                    console.error('❌ خطأ في الاتصال:', error);
+                });
+        });
+    </script>
+</head>
+<body>
+    <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+        <h1>اختبار صفحة إدارة الصلاحيات</h1>
+        <p>جاري اختبار الاتصال...</p>
+        <p>تحقق من وحدة تحكم المتصفح للتفاصيل</p>
+    </div>
+</body>
+</html>

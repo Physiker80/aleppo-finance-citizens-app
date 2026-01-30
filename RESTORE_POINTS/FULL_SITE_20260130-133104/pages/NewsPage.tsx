@@ -1,0 +1,48 @@
+import React, { useMemo } from 'react';
+import { NEWS_DATA } from '../constants';
+import Card from '../components/ui/Card';
+
+const NewsPage: React.FC = () => {
+  const items = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('newsItems');
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return NEWS_DATA;
+  }, []);
+  return (
+    <div>
+      <div className="text-center mb-10">
+        {/* الشعار الرسمي */}
+        <div className="mb-8 flex flex-col items-center">
+          <img 
+            src="https://syrian.zone/syid/materials/logo.ai.svg" 
+            alt="شعار الجمهورية العربية السورية" 
+            className="w-32 h-32 mx-auto filter drop-shadow-lg opacity-90 hover:opacity-100 transition-opacity duration-300"
+            onError={(e) => {
+              const img = e.currentTarget as HTMLImageElement;
+              // fallback to local logo if remote fails
+              img.src = '/logo.ai.svg';
+            }}
+          />
+        </div>
+        
+        <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">الأخبار والإعلانات الرسمية</h2>
+        <p className="text-gray-600 dark:text-gray-400">
+          تابع آخر المستجدات والقرارات الصادرة عن مديرية مالية حلب.
+        </p>
+      </div>
+      <div className="space-y-6">
+        {items.map((item: any, index: number) => (
+          <Card key={index} className="transition-shadow duration-300 hover:shadow-lg">
+            <h3 className="text-xl font-bold text-blue-700 dark:text-blue-400 mb-2">{item.title}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">{item.date}</p>
+            <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{item.content}</p>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default NewsPage;

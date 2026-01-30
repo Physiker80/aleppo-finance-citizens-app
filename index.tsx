@@ -19,7 +19,7 @@ import { initFrontendInstrumentation } from './Sicherheit/frontend';
       try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; }
     }
     function writeList(list: any[]) {
-      try { localStorage.setItem(KEY, JSON.stringify(list.slice(-25))); } catch {}
+      try { localStorage.setItem(KEY, JSON.stringify(list.slice(-25))); } catch { }
     }
     function log(kind: string, info: any = {}) {
       const list = readList();
@@ -30,12 +30,12 @@ import { initFrontendInstrumentation } from './Sicherheit/frontend';
       }
     }
     (window as any).debugReloadEvents = () => readList();
-    (window as any).disableReloadGuard = () => { localStorage.setItem(FLAG_DISABLE,'1'); alert('تم تعطيل حارس إعادة التحميل مؤقتاً'); };
+    (window as any).disableReloadGuard = () => { localStorage.setItem(FLAG_DISABLE, '1'); alert('تم تعطيل حارس إعادة التحميل مؤقتاً'); };
     (window as any).enableReloadGuard = () => { localStorage.removeItem(FLAG_DISABLE); alert('تم تفعيل حارس إعادة التحميل'); };
-    window.location.reload = function(force?: boolean) {
+    window.location.reload = function (force?: boolean) {
       if (localStorage.getItem(FLAG_DISABLE) === '1') {
         log('bypass-disabled-flag', { force });
-        return originalReload(force as any);
+        return originalReload();
       }
       const list = readList().filter(e => Date.now() - e.t < MAX_WITHIN_MS);
       const reloadsInWindow = list.filter(e => e.kind === 'reload-call');
@@ -43,13 +43,13 @@ import { initFrontendInstrumentation } from './Sicherheit/frontend';
         log('blocked', { force, reloadsInWindow: reloadsInWindow.length });
         // عرض رسالة لمرة واحدة فقط
         if (!sessionStorage.getItem('reload_guard_block_msg')) {
-          sessionStorage.setItem('reload_guard_block_msg','1');
+          sessionStorage.setItem('reload_guard_block_msg', '1');
           alert('تم إيقاف إعادة التحميل المتكرر لتجنب الوميض. يمكنك تعطيل الحارس مؤقتاً عبر window.disableReloadGuard() من الكونسول.');
         }
         return; // منع إعادة التحميل
       }
       log('reload-call', { force });
-      return originalReload(force as any);
+      return originalReload();
     } as any;
     log('installed');
   } catch (e) {
@@ -66,7 +66,7 @@ if (!(window as any).__diagnosticsInstalled) {
     if (root && !root.dataset.mounted) {
       const div = document.createElement('div');
       div.style.cssText = 'direction:rtl;background:#fef2f2;border:1px solid #dc2626;color:#991b1b;padding:12px;margin:12px;font:14px Cairo,sans-serif;white-space:pre-wrap;';
-      div.textContent = 'خطأ أثناء التمهيد: '+ e.message;
+      div.textContent = 'خطأ أثناء التمهيد: ' + e.message;
       root.appendChild(div);
     }
   });
@@ -87,7 +87,7 @@ if (!(window as any).__diagnosticsInstalled) {
 try {
   // @ts-ignore
   console.log('[DIAG] React version', React?.version);
-} catch (_) {}
+} catch (_) { }
 
 // Initialize Sicherheit instrumentation (error tracking, perf, fetch tracing)
 try {
@@ -119,7 +119,7 @@ try {
       } catch (e) { console.warn('[Sentry] frontend init failed', e); }
     }).catch((e) => console.warn('[Sentry] frontend import failed', e));
   }
-} catch (_) {}
+} catch (_) { }
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -139,12 +139,12 @@ try {
   if (rootElement) {
     const elapsed = (performance.now() - (window as any).__bootTime).toFixed(1);
     (rootElement as HTMLElement).dataset.mounted = 'true';
-    rootElement.dispatchEvent(new CustomEvent('app:mounted', { detail: { elapsed }}));
-    if (localStorage.getItem('debugBoot') === '1') console.log('[BOOT] Mounted in', elapsed,'ms');
+    rootElement.dispatchEvent(new CustomEvent('app:mounted', { detail: { elapsed } }));
+    if (localStorage.getItem('debugBoot') === '1') console.log('[BOOT] Mounted in', elapsed, 'ms');
     try {
       localStorage.setItem('lastBootElapsedMs', elapsed);
       localStorage.setItem('lastBootAt', new Date().toISOString());
-    } catch {}
+    } catch { }
   }
 } catch (error) {
   console.error('Error rendering React app:', error);
@@ -156,5 +156,5 @@ try {
     </div>
   `;
   (rootElement as HTMLElement).dataset.mountError = 'true';
-  rootElement.dispatchEvent(new CustomEvent('app:mount:error', { detail: { message: String(error) }}));
+  rootElement.dispatchEvent(new CustomEvent('app:mount:error', { detail: { message: String(error) } }));
 }

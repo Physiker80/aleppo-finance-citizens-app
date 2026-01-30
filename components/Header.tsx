@@ -636,7 +636,7 @@ const Header: React.FC = () => {
           <div className="flex items-center justify-between py-4">
             <a href="#/" className="flex items-center gap-3" onClick={closeMenu}>
               <img src="https://syrian.zone/syid/materials/logo.ai.svg" alt="شعار" className="h-10" />
-              <span className="text-white text-lg font-bold">مديرية مالية حلب</span>
+              <img src="/header-title.png" alt="مديرية مالية محافظة حلب - نظام الاستعلامات والشكاوى" className="h-14 object-contain brightness-0 invert" />
             </a>
             <button onClick={closeMenu} aria-label="إغلاق القائمة" className="text-white/90 hover:text-white p-2">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 24 24" fill="currentColor"><path d="M6.225 4.811L4.811 6.225 10.586 12l-5.775 5.775 1.414 1.414L12 13.414l5.775 5.775 1.414-1.414L13.414 12l5.775-5.775-1.414-1.414L12 10.586z" /></svg>
@@ -743,10 +743,11 @@ const Header: React.FC = () => {
                   alt="شعار الجمهورية العربية السورية"
                   className="h-14"
                 />
-                <div className="flex flex-col">
-                  <span className="text-xl font-extrabold text-[#0f3c35] dark:text-emerald-500 font-heading">مديرية مالية حلب</span>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">نظام الاستعلامات والشكاوى</span>
-                </div>
+                <img
+                  src="/header-title.png"
+                  alt="مديرية مالية محافظة حلب - نظام الاستعلامات والشكاوى"
+                  className="h-20 md:h-24 object-contain"
+                />
               </a>
               {/* قائمة منسدلة يسارية لروابط ثانوية - سطح المكتب فقط */}
               <div className="relative hidden md:block" ref={leftMenuRef} data-dropdown-root data-leftmenu-root>

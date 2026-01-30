@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار الأقسام - الإحصائيات الزمنية للمراسلات</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #0f3c35 0%, #1a5752 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            color: white;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .department-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .department-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .btn {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 70, 229, 0.4);
+        }
+        .select {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            color: white;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .select option {
+            background: #1a5752;
+            color: white;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        .status.success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.5);
+        }
+        .status.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏛️ اختبار الأقسام - الإحصائيات الزمنية للمراسلات</h1>
+            <p>اختبار استخدام جميع الأقسام من الهيكل الإداري</p>
+        </div>
+
+        <div class="test-section">
+            <h2>📋 الأقسام المتوفرة في النظام</h2>
+            <p>هذه قائمة بالأقسام المحفوظة في localStorage:</p>
+            <div id="departmentsList" class="department-list">
+                <div class="department-item">جاري التحميل...</div>
+            </div>
+            
+            <button class="btn" onclick="loadDepartments()">🔄 تحديث قائمة الأقسام</button>
+            <button class="btn" onclick="addSampleDepartments()">➕ إضافة أقسام تجريبية</button>
+            <button class="btn" onclick="clearDepartments()">🗑️ مسح جميع الأقسام</button>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 اختبار مكون المراسلات</h2>
+            <p>اختيار قسم من القائمة المنسدلة:</p>
+            
+            <select id="departmentSelect" class="select">
+                <option value="all">جميع الأقسام</option>
+            </select>
+
+            <div id="testStatus" class="status" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>💾 إدارة البيانات</h2>
+            <button class="btn" onclick="generateSampleMessages()">📄 إنشاء رسائل تجريبية</button>
+            <button class="btn" onclick="clearMessages()">🗑️ مسح الرسائل</button>
+            <button class="btn" onclick="viewStorageData()">👁️ عرض بيانات التخزين</button>
+        </div>
+    </div>
+
+    <script>
+        // الأقسام الافتراضية من الهيكل الإداري
+        const defaultDepartments = [
+            'قسم الإدارة العامة',
+            'قسم الدخل',
+            'قسم كبار ومتوسطي المكلفين',
+            'قسم المتابعة وإدارة الديون',
+            'قسم الواردات',
+            'قسم الرقابة الداخلية',
+            'قسم المعلوماتية',
+            'قسم التنمية الإدارية',
+            'قسم الاستعلام',
+            'قسم الخزينة'
+        ];
+
+        // تحميل الأقسام من localStorage
+        function loadDepartments() {
+            try {
+                const stored = localStorage.getItem('departmentsList');
+                const departments = stored ? JSON.parse(stored) : [];
+                
+                if (!Array.isArray(departments) || departments.length === 0) {
+                    showStatus('لا توجد أقسام محفوظة. سيتم استخدام الأقسام الافتراضية.', 'error');
+                    return displayDepartments(defaultDepartments.map(name => ({ name })));
+                }
+
+                displayDepartments(departments);
+                updateSelectOptions(departments);
+                showStatus(`تم تحميل ${departments.length} قسماً بنجاح`, 'success');
+            } catch (error) {
+                console.error('خطأ في تحميل الأقسام:', error);
+                showStatus('خطأ في تحميل الأقسام', 'error');
+                displayDepartments(defaultDepartments.map(name => ({ name })));
+            }
+        }
+
+        // عرض الأقسام في القائمة
+        function displayDepartments(departments) {
+            const container = document.getElementById('departmentsList');
+            
+            if (!departments || departments.length === 0) {
+                container.innerHTML = '<div class="department-item">لا توجد أقسام متوفرة</div>';
+                return;
+            }
+
+            container.innerHTML = departments.map((dept, index) => `
+                <div class="department-item">
+                    <strong>${index + 1}.</strong> ${dept.name || dept}
+                </div>
+            `).join('');
+        }
+
+        // تحديث خيارات القائمة المنسدلة
+        function updateSelectOptions(departments) {
+            const select = document.getElementById('departmentSelect');
+            select.innerHTML = '<option value="all">جميع الأقسام</option>';
+            
+            departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept.name || dept;
+                option.textContent = dept.name || dept;
+                select.appendChild(option);
+            });
+        }
+
+        // إضافة الأقسام التجريبية
+        function addSampleDepartments() {
+            const departments = defaultDepartments.map(name => ({ name }));
+            localStorage.setItem('departmentsList', JSON.stringify(departments));
+            
+            // إرسال حدث تحديث الأقسام
+            window.dispatchEvent(new Event('departmentsListUpdated'));
+            
+            loadDepartments();
+            showStatus(`تم إضافة ${departments.length} قسماً تجريبياً`, 'success');
+        }
+
+        // مسح جميع الأقسام
+        function clearDepartments() {
+            if (confirm('هل أنت متأكد من مسح جميع الأقسام؟')) {
+                localStorage.removeItem('departmentsList');
+                window.dispatchEvent(new Event('departmentsListUpdated'));
+                loadDepartments();
+                showStatus('تم مسح جميع الأقسام', 'success');
+            }
+        }
+
+        // إنشاء رسائل تجريبية بالأقسام المحدثة
+        function generateSampleMessages() {
+            const stored = localStorage.getItem('departmentsList');
+            const departments = stored ? JSON.parse(stored) : defaultDepartments.map(name => ({ name }));
+            const departmentNames = departments.map(d => d.name || d);
+            
+            const messages = [];
+            
+            for (let i = 0; i < 15; i++) {
+                const dept = departmentNames[Math.floor(Math.random() * departmentNames.length)];
+                const isFromDiwan = Math.random() > 0.5;
+                const sentDate = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
+                const priority = Math.random() > 0.7 ? 'عاجل' : Math.random() > 0.5 ? 'هام' : 'عادي';
+
+                messages.push({
+                    id: `internal_${Date.now()}_${i}`,
+                    from: isFromDiwan ? 'إدارة الديوان العام' : dept,
+                    to: isFromDiwan ? dept : 'إدارة الديوان العام',
+                    subject: `${isFromDiwan ? 'تعليمات' : 'تقرير'} ${priority === 'عاجل' ? 'عاجل' : ''} - ${dept}`,
+                    content: `محتوى المراسلة الخاصة بـ ${dept} بخصوص الأعمال الإدارية ${priority === 'عاجل' ? 'العاجلة' : 'العادية'}`,
+                    priority,
+                    status: Math.random() > 0.3 ? 'مجاب' : 'قيد_المراجعة',
+                    sentAt: sentDate.toISOString(),
+                    receivedAt: new Date(sentDate.getTime() + Math.random() * 2 * 60 * 60 * 1000).toISOString(),
+                    respondedAt: Math.random() > 0.5 ? new Date(sentDate.getTime() + Math.random() * 24 * 60 * 60 * 1000).toISOString() : null,
+                    direction: isFromDiwan ? 'من_الديوان' : 'إلى_الديوان'
+                });
+            }
+            
+            localStorage.setItem('internalMessages', JSON.stringify(messages));
+            showStatus(`تم إنشاء ${messages.length} رسالة تجريبية باستخدام ${departmentNames.length} قسماً`, 'success');
+        }
+
+        // مسح الرسائل
+        function clearMessages() {
+            if (confirm('هل أنت متأكد من مسح جميع الرسائل؟')) {
+                localStorage.removeItem('internalMessages');
+                showStatus('تم مسح جميع الرسائل', 'success');
+            }
+        }
+
+        // عرض بيانات التخزين
+        function viewStorageData() {
+            const data = {
+                departments: localStorage.getItem('departmentsList'),
+                messages: localStorage.getItem('internalMessages')
+            };
+            
+            console.log('بيانات التخزين:', data);
+            
+            const deptCount = data.departments ? JSON.parse(data.departments).length : 0;
+            const msgCount = data.messages ? JSON.parse(data.messages).length : 0;
+            
+            showStatus(`الأقسام: ${deptCount} | الرسائل: ${msgCount} - انظر وحدة التحكم للتفاصيل`, 'success');
+        }
+
+        // عرض حالة العملية
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('testStatus');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 4000);
+        }
+
+        // تحميل البيانات عند بدء الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDepartments();
+        });
+
+        // مراقبة تغيير اختيار القسم
+        document.getElementById('departmentSelect').addEventListener('change', function() {
+            const selectedDept = this.value;
+            showStatus(`تم اختيار: ${selectedDept}`, 'success');
+        });
+    </script>
+</body>
+</html>

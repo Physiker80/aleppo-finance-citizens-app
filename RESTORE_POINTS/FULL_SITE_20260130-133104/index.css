@@ -1,0 +1,455 @@
+/* Import Arabic fonts: Fustat (Kufi style) for headings and Noto Naskh Arabic for body text */
+@import url('https://fonts.googleapis.com/css2?family=Fustat:wght@200;300;400;500;600;700;800&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
+
+/* Import beautiful Arabic calligraphy fonts for PDF templates */
+@import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lateef:wght@200;300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Katibeh&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Markazi+Text:wght@400;500;600;700&display=swap');
+
+/* ===== تأثيرات حركية سلسة ===== */
+@import './utils/animations.css';
+
+/* إجبار استخدام الأرقام العربية اللاتينية في جميع العناصر */
+* {
+  font-variant-numeric: lining-nums;
+  -webkit-font-feature-settings: "tnum" 1;
+  font-feature-settings: "tnum" 1;
+}
+
+/* إعدادات خاصة للأرقام في العناصر المختلفة */
+input[type="number"],
+input[type="tel"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+.numeric,
+.date-display,
+.time-display,
+.number-display,
+table td,
+table th,
+.card,
+.ticket-id,
+.employee-id,
+.department-id {
+  font-variant-numeric: lining-nums;
+  -webkit-font-feature-settings: "tnum" 1;
+  font-feature-settings: "tnum" 1;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Modern animations for confirmation page */
+@keyframes gradient-x {
+
+  0%,
+  100% {
+    transform: translateX(0%);
+  }
+
+  50% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pulse-soft {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: .7;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-gradient-x {
+  animation: gradient-x 15s ease infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.5s ease-out;
+}
+
+/* Base body text using Noto Naskh Arabic (الأميري) */
+body {
+  font-family: 'Noto Naskh Arabic', 'Traditional Arabic', 'Arabic Typesetting', serif;
+  font-weight: 400;
+  line-height: 1.8;
+}
+
+/* All headings use Fustat (الكوفي) */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-heading {
+  font-family: 'Fustat', 'Traditional Arabic', 'Arabic Typesetting', serif;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+/* Enhanced Fustat Kufi utility class for official documents and headings */
+.font-kufi {
+  font-family: 'Fustat', 'Traditional Arabic', 'Arabic Typesetting', serif !important;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+/* Noto Naskh Arabic utility class for body text */
+.font-naskh {
+  font-family: 'Noto Naskh Arabic', 'Traditional Arabic', 'Arabic Typesetting', serif !important;
+  font-weight: 400;
+}
+
+/* Official document header styling - using Fustat (Kufi) */
+.official-header {
+  font-family: 'Fustat', 'Traditional Arabic', 'Arabic Typesetting', serif;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ReactFlow accessibility helper text — visually hide within sec-flow containers only */
+.sec-flow .sr-only,
+.sec-flow .react-flow__a11y,
+.sec-flow [aria-live="polite"],
+.sec-flow [aria-live="assertive"] {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Fallback: hide any descendant a11y region related to React Flow if present */
+.sec-flow .react-flow [role="status"],
+.sec-flow .react-flow [role="log"],
+.sec-flow .react-flow [role="alert"],
+.sec-flow .react-flow [aria-live],
+.sec-flow .react-flow .react-flow__a11y {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Ensure node label text wraps nicely in Arabic */
+.react-flow__node span {
+  word-break: break-word;
+}
+
+/* Slight padding around React Flow canvas and enforce LTR inside */
+.sec-flow .react-flow {
+  padding: 4px;
+  direction: ltr;
+}
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Page transition animations */
+.page-transition {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* RTL support improvements */
+[dir="rtl"] {
+  text-align: right;
+}
+
+/* Focus styles for accessibility */
+button:focus,
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Print styles for PDF - using Noto Naskh Arabic for body and Fustat for headers */
+@media print {
+  body {
+    font-family: 'Noto Naskh Arabic', 'Traditional Arabic', 'Arabic Typesetting', serif !important;
+    background: white !important;
+    font-weight: 400;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Fustat', 'Traditional Arabic', 'Arabic Typesetting', serif !important;
+    font-weight: 500;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Arabic Calligraphy Fonts for PDF Templates */
+.font-fustat {
+  font-family: 'Fustat', 'Traditional Arabic', sans-serif !important;
+  font-weight: 400;
+}
+
+.font-amiri {
+  font-family: 'Amiri', 'Traditional Arabic', serif !important;
+  font-weight: 400;
+}
+
+.font-scheherazade {
+  font-family: 'Scheherazade New', 'Traditional Arabic', serif !important;
+  font-weight: 400;
+}
+
+.font-aref-ruqaa {
+  font-family: 'Aref Ruqaa', 'Arabic Typesetting', serif !important;
+  font-weight: 400;
+}
+
+.font-lateef {
+  font-family: 'Lateef', 'Traditional Arabic', serif !important;
+  font-weight: 400;
+}
+
+.font-reem-kufi {
+  font-family: 'Reem Kufi', 'Traditional Arabic', serif !important;
+  font-weight: 400;
+}
+
+.font-katibeh {
+  font-family: 'Katibeh', 'Traditional Arabic', serif !important;
+  font-weight: 400;
+}
+
+.font-markazi {
+  font-family: 'Markazi Text', 'Traditional Arabic', serif !important;
+  font-weight: 400;
+}
+
+/* Font preview styles for the font selector */
+.font-preview {
+  transition: all 0.2s ease;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.font-preview:hover {
+  background-color: rgba(15, 60, 53, 0.05);
+}
+
+/* إضافة أنيميشن لصفحة التأكيد */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce-slow {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 40px rgba(34, 197, 94, 0.6);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 2s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+/* تحسينات بصرية إضافية */
+.glass-effect {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.success-gradient {
+  background: linear-gradient(135deg, #10b981, #34d399, #6ee7b7);
+}
+
+/* Custom utility classes */
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  /* Standard property for compatibility alongside -webkit-line-clamp */
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  /* Standard property for compatibility alongside -webkit-line-clamp */
+  line-clamp: 3;
+  -webkit-line-clamp: 3;
+}
+
+/* =====================================================
+   🔄 Loading Animations for Lazy Loading
+   ===================================================== */
+@keyframes loading-bar {
+  0% {
+    width: 0%;
+    margin-left: 0;
+  }
+
+  50% {
+    width: 70%;
+    margin-left: 0;
+  }
+
+  100% {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+.animate-loading-bar {
+  animation: loading-bar 1.5s ease-in-out infinite;
+}
+
+/* Skeleton Loading Animation */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg,
+      rgba(0, 0, 0, 0.06) 25%,
+      rgba(0, 0, 0, 0.1) 50%,
+      rgba(0, 0, 0, 0.06) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.dark .skeleton {
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0.06) 25%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0.06) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}

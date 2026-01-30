@@ -39,13 +39,13 @@ interface FooterContent {
 const Footer: React.FC = () => {
   const appContext = useContext(AppContext);
   const [isEditing, setIsEditing] = useState(false);
-  
+
   // Drag and drop states
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
-  const [draggedLink, setDraggedLink] = useState<{sectionId: string, linkId: string} | null>(null);
+  const [draggedLink, setDraggedLink] = useState<{ sectionId: string, linkId: string } | null>(null);
   const [dragOverSection, setDragOverSection] = useState<string | null>(null);
-  const [dragOverLink, setDragOverLink] = useState<{sectionId: string, linkId: string} | null>(null);
-  
+  const [dragOverLink, setDragOverLink] = useState<{ sectionId: string, linkId: string } | null>(null);
+
   // Default footer content
   const defaultContent: FooterContent = {
     ministry: {
@@ -143,11 +143,11 @@ const Footer: React.FC = () => {
       text: "رابط جديد",
       href: "#/"
     };
-    
+
     setEditableContent(prev => ({
       ...prev,
-      sections: prev.sections.map(section => 
-        section.id === sectionId 
+      sections: prev.sections.map(section =>
+        section.id === sectionId
           ? { ...section, links: [...section.links, newLink] }
           : section
       )
@@ -157,8 +157,8 @@ const Footer: React.FC = () => {
   const removeLink = (sectionId: string, linkId: string) => {
     setEditableContent(prev => ({
       ...prev,
-      sections: prev.sections.map(section => 
-        section.id === sectionId 
+      sections: prev.sections.map(section =>
+        section.id === sectionId
           ? { ...section, links: section.links.filter(link => link.id !== linkId) }
           : section
       )
@@ -168,14 +168,14 @@ const Footer: React.FC = () => {
   const updateLink = (sectionId: string, linkId: string, field: 'text' | 'href', value: string) => {
     setEditableContent(prev => ({
       ...prev,
-      sections: prev.sections.map(section => 
-        section.id === sectionId 
-          ? { 
-              ...section, 
-              links: section.links.map(link => 
-                link.id === linkId ? { ...link, [field]: value } : link
-              )
-            }
+      sections: prev.sections.map(section =>
+        section.id === sectionId
+          ? {
+            ...section,
+            links: section.links.map(link =>
+              link.id === linkId ? { ...link, [field]: value } : link
+            )
+          }
           : section
       )
     }));
@@ -187,7 +187,7 @@ const Footer: React.FC = () => {
       title: "قسم جديد",
       links: []
     };
-    
+
     setEditableContent(prev => ({
       ...prev,
       sections: [...prev.sections, newSection]
@@ -204,7 +204,7 @@ const Footer: React.FC = () => {
   const updateSectionTitle = (sectionId: string, title: string) => {
     setEditableContent(prev => ({
       ...prev,
-      sections: prev.sections.map(section => 
+      sections: prev.sections.map(section =>
         section.id === sectionId ? { ...section, title } : section
       )
     }));
@@ -218,7 +218,7 @@ const Footer: React.FC = () => {
       url: "https://",
       icon: "link"
     };
-    
+
     setEditableContent(prev => ({
       ...prev,
       socialMedia: [...prev.socialMedia, newItem]
@@ -235,7 +235,7 @@ const Footer: React.FC = () => {
   const updateSocialMediaItem = (itemId: string, field: 'name' | 'url' | 'icon', value: string) => {
     setEditableContent(prev => ({
       ...prev,
-      socialMedia: prev.socialMedia.map(item => 
+      socialMedia: prev.socialMedia.map(item =>
         item.id === itemId ? { ...item, [field]: value } : item
       )
     }));
@@ -275,34 +275,34 @@ const Footer: React.FC = () => {
 
   const handleSectionDrop = (e: React.DragEvent, targetSectionId: string) => {
     e.preventDefault();
-    
+
     if (draggedSection && draggedSection !== targetSectionId) {
       console.log('Moving section:', draggedSection, 'to:', targetSectionId);
-      
+
       setEditableContent(prev => {
         const sections = [...prev.sections];
         const draggedIndex = sections.findIndex(s => s.id === draggedSection);
         const targetIndex = sections.findIndex(s => s.id === targetSectionId);
-        
+
         console.log('Dragged index:', draggedIndex, 'Target index:', targetIndex);
         console.log('Before move:', sections.map(s => s.title));
-        
+
         if (draggedIndex !== -1 && targetIndex !== -1) {
           // Remove the dragged section from its original position
           const [draggedItem] = sections.splice(draggedIndex, 1);
           // Insert it at the target position
           sections.splice(targetIndex, 0, draggedItem);
-          
+
           console.log('After move:', sections.map(s => s.title));
         }
-        
+
         return {
           ...prev,
           sections
         };
       });
     }
-    
+
     setDraggedSection(null);
     setDragOverSection(null);
   };
@@ -327,60 +327,60 @@ const Footer: React.FC = () => {
   const handleLinkDrop = (e: React.DragEvent, targetSectionId: string, targetLinkId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (draggedLink && (draggedLink.sectionId !== targetSectionId || draggedLink.linkId !== targetLinkId)) {
       console.log('Moving link:', draggedLink, 'to section:', targetSectionId, 'at link:', targetLinkId);
-      
+
       setEditableContent(prev => {
         const sections = [...prev.sections];
-        
+
         // Find source section and link
         const sourceSectionIndex = sections.findIndex(s => s.id === draggedLink.sectionId);
         const sourceSection = sections[sourceSectionIndex];
         const sourceLinkIndex = sourceSection.links.findIndex(l => l.id === draggedLink.linkId);
         const draggedLinkItem = sourceSection.links[sourceLinkIndex];
-        
+
         console.log('Source section:', sourceSection.title, 'Source link index:', sourceLinkIndex);
         console.log('Before link move:', sourceSection.links.map(l => l.text));
-        
+
         // Find target section and link
         const targetSectionIndex = sections.findIndex(s => s.id === targetSectionId);
         const targetSection = sections[targetSectionIndex];
         const targetLinkIndex = targetSection.links.findIndex(l => l.id === targetLinkId);
-        
+
         console.log('Target section:', targetSection.title, 'Target link index:', targetLinkIndex);
-        
+
         // Remove from source
         sections[sourceSectionIndex] = {
           ...sourceSection,
           links: sourceSection.links.filter(l => l.id !== draggedLink.linkId)
         };
-        
+
         // Add to target
         const newTargetLinks = [...targetSection.links];
         newTargetLinks.splice(targetLinkIndex, 0, draggedLinkItem);
-        
+
         sections[targetSectionIndex] = {
           ...targetSection,
           links: newTargetLinks
         };
-        
+
         console.log('After link move - source:', sections[sourceSectionIndex].links.map(l => l.text));
         console.log('After link move - target:', sections[targetSectionIndex].links.map(l => l.text));
-        
+
         return {
           ...prev,
           sections
         };
       });
     }
-    
+
     setDraggedLink(null);
     setDragOverLink(null);
   };
 
-  // Using the official Syrian government identity logo
-  const ministryLogo = 'https://syrian.zone/syid/materials/logo.ai.svg'; 
+  // Using the Ministry of Finance logo
+  const ministryLogo = '/ministry-logo.png';
 
   return (
     <footer className="bg-transparent text-gray-500 dark:text-gray-300 font-heading font-kufi mt-auto border-t border-gray-200 dark:border-gray-500/30">
@@ -426,47 +426,13 @@ const Footer: React.FC = () => {
 
       <div className="container mx-auto px-6 py-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 lg:gap-4 divide-y divide-gray-200 dark:divide-gray-700/40 md:divide-y-0 lg:divide-x lg:rtl:divide-x-reverse">
-          
+
           {/* Ministry section */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 text-right px-1 lg:px-4 md:col-span-2 lg:col-span-2" dir="rtl">
-            <div className="flex flex-col items-center text-center w-full md:w-[190px] md:shrink-0 order-2 md:order-1 bg-transparent border-0 p-0">
-              <img src={ministryLogo} alt="شعار وزارة المالية" className="h-16 md:h-20 w-auto object-contain mb-2" />
-              
-              {(isAdmin && isEditing) ? (
-                <>
-                  <input
-                    type="text"
-                    value={editableContent.ministry.name}
-                    onChange={(e) => setEditableContent(prev => ({
-                      ...prev,
-                      ministry: { ...prev.ministry, name: e.target.value }
-                    }))}
-                    className="text-lg md:text-xl font-bold font-kufi text-center mb-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 w-full"
-                    style={{ color: '#988561' }}
-                  />
-                  <input
-                    type="text"
-                    value={editableContent.ministry.nameEn}
-                    onChange={(e) => setEditableContent(prev => ({
-                      ...prev,
-                      ministry: { ...prev.ministry, nameEn: e.target.value }
-                    }))}
-                    className="text-xs md:text-sm uppercase tracking-wider text-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 w-full"
-                    style={{ color: '#988561' }}
-                  />
-                </>
-              ) : (
-                <>
-                  <div className="text-lg md:text-xl font-bold font-kufi" style={{ color: '#988561' }}>
-                    {editableContent.ministry.name}
-                  </div>
-                  <div className="text-xs md:text-sm uppercase tracking-wider" style={{ color: '#988561' }}>
-                    {editableContent.ministry.nameEn}
-                  </div>
-                </>
-              )}
+            <div className="flex flex-col items-center text-center w-full md:w-[280px] md:shrink-0 order-2 md:order-1 p-0">
+              <img src={ministryLogo} alt="شعار وزارة المالية" className="h-40 md:h-52 w-auto object-contain" />
             </div>
-            
+
             <div className="flex-[4] min-w-0 order-1 md:order-2">
               {(isAdmin && isEditing) ? (
                 <>
@@ -505,15 +471,12 @@ const Footer: React.FC = () => {
 
           {/* Dynamic Sections */}
           {editableContent.sections.map((section) => (
-            <div 
-              key={section.id} 
-              className={`px-1 lg:px-3 relative transition-all duration-200 ${
-                isEditing ? 'cursor-move' : ''
-              } ${
-                dragOverSection === section.id ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-400 border-dashed rounded-lg' : ''
-              } ${
-                draggedSection === section.id ? 'opacity-50' : ''
-              }`}
+            <div
+              key={section.id}
+              className={`px-1 lg:px-3 relative transition-all duration-200 ${isEditing ? 'cursor-move' : ''
+                } ${dragOverSection === section.id ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-400 border-dashed rounded-lg' : ''
+                } ${draggedSection === section.id ? 'opacity-50' : ''
+                }`}
               draggable={isEditing}
               onDragStart={(e) => isEditing && handleSectionDragStart(e, section.id)}
               onDragOver={(e) => isEditing && handleSectionDragOver(e, section.id)}
@@ -522,7 +485,7 @@ const Footer: React.FC = () => {
             >
               {(isAdmin && isEditing) && (
                 <div className="absolute -top-2 -right-2 flex gap-1 z-10">
-                  <div 
+                  <div
                     className="w-6 h-6 bg-gray-400 hover:bg-gray-500 text-white rounded-full flex items-center justify-center text-xs cursor-move"
                     title="اسحب لإعادة الترتيب"
                   >
@@ -546,7 +509,7 @@ const Footer: React.FC = () => {
                   )}
                 </div>
               )}
-              
+
               {(isAdmin && isEditing) ? (
                 <input
                   type="text"
@@ -559,26 +522,23 @@ const Footer: React.FC = () => {
                   {section.title}
                 </h4>
               )}
-              
+
               <ul className="space-y-2.5">
                 {section.links.filter(link => {
                   // Hide uploads demo link for non-admin users unless in editing mode
                   if (!isAdmin && !isEditing && link.id === 'uploads-demo') return false;
                   return true;
                 }).map((link) => (
-                  <li 
-                    key={link.id} 
-                    className={`relative group transition-all duration-200 ${
-                      (isAdmin && isEditing) ? 'cursor-move' : ''
-                    } ${
-                      dragOverLink?.sectionId === section.id && dragOverLink?.linkId === link.id 
-                        ? 'bg-green-50 dark:bg-green-900/20 border border-green-400 border-dashed rounded p-1' 
+                  <li
+                    key={link.id}
+                    className={`relative group transition-all duration-200 ${(isAdmin && isEditing) ? 'cursor-move' : ''
+                      } ${dragOverLink?.sectionId === section.id && dragOverLink?.linkId === link.id
+                        ? 'bg-green-50 dark:bg-green-900/20 border border-green-400 border-dashed rounded p-1'
                         : ''
-                    } ${
-                      draggedLink?.sectionId === section.id && draggedLink?.linkId === link.id 
-                        ? 'opacity-50' 
+                      } ${draggedLink?.sectionId === section.id && draggedLink?.linkId === link.id
+                        ? 'opacity-50'
                         : ''
-                    }`}
+                      }`}
                     draggable={isAdmin && isEditing}
                     onDragStart={(e) => (isAdmin && isEditing) && handleLinkDragStart(e, section.id, link.id)}
                     onDragOver={(e) => (isAdmin && isEditing) && handleLinkDragOver(e, section.id, link.id)}
@@ -588,7 +548,7 @@ const Footer: React.FC = () => {
                     {(isAdmin && isEditing) ? (
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-1">
-                          <div 
+                          <div
                             className="w-6 h-6 bg-gray-300 hover:bg-gray-400 rounded flex items-center justify-center text-xs cursor-move flex-shrink-0"
                             title="اسحب لإعادة الترتيب"
                           >
@@ -664,7 +624,7 @@ const Footer: React.FC = () => {
                     <Plus size={10} />
                   </button>
                 </div>
-                
+
                 <div className="space-y-3 max-h-60 overflow-y-auto">
                   {editableContent.socialMedia.map((item) => (
                     <div key={item.id} className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border">
@@ -685,7 +645,7 @@ const Footer: React.FC = () => {
                           <Trash2 size={8} />
                         </button>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <div>
                           <label className="block text-xs font-medium mb-1">الأيقونة:</label>
@@ -705,7 +665,7 @@ const Footer: React.FC = () => {
                             <option value="whatsapp">واتساب</option>
                           </select>
                         </div>
-                        
+
                         <div>
                           <label className="block text-xs font-medium mb-1">الرابط:</label>
                           <input
@@ -719,7 +679,7 @@ const Footer: React.FC = () => {
                       </div>
                     </div>
                   ))}
-                  
+
                   {editableContent.socialMedia.length === 0 && (
                     <div className="text-gray-400 italic text-sm text-center py-4">
                       لا توجد منصات تواصل - انقر على + لإضافة منصة
@@ -750,7 +710,7 @@ const Footer: React.FC = () => {
 
         </div>
       </div>
-      
+
       {/* Copyright Section */}
       <div className="bg-transparent py-4">
         <div className="container mx-auto text-center text-sm text-gray-500 dark:text-gray-400">

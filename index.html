@@ -37,53 +37,225 @@
 </head>
 
 <body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-  <div id="root">
-    <!-- شاشة تحميل أولية - تختفي عند تحميل React -->
-    <div id="initial-loader"
-      style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:Cairo,sans-serif;direction:rtl;background:linear-gradient(135deg,#0f3c35 0%,#1a5c4c 100%);">
-      <div
-        style="background:white;border-radius:16px;padding:40px;box-shadow:0 10px 40px rgba(0,0,0,0.3);text-align:center;max-width:400px;">
-        <img src="https://syrian.zone/syid/materials/logo.ai.svg" alt="شعار"
-          style="width:80px;height:80px;margin:0 auto 20px;display:block;" onerror="this.style.display='none'">
-        <h2 style="color:#0f3c35;margin:0 0 10px;font-size:1.4rem;">مديرية مالية حلب</h2>
-        <p style="color:#666;margin:0 0 20px;font-size:0.9rem;">جاري تحميل النظام...</p>
-        <div style="width:200px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;margin:0 auto;">
-          <div id="loader-bar"
-            style="width:0%;height:100%;background:linear-gradient(90deg,#0f3c35,#2d8a6e);border-radius:3px;animation:loading 3s ease-in-out infinite;">
-          </div>
+  <!-- شاشة تحميل - تبقى 30 ثانية ثم يمكن الضغط للدخول -->
+  <div id="splash-screen">
+    <style>
+      #splash-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 9999;
+        cursor: pointer;
+        overflow: hidden;
+      }
+
+      .splash-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+      }
+
+      .splash-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 30px;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+        text-align: center;
+        direction: rtl;
+      }
+
+      .splash-hint {
+        color: rgba(255, 255, 255, 0.9);
+        font-family: 'Cairo', 'Tajawal', sans-serif;
+        font-size: 1.1rem;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        animation: fadeInUp 0.5s ease-out, pulse 2s ease-in-out infinite;
+      }
+
+      .splash-hint.visible {
+        display: flex;
+      }
+
+      .splash-timer {
+        color: rgba(255, 255, 255, 0.8);
+        font-family: 'Cairo', 'Tajawal', sans-serif;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .splash-timer.hidden {
+        display: none;
+      }
+
+      .timer-circle {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(212, 175, 55, 0.3);
+        border-top-color: #d4af37;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .timer-number {
+        position: absolute;
+        font-size: 0.85rem;
+        font-weight: bold;
+        color: #d4af37;
+      }
+
+      .hint-icon {
+        width: 28px;
+        height: 28px;
+        border: 2px solid #d4af37;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: bounce 1.5s ease-in-out infinite;
+      }
+
+      .hint-icon::after {
+        content: '↓';
+        color: #d4af37;
+        font-size: 16px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes pulse {
+
+        0%,
+        100% {
+          opacity: 0.9;
+        }
+
+        50% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes bounce {
+
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+
+        50% {
+          transform: translateY(5px);
+        }
+      }
+
+      #splash-screen.fade-out {
+        animation: fadeOut 0.6s ease-out forwards;
+      }
+
+      @keyframes fadeOut {
+        to {
+          opacity: 0;
+          visibility: hidden;
+        }
+      }
+    </style>
+
+    <img src="/splash-screen.png" alt="مديرية مالية محافظة حلب" class="splash-image">
+
+    <div class="splash-overlay">
+      <div class="splash-timer" id="splash-timer">
+        <div class="timer-circle">
+          <span class="timer-number" id="timer-number">30</span>
         </div>
-        <style>
-          @keyframes loading {
-            0% {
-              width: 0%
-            }
-
-            50% {
-              width: 70%
-            }
-
-            100% {
-              width: 100%
-            }
-          }
-        </style>
+        <span>جاري التحميل...</span>
+      </div>
+      <div class="splash-hint" id="splash-hint">
+        <span>اضغط للدخول إلى النظام</span>
+        <div class="hint-icon"></div>
       </div>
     </div>
   </div>
+  <div id="root"></div>
   <script>
-    // إزالة شاشة التحميل عند تحميل التطبيق
-    window.addEventListener('DOMContentLoaded', function () {
-      var checkMount = setInterval(function () {
-        var root = document.getElementById('root');
-        if (root && root.dataset.mounted === 'true') {
-          var loader = document.getElementById('initial-loader');
-          if (loader) loader.remove();
-          clearInterval(checkMount);
+    // شاشة التحميل - 15 ثانية ثم الضغط للدخول
+    (function () {
+      var countdown = 15;
+      var canEnter = false;
+      var timerInterval;
+      var entered = false;
+
+      function hideSplash() {
+        if (entered) return;
+        entered = true;
+        var splash = document.getElementById('splash-screen');
+        if (splash && canEnter) {
+          splash.classList.add('fade-out');
+          setTimeout(function () { splash.remove(); }, 600);
         }
-      }, 100);
-      // إزالة بعد 30 ثانية كحد أقصى
-      setTimeout(function () { clearInterval(checkMount); }, 30000);
-    });
+      }
+
+      function updateTimer() {
+        var timerNum = document.getElementById('timer-number');
+        if (timerNum) timerNum.textContent = countdown;
+
+        if (countdown <= 0) {
+          clearInterval(timerInterval);
+          canEnter = true;
+          var timer = document.getElementById('splash-timer');
+          var hint = document.getElementById('splash-hint');
+          if (timer) timer.classList.add('hidden');
+          if (hint) hint.classList.add('visible');
+        }
+        countdown--;
+      }
+
+      window.addEventListener('DOMContentLoaded', function () {
+        timerInterval = setInterval(updateTimer, 1000);
+        updateTimer();
+      });
+
+      document.addEventListener('click', function (e) {
+        var splash = document.getElementById('splash-screen');
+        if (splash && splash.contains(e.target) && canEnter) hideSplash();
+      });
+
+      document.addEventListener('touchend', function (e) {
+        var splash = document.getElementById('splash-screen');
+        if (splash && splash.contains(e.target) && canEnter) hideSplash();
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if ((e.key === 'Enter' || e.key === ' ') && canEnter) hideSplash();
+      });
+    })();
   </script>
   <!-- QRCode.js library for QR generation (load early to avoid race conditions) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>

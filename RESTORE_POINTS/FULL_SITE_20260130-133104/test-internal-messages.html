@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار المراسلات الإدارية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 50%, #581c87 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold text-white text-center mb-8">📄 نظام إدارة المراسلات الداخلية</h1>
+        
+        <div class="glass rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-white mb-4">إضافة مراسلات تجريبية</h2>
+            <p class="text-gray-300 mb-4">هذا النظام مخصص للمراسلات بين إدارة الديوان العام والأقسام المختلفة:</p>
+            <ul class="text-gray-300 text-sm mb-4 space-y-1">
+                <li>• المراسلات الصادرة من الديوان إلى الأقسام</li>
+                <li>• المراسلات الواردة من الأقسام إلى الديوان</li>
+                <li>• التقارير الإدارية والتعليمات</li>
+                <li>• متابعة أوقات الاستجابة</li>
+            </ul>
+            <button onclick="addInternalMessages()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
+                📝 إضافة مراسلات إدارية تجريبية
+            </button>
+        </div>
+
+        <div class="glass rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-white mb-4">عرض الإحصائيات</h2>
+            <button onclick="showStats()" id="statsBtn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg">
+                📊 عرض الإحصائيات
+            </button>
+        </div>
+
+        <div id="statsDisplay" class="glass rounded-lg p-6 hidden">
+            <h2 class="text-xl font-semibold text-white mb-4">الإحصائيات الإدارية</h2>
+            <div id="statsContent"></div>
+        </div>
+
+        <div id="messagesList" class="glass rounded-lg p-6 hidden">
+            <h2 class="text-xl font-semibold text-white mb-4">قائمة المراسلات</h2>
+            <div id="messagesContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // إضافة المراسلات الإدارية التجريبية
+        function addInternalMessages() {
+            const departments = ['الموارد البشرية', 'المحاسبة', 'الشؤون القانونية', 'تكنولوجيا المعلومات', 'الأمن والحماية'];
+            const messages = [];
+
+            for (let i = 0; i < 15; i++) {
+                const dept = departments[Math.floor(Math.random() * departments.length)];
+                const isFromDiwan = Math.random() > 0.5;
+                const sentDate = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
+                const priority = Math.random() > 0.7 ? 'عاجل' : Math.random() > 0.5 ? 'هام' : 'عادي';
+                const status = Math.random() > 0.3 ? 'مجاب' : 'قيد_المراجعة';
+
+                const message = {
+                    id: `internal_${Date.now()}_${i}`,
+                    from: isFromDiwan ? 'إدارة الديوان العام' : dept,
+                    to: isFromDiwan ? dept : 'إدارة الديوان العام',
+                    subject: `${isFromDiwan ? 'تعليمات' : 'تقرير'} ${priority === 'عاجل' ? 'عاجل' : ''} - ${dept}`,
+                    content: `محتوى المراسلة الخاصة بـ ${dept} بخصوص الأعمال الإدارية ${priority === 'عاجل' ? 'العاجلة' : 'العادية'}`,
+                    priority: priority,
+                    status: status,
+                    sentAt: sentDate.toISOString(),
+                    receivedAt: new Date(sentDate.getTime() + Math.random() * 2 * 60 * 60 * 1000).toISOString(),
+                    respondedAt: status === 'مجاب' ? new Date(sentDate.getTime() + Math.random() * 24 * 60 * 60 * 1000).toISOString() : null,
+                    direction: isFromDiwan ? 'من_الديوان' : 'إلى_الديوان'
+                };
+
+                messages.push(message);
+            }
+
+            localStorage.setItem('internalMessages', JSON.stringify(messages));
+            alert(`تم إضافة ${messages.length} مراسلة إدارية بنجاح!`);
+        }
+
+        // عرض الإحصائيات
+        function showStats() {
+            const messages = JSON.parse(localStorage.getItem('internalMessages') || '[]');
+            
+            if (messages.length === 0) {
+                alert('لا توجد مراسلات. أضف بيانات تجريبية أولاً.');
+                return;
+            }
+
+            const statsDisplay = document.getElementById('statsDisplay');
+            const messagesDisplay = document.getElementById('messagesList');
+            const statsContent = document.getElementById('statsContent');
+            const messagesContent = document.getElementById('messagesContent');
+
+            // حساب الإحصائيات
+            const totalOutgoing = messages.filter(msg => msg.direction === 'من_الديوان').length;
+            const totalIncoming = messages.filter(msg => msg.direction === 'إلى_الديوان').length;
+            const totalResponded = messages.filter(msg => msg.respondedAt).length;
+            const responseRate = Math.round((totalResponded / messages.length) * 100);
+
+            const urgentCount = messages.filter(msg => msg.priority === 'عاجل').length;
+            const importantCount = messages.filter(msg => msg.priority === 'هام').length;
+            const normalCount = messages.filter(msg => msg.priority === 'عادي').length;
+
+            // حساب متوسط وقت الاستجابة
+            const responseTimes = messages
+                .filter(msg => msg.respondedAt && msg.sentAt)
+                .map(msg => {
+                    const sent = new Date(msg.sentAt).getTime();
+                    const responded = new Date(msg.respondedAt).getTime();
+                    return Math.round((responded - sent) / (1000 * 60 * 60)); // بالساعات
+                });
+            
+            const averageResponseTime = responseTimes.length > 0 
+                ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
+                : 0;
+
+            // عرض الإحصائيات
+            statsContent.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-blue-900/20 p-4 rounded-lg border border-blue-500/30">
+                        <div class="text-2xl font-bold text-blue-400 mb-1">${totalOutgoing}</div>
+                        <div class="text-blue-200">المراسلات الصادرة</div>
+                        <div class="text-xs text-blue-300 mt-1">من الديوان إلى الأقسام</div>
+                    </div>
+                    <div class="bg-green-900/20 p-4 rounded-lg border border-green-500/30">
+                        <div class="text-2xl font-bold text-green-400 mb-1">${totalIncoming}</div>
+                        <div class="text-green-200">المراسلات الواردة</div>
+                        <div class="text-xs text-green-300 mt-1">من الأقسام إلى الديوان</div>
+                    </div>
+                    <div class="bg-yellow-900/20 p-4 rounded-lg border border-yellow-500/30">
+                        <div class="text-2xl font-bold text-yellow-400 mb-1">${averageResponseTime}</div>
+                        <div class="text-yellow-200">ساعة - متوسط الرد</div>
+                        <div class="text-xs text-yellow-300 mt-1">وقت الاستجابة</div>
+                    </div>
+                    <div class="bg-purple-900/20 p-4 rounded-lg border border-purple-500/30">
+                        <div class="text-2xl font-bold text-purple-400 mb-1">${responseRate}%</div>
+                        <div class="text-purple-200">معدل الاستجابة</div>
+                        <div class="text-xs text-purple-300 mt-1">نسبة الردود المكتملة</div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-800/50 p-4 rounded-lg">
+                    <h4 class="text-md font-medium text-white mb-3">📊 توزيع الأولويات</h4>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="text-center">
+                            <div class="text-lg font-bold text-red-400">${urgentCount}</div>
+                            <div class="text-red-200 text-sm">عاجل</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-lg font-bold text-yellow-400">${importantCount}</div>
+                            <div class="text-yellow-200 text-sm">هام</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-lg font-bold text-gray-400">${normalCount}</div>
+                            <div class="text-gray-300 text-sm">عادي</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // عرض قائمة المراسلات
+            messagesContent.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-600">
+                                <th class="text-right py-2 text-gray-300">التاريخ</th>
+                                <th class="text-right py-2 text-gray-300">من</th>
+                                <th class="text-right py-2 text-gray-300">إلى</th>
+                                <th class="text-right py-2 text-gray-300">الموضوع</th>
+                                <th class="text-right py-2 text-gray-300">الأولوية</th>
+                                <th class="text-right py-2 text-gray-300">الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${messages.slice(0, 8).map(msg => `
+                                <tr class="border-b border-gray-700">
+                                    <td class="py-2 text-gray-300">${new Date(msg.sentAt).toLocaleDateString('ar-SY')}</td>
+                                    <td class="py-2 text-gray-300">${msg.from}</td>
+                                    <td class="py-2 text-gray-300">${msg.to}</td>
+                                    <td class="py-2 text-gray-300">${msg.subject.slice(0, 30)}...</td>
+                                    <td class="py-2">
+                                        <span class="px-2 py-1 rounded text-xs ${
+                                            msg.priority === 'عاجل' ? 'bg-red-900 text-red-200' :
+                                            msg.priority === 'هام' ? 'bg-yellow-900 text-yellow-200' :
+                                            'bg-gray-700 text-gray-300'
+                                        }">
+                                            ${msg.priority}
+                                        </span>
+                                    </td>
+                                    <td class="py-2">
+                                        <span class="px-2 py-1 rounded text-xs ${
+                                            msg.status === 'مجاب' ? 'bg-green-900 text-green-200' :
+                                            'bg-blue-900 text-blue-200'
+                                        }">
+                                            ${msg.status.replace('_', ' ')}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    ${messages.length > 8 ? `<div class="text-center py-4 text-gray-400">... و ${messages.length - 8} مراسلة أخرى</div>` : ''}
+                </div>
+            `;
+
+            statsDisplay.classList.remove('hidden');
+            messagesDisplay.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

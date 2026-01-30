@@ -1,0 +1,233 @@
+# تكوين Docker Compose لنظام وزارة المالية مع HTTPS/TLS
+# نظام الاستعلامات والشكاوى - مديرية مالية حلب
+
+version: '3.8'
+
+services:
+  # خدمة Nginx مع SSL/TLS
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: finance-nginx
+    ports:
+      - "80:80"     # HTTP (للتوجيه إلى HTTPS)
+      - "443:443"   # HTTPS
+    volumes:
+      # ملفات التكوين
+      - ./config/nginx/finance-system.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      
+      # شهادات SSL
+      - ./ssl:/etc/nginx/ssl:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      
+      # الملفات الثابتة للتطبيق
+      - ./dist:/var/www/finance-system/dist:ro
+      
+      # السجلات
+      - ./logs/nginx:/var/log/nginx
+      
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - finance-network
+    environment:
+      - TZ=Asia/Damascus
+    labels:
+      - "com.finance.service=nginx"
+      - "com.finance.environment=production"
+    # إعدادات أمان إضافية
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+
+  # تطبيق Node.js الرئيسي
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+    container_name: finance-app
+    ports:
+      - "127.0.0.1:8080:3000"  # فقط localhost للأمان
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - TZ=Asia/Damascus
+      # متغيرات الأمان
+      - SECURE_HEADERS=true
+      - FORCE_HTTPS=true
+      - HSTS_MAX_AGE=31536000
+      - CSP_ENABLED=true
+    volumes:
+      # البيانات المستمرة
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./logs/app:/app/logs
+    restart: unless-stopped
+    networks:
+      - finance-network
+    depends_on:
+      - redis
+      - postgres
+    labels:
+      - "com.finance.service=app"
+      - "com.finance.environment=production"
+    # إعدادات أمان إضافية
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/tmp
+    user: "1001:1001"  # مستخدم غير جذر
+    
+  # قاعدة البيانات PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: finance-postgres
+    ports:
+      - "127.0.0.1:5432:5432"  # فقط localhost
+    environment:
+      - POSTGRES_DB=finance_system
+      - POSTGRES_USER=finance_user
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+      - TZ=Asia/Damascus
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+      - ./config/postgres/init:/docker-entrypoint-initdb.d:ro
+    restart: unless-stopped
+    networks:
+      - finance-network
+    secrets:
+      - postgres_password
+    labels:
+      - "com.finance.service=postgres"
+      - "com.finance.environment=production"
+    # إعدادات أمان
+    security_opt:
+      - no-new-privileges:true
+    user: "999:999"  # postgres user
+    
+  # Redis للتخزين المؤقت والجلسات
+  redis:
+    image: redis:7-alpine
+    container_name: finance-redis
+    ports:
+      - "127.0.0.1:6379:6379"  # فقط localhost
+    volumes:
+      - redis_data:/data
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD}
+    restart: unless-stopped
+    networks:
+      - finance-network
+    environment:
+      - TZ=Asia/Damascus
+    labels:
+      - "com.finance.service=redis"
+      - "com.finance.environment=production"
+    # إعدادات أمان
+    security_opt:
+      - no-new-privileges:true
+    user: "999:999"  # redis user
+
+  # خدمة مراقبة الأمان والسجلات
+  security-monitor:
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile.security
+    container_name: finance-security-monitor
+    volumes:
+      - ./logs:/logs:ro
+      - ./config/security:/config:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - ALERT_EMAIL=admin@finance.gov.sy
+      - SLACK_WEBHOOK=${SLACK_WEBHOOK_URL}
+      - CHECK_INTERVAL=300  # 5 دقائق
+      - TZ=Asia/Damascus
+    restart: unless-stopped
+    networks:
+      - finance-network
+    depends_on:
+      - nginx
+      - app
+    labels:
+      - "com.finance.service=security-monitor"
+      - "com.finance.environment=production"
+    # إعدادات أمان
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  # خدمة النسخ الاحتياطي المُشفر
+  backup-service:
+    build:
+      context: ./backup
+      dockerfile: Dockerfile
+    container_name: finance-backup
+    volumes:
+      - ./data:/source/data:ro
+      - ./backups:/backups
+      - ./ssl:/source/ssl:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - BACKUP_SCHEDULE="0 2 * * *"  # 2 AM يومياً
+      - ENCRYPTION_KEY_FILE=/run/secrets/backup_key
+      - S3_BUCKET=${BACKUP_S3_BUCKET}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - TZ=Asia/Damascus
+    restart: unless-stopped
+    networks:
+      - finance-network
+    secrets:
+      - backup_key
+    labels:
+      - "com.finance.service=backup"
+      - "com.finance.environment=production"
+    # إعدادات أمان
+    security_opt:
+      - no-new-privileges:true
+
+# الأسرار المُشفرة
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  backup_key:
+    file: ./secrets/backup_key.txt
+
+# مجلدات البيانات المستمرة
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/postgres
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/redis
+
+# الشبكة المعزولة
+networks:
+  finance-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+    labels:
+      - "com.finance.network=internal"

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار صفحة الإحصائيات الزمنية - الوضع النهاري والليلي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fustat:wght@200;300;400;500;600;700;800&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Noto Naskh Arabic', 'Traditional Arabic', 'Arabic Typesetting', serif;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Fustat', 'Traditional Arabic', 'Arabic Typesetting', serif;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0f3c35',
+                        'syrian-green': '#0f3c35',
+                        'syrian-red': '#ce1126',
+                    },
+                    fontFamily: {
+                        'fustat': ['Fustat', 'Noto Sans Arabic', 'Arial', 'sans-serif'],
+                        'arabic': ['Noto Sans Arabic', 'Arial', 'sans-serif'],
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    <div class="container mx-auto px-4 py-8">
+        <!-- زر التبديل والعنوان الرئيسي -->
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-black dark:text-white">اختبار صفحة الإحصائيات الزمنية</h1>
+            <button id="themeToggle" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-80 transition-colors">
+                تبديل الوضع
+            </button>
+        </div>
+
+        <!-- محاكاة صفحة الإحصائيات الزمنية -->
+        <div class="space-y-6">
+            <!-- العنوان الرئيسي -->
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-black dark:text-white">الإحصائيات الزمنية للمراسلات الإدارية</h1>
+                <div class="flex gap-2">
+                    <button class="px-4 py-2 bg-primary text-white rounded-lg">🤖 تحليل بالذكاء الاصطناعي</button>
+                    <button class="px-4 py-2 bg-primary text-white rounded-lg">📊 تصدير التقرير</button>
+                    <button class="px-3 py-2 bg-gray-500 text-white rounded-lg text-sm">📝 إضافة بيانات تجريبية</button>
+                </div>
+            </div>
+
+            <!-- المرشحات -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-black dark:text-gray-300 mb-2">تاريخ البداية</label>
+                        <input type="date" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-black dark:text-white focus:ring-2 focus:ring-blue-500" value="2025-08-15">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-black dark:text-gray-300 mb-2">تاريخ النهاية</label>
+                        <input type="date" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-black dark:text-white focus:ring-2 focus:ring-blue-500" value="2025-09-14">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-black dark:text-gray-300 mb-2">القسم</label>
+                        <select class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-black dark:text-white focus:ring-2 focus:ring-blue-500">
+                            <option>جميع الأقسام</option>
+                            <option>ديوان المراجعة</option>
+                            <option>ديوان الضرائب</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-black dark:text-gray-300 mb-2">اتجاه المراسلة</label>
+                        <select class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-black dark:text-white focus:ring-2 focus:ring-blue-500">
+                            <option>جميع الاتجاهات</option>
+                            <option>صادرة من الديوان</option>
+                            <option>واردة للديوان</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-black dark:text-gray-300 mb-2">الأولوية</label>
+                        <select class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-black dark:text-white focus:ring-2 focus:ring-blue-500">
+                            <option>جميع الأولويات</option>
+                            <option>عاجل</option>
+                            <option>هام</option>
+                            <option>عادي</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- الإحصائيات الرئيسية -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
+                    <div class="text-3xl font-bold text-blue-400 mb-2">125</div>
+                    <div class="text-black dark:text-gray-300">المراسلات الصادرة</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">من الديوان العام إلى الأقسام</div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
+                    <div class="text-3xl font-bold text-green-400 mb-2">89</div>
+                    <div class="text-black dark:text-gray-300">المراسلات الواردة</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">من الأقسام إلى الديوان</div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
+                    <div class="text-3xl font-bold text-yellow-400 mb-2">24</div>
+                    <div class="text-black dark:text-gray-300">متوسط وقت الرد</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">بالساعات</div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
+                    <div class="text-3xl font-bold text-purple-400 mb-2">87%</div>
+                    <div class="text-black dark:text-gray-300">معدل الاستجابة</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">نسبة الردود المكتملة</div>
+                </div>
+            </div>
+
+            <!-- تحليل الذكاء الاصطناعي -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+                <div class="p-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white mb-4 flex items-center">
+                        🤖 تحليل الذكاء الاصطناعي - Gemini 2.5 Pro
+                        <span class="text-sm text-green-400 mr-2">✅ مكتمل</span>
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                        <div class="bg-red-100 dark:bg-red-900/20 p-4 rounded-lg border border-red-300 dark:border-red-500/30">
+                            <div class="text-2xl font-bold text-red-600 dark:text-red-400 mb-1">12</div>
+                            <div class="text-red-800 dark:text-red-200">رسائل عاجلة</div>
+                        </div>
+                        
+                        <div class="bg-yellow-100 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-300 dark:border-yellow-500/30">
+                            <div class="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mb-1">34</div>
+                            <div class="text-yellow-800 dark:text-yellow-200">رسائل هامة</div>
+                        </div>
+                        
+                        <div class="bg-blue-100 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-300 dark:border-blue-500/30">
+                            <div class="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">168</div>
+                            <div class="text-blue-800 dark:text-blue-200">رسائل عادية</div>
+                        </div>
+                        
+                        <div class="bg-purple-100 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-300 dark:border-purple-500/30">
+                            <div class="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-1">73%</div>
+                            <div class="text-purple-800 dark:text-purple-200">متوسط درجة الإلحاح</div>
+                        </div>
+                    </div>
+
+                    <!-- تحليل المشاعر -->
+                    <div class="bg-gray-100 dark:bg-gray-800/50 p-4 rounded-lg">
+                        <h4 class="text-md font-medium text-black dark:text-white mb-3">📊 تحليل المشاعر</h4>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-green-600 dark:text-green-400">142</div>
+                                <div class="text-green-800 dark:text-green-200 text-sm">إيجابية</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-red-600 dark:text-red-400">28</div>
+                                <div class="text-red-800 dark:text-red-200 text-sm">سلبية</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-gray-600 dark:text-gray-400">44</div>
+                                <div class="text-gray-800 dark:text-gray-300 text-sm">محايدة</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- توصيات الذكاء الاصطناعي -->
+                    <div class="mt-4 bg-blue-100 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-300 dark:border-blue-500/30">
+                        <h4 class="text-md font-medium text-black dark:text-white mb-2">💡 توصيات الذكاء الاصطناعي</h4>
+                        <ul class="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                            <li>• يوجد 12 رسائل عاجلة تحتاج معالجة فورية</li>
+                            <li>• يُنصح بالرد على الرسائل العاجلة خلال ساعة واحدة</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- جدول المراسلات المفلترة -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+                <div class="p-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white mb-4">
+                        المراسلات الإدارية المفلترة (214 مراسلة)
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-gray-300 dark:border-gray-600">
+                                    <th class="text-right py-2 text-black dark:text-gray-300">التاريخ</th>
+                                    <th class="text-right py-2 text-black dark:text-gray-300">من</th>
+                                    <th class="text-right py-2 text-black dark:text-gray-300">إلى</th>
+                                    <th class="text-right py-2 text-black dark:text-gray-300">الموضوع</th>
+                                    <th class="text-right py-2 text-black dark:text-gray-300">الأولوية</th>
+                                    <th class="text-right py-2 text-black dark:text-gray-300">الحالة</th>
+                                    <th class="text-right py-2 text-black dark:text-gray-300">وقت الرد</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b border-gray-200 dark:border-gray-700">
+                                    <td class="py-2 text-black dark:text-gray-300">14/9/2025</td>
+                                    <td class="py-2 text-black dark:text-gray-300">ديوان المراجعة</td>
+                                    <td class="py-2 text-black dark:text-gray-300">الديوان العام</td>
+                                    <td class="py-2 text-black dark:text-gray-300">تقرير شهري حول...</td>
+                                    <td class="py-2">
+                                        <span class="px-2 py-1 rounded text-xs bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">عاجل</span>
+                                    </td>
+                                    <td class="py-2">
+                                        <span class="px-2 py-1 rounded text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">مجاب</span>
+                                    </td>
+                                    <td class="py-2 text-black dark:text-gray-300">2 ساعة</td>
+                                </tr>
+                                <tr class="border-b border-gray-200 dark:border-gray-700">
+                                    <td class="py-2 text-black dark:text-gray-300">13/9/2025</td>
+                                    <td class="py-2 text-black dark:text-gray-300">الديوان العام</td>
+                                    <td class="py-2 text-black dark:text-gray-300">ديوان الضرائب</td>
+                                    <td class="py-2 text-black dark:text-gray-300">استعلام حول مكلف...</td>
+                                    <td class="py-2">
+                                        <span class="px-2 py-1 rounded text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">هام</span>
+                                    </td>
+                                    <td class="py-2">
+                                        <span class="px-2 py-1 rounded text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">قيد المراجعة</span>
+                                    </td>
+                                    <td class="py-2 text-black dark:text-gray-300">لم يتم الرد</td>
+                                </tr>
+                                <tr class="border-b border-gray-200 dark:border-gray-700">
+                                    <td class="py-2 text-black dark:text-gray-300">12/9/2025</td>
+                                    <td class="py-2 text-black dark:text-gray-300">ديوان المعلوماتية</td>
+                                    <td class="py-2 text-black dark:text-gray-300">الديوان العام</td>
+                                    <td class="py-2 text-black dark:text-gray-300">تحديث النظام...</td>
+                                    <td class="py-2">
+                                        <span class="px-2 py-1 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">عادي</span>
+                                    </td>
+                                    <td class="py-2">
+                                        <span class="px-2 py-1 rounded text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">مجاب</span>
+                                    </td>
+                                    <td class="py-2 text-black dark:text-gray-300">24 ساعة</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="text-center py-4 text-gray-600 dark:text-gray-400">
+                            ... و 211 مراسلة أخرى
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ملاحظات الاختبار -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-black dark:text-white mb-4">ملاحظات الاختبار</h3>
+                <div class="space-y-2 text-sm">
+                    <p class="text-black dark:text-white"><strong>الوضع الحالي:</strong> <span id="currentMode">نهاري</span></p>
+                    <p class="text-black dark:text-white"><strong>العناوين:</strong> أسود في النهار - أبيض في الليل</p>
+                    <p class="text-black dark:text-white"><strong>النصوص العامة:</strong> أسود في النهار - أبيض في الليل</p>
+                    <p class="text-black dark:text-white"><strong>التسميات والحقول:</strong> أسود في النهار - أبيض في الليل</p>
+                    <p class="text-black dark:text-white"><strong>الألوان الوظيفية:</strong> تحافظ على ألوانها (أحمر للعاجل، أخضر للمكتمل، إلخ)</p>
+                    <p class="text-black dark:text-white"><strong>الخلفيات:</strong> فاتحة في النهار - داكنة في الليل</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const themeToggle = document.getElementById('themeToggle');
+        const currentModeSpan = document.getElementById('currentMode');
+        const html = document.documentElement;
+
+        // التحقق من الوضع المحفوظ في localStorage
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            html.classList.add('dark');
+            currentModeSpan.textContent = 'ليلي';
+        }
+
+        themeToggle.addEventListener('click', () => {
+            html.classList.toggle('dark');
+            const isDark = html.classList.contains('dark');
+            
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            currentModeSpan.textContent = isDark ? 'ليلي' : 'نهاري';
+        });
+
+        // معلومات للمطورين
+        console.log('صفحة اختبار الإحصائيات الزمنية جاهزة');
+        console.log('تم تحديث جميع العناوين والنصوص لتكون:');
+        console.log('- أسود في الوضع النهاري');
+        console.log('- أبيض في الوضع الليلي');
+        console.log('مع الحفاظ على الألوان الوظيفية للحالات والأولويات');
+    </script>
+</body>
+</html>

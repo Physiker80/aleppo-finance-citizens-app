@@ -1,0 +1,52 @@
+# Python virtual environment (VERY LARGE!)
+.venv/
+
+# Dependencies
+node_modules/
+
+# Development files
+.env
+.env.*
+!.env.example
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Tests
+tests/
+*.test.*
+*.spec.*
+
+# Android/iOS (Large build files)
+android/
+ios/
+
+# Database
+prisma/
+db/
+*.db
+*.sqlite
+
+# Git
+.git/
+.github/
+
+# IDE
+.vscode/
+.idea/
+
+# Observability tools (Large binaries)
+observability/
+
+# Misc
+diagrams/
+scripts/
+*.log
+*.zip
+*.tar.gz
+*.exe
+*.dll
+*.lib
+*.map

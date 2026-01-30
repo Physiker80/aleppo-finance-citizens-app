@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تجربة إحصائيات الطلبات مع التحليل الذكي</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        .card { 
+            background: white; 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .stats-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 15px; 
+            margin: 20px 0; 
+        }
+        .stat-item { 
+            padding: 15px; 
+            border-radius: 8px; 
+            text-align: center; 
+        }
+        .stat-number { 
+            font-size: 24px; 
+            font-weight: bold; 
+            margin-bottom: 5px; 
+        }
+        .stat-label { 
+            font-size: 14px; 
+            color: #666; 
+        }
+        .blue { background: #e3f2fd; color: #1976d2; }
+        .green { background: #e8f5e8; color: #4caf50; }
+        .orange { background: #fff3e0; color: #ff9800; }
+        .purple { background: #f3e5f5; color: #9c27b0; }
+        
+        .ai-insight {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        .ai-warning { 
+            background: #ffebee; 
+            border-color: #f44336; 
+        }
+        .ai-success { 
+            background: #e8f5e8; 
+            border-color: #4caf50; 
+        }
+        .ai-info { 
+            background: #e3f2fd; 
+            border-color: #2196f3; 
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+        }
+        
+        .btn-primary { background: #2196f3; color: white; }
+        .btn-success { background: #4caf50; color: white; }
+        .btn-warning { background: #ff9800; color: white; }
+        .btn-danger { background: #f44336; color: white; }
+        .btn-purple { background: linear-gradient(45deg, #9c27b0, #e91e63); color: white; }
+        
+        .sample-indicator {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            color: #2e7d32;
+        }
+
+        h1, h2 { color: #333; }
+        h1 { text-align: center; margin-bottom: 30px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 إحصائيات الطلبات مع التحليل الذكي 📊</h1>
+        
+        <!-- أدوات التحكم -->
+        <div class="card">
+            <h2>أدوات التحكم</h2>
+            <div class="controls">
+                <label>
+                    النطاق الزمني:
+                    <select id="dateRange">
+                        <option value="month" selected>آخر شهر</option>
+                        <option value="quarter">آخر 3 أشهر</option>
+                        <option value="year">آخر سنة</option>
+                    </select>
+                </label>
+                
+                <button class="btn-success" onclick="generateSampleData()">
+                    🎲 توليد بيانات تجريبية
+                </button>
+                
+                <button class="btn-primary" onclick="exportPDF()">
+                    📄 تصدير PDF
+                </button>
+                
+                <button class="btn-warning" onclick="exportExcel()">
+                    📊 تصدير Excel
+                </button>
+                
+                <button class="btn-purple" onclick="runAIAnalysis()">
+                    🤖 تشغيل التحليل الذكي
+                </button>
+            </div>
+            
+            <div id="sampleIndicator" class="sample-indicator" style="display: none;">
+                ✅ تم توليد <span id="sampleCount">0</span> طلب تجريبي لأغراض الاختبار
+            </div>
+        </div>
+
+        <!-- الإحصائيات الأساسية -->
+        <div class="card">
+            <h2>📈 الإحصائيات الأساسية</h2>
+            <div class="stats-grid">
+                <div class="stat-item blue">
+                    <div class="stat-number" id="totalTickets">0</div>
+                    <div class="stat-label">إجمالي الطلبات</div>
+                </div>
+                <div class="stat-item green">
+                    <div class="stat-number" id="answeredTickets">0</div>
+                    <div class="stat-label">تم الرد عليها</div>
+                </div>
+                <div class="stat-item orange">
+                    <div class="stat-number" id="inProgressTickets">0</div>
+                    <div class="stat-label">قيد المعالجة</div>
+                </div>
+                <div class="stat-item purple">
+                    <div class="stat-number" id="avgResponseTime">0</div>
+                    <div class="stat-label">متوسط الاستجابة (يوم)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- التحليل الذكي -->
+        <div class="card">
+            <h2>🤖 التحليل الذكي والتوصيات</h2>
+            <div id="aiInsights">
+                <div class="ai-info">
+                    <strong>💡 مرحباً بك!</strong><br>
+                    اضغط على "توليد بيانات تجريبية" ثم "تشغيل التحليل الذكي" لرؤية التحليلات المدعومة بالذكاء الصناعي.
+                </div>
+            </div>
+        </div>
+
+        <!-- إحصائيات تفصيلية -->
+        <div class="card">
+            <h2>📊 التوزيع التفصيلي</h2>
+            <div id="detailedStats">
+                <p>سيتم عرض الإحصائيات التفصيلية هنا بعد توليد البيانات...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sampleTickets = [];
+        let currentStats = {};
+
+        // توليد بيانات تجريبية
+        function generateSampleData() {
+            const departments = ['المحاسبة', 'الخزينة', 'الموارد البشرية', 'الشؤون القانونية', 'التدقيق'];
+            const types = ['استعلام', 'شكوى'];
+            const statuses = ['جديد', 'قيد المعالجة', 'تم الرد', 'مغلق'];
+            
+            sampleTickets = [];
+            
+            for (let i = 1; i <= 150; i++) {
+                const submissionDate = new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000);
+                const department = departments[Math.floor(Math.random() * departments.length)];
+                const type = types[Math.floor(Math.random() * types.length)];
+                const status = statuses[Math.floor(Math.random() * statuses.length)];
+                
+                let responseTime = null;
+                if (status === 'تم الرد' || status === 'مغلق') {
+                    responseTime = Math.random() * 14; // 0-14 يوم
+                }
+
+                sampleTickets.push({
+                    id: `SAMPLE-${String(i).padStart(4, '0')}`,
+                    type,
+                    department,
+                    status,
+                    submissionDate,
+                    responseTime
+                });
+            }
+            
+            document.getElementById('sampleIndicator').style.display = 'block';
+            document.getElementById('sampleCount').textContent = sampleTickets.length;
+            
+            updateStats();
+        }
+
+        // تحديث الإحصائيات
+        function updateStats() {
+            const total = sampleTickets.length;
+            const answered = sampleTickets.filter(t => t.status === 'تم الرد').length;
+            const inProgress = sampleTickets.filter(t => t.status === 'قيد المعالجة').length;
+            const avgResponse = sampleTickets
+                .filter(t => t.responseTime !== null)
+                .reduce((sum, t, _, arr) => sum + (t.responseTime || 0) / arr.length, 0);
+
+            document.getElementById('totalTickets').textContent = total;
+            document.getElementById('answeredTickets').textContent = answered;
+            document.getElementById('inProgressTickets').textContent = inProgress;
+            document.getElementById('avgResponseTime').textContent = Math.round(avgResponse * 10) / 10;
+
+            currentStats = {
+                total,
+                answered,
+                inProgress,
+                avgResponse: Math.round(avgResponse * 10) / 10,
+                completionRate: total > 0 ? Math.round((answered / total) * 100) : 0
+            };
+
+            // إحصائيات تفصيلية
+            const byDepartment = {};
+            const byType = {};
+            sampleTickets.forEach(ticket => {
+                byDepartment[ticket.department] = (byDepartment[ticket.department] || 0) + 1;
+                byType[ticket.type] = (byType[ticket.type] || 0) + 1;
+            });
+
+            const detailedHtml = `
+                <h3>📋 حسب القسم</h3>
+                ${Object.entries(byDepartment).map(([dept, count]) => 
+                    `<div style="display: flex; justify-content: space-between; margin: 5px 0; padding: 10px; background: #f5f5f5; border-radius: 5px;">
+                        <span>${dept}</span>
+                        <span><strong>${count}</strong> (${Math.round((count/total)*100)}%)</span>
+                    </div>`
+                ).join('')}
+                
+                <h3 style="margin-top: 20px;">🎯 حسب النوع</h3>
+                ${Object.entries(byType).map(([type, count]) => 
+                    `<div style="display: flex; justify-content: space-between; margin: 5px 0; padding: 10px; background: #f5f5f5; border-radius: 5px;">
+                        <span>${type}</span>
+                        <span><strong>${count}</strong> (${Math.round((count/total)*100)}%)</span>
+                    </div>`
+                ).join('')}
+            `;
+            
+            document.getElementById('detailedStats').innerHTML = detailedHtml;
+        }
+
+        // التحليل الذكي
+        function runAIAnalysis() {
+            if (sampleTickets.length === 0) {
+                alert('يرجى توليد البيانات التجريبية أولاً!');
+                return;
+            }
+
+            const insights = [];
+
+            // تحليل وقت الاستجابة
+            if (currentStats.avgResponse > 7) {
+                insights.push({
+                    type: 'warning',
+                    title: '⚠️ وقت الاستجابة مرتفع',
+                    description: `متوسط وقت الاستجابة ${currentStats.avgResponse} يوم، وهو أعلى من المعدل المطلوب (7 أيام).`,
+                    recommendation: 'يُنصح بزيادة عدد الموظفين أو تحسين إجراءات المعالجة.'
+                });
+            } else if (currentStats.avgResponse < 2) {
+                insights.push({
+                    type: 'success',
+                    title: '✅ أداء ممتاز في الاستجابة',
+                    description: `متوسط وقت الاستجابة ${currentStats.avgResponse} يوم، وهو أداء ممتاز.`,
+                    recommendation: 'حافظ على هذا المستوى من الأداء الممتاز.'
+                });
+            }
+
+            // تحليل معدل الإنجاز
+            if (currentStats.completionRate < 60) {
+                insights.push({
+                    type: 'warning',
+                    title: '⚠️ معدل إنجاز منخفض',
+                    description: `معدل الإنجاز ${currentStats.completionRate}% أقل من المطلوب (60%).`,
+                    recommendation: 'يُنصح بمراجعة سير العمل وتحديد أسباب التأخير.'
+                });
+            } else if (currentStats.completionRate > 85) {
+                insights.push({
+                    type: 'success',
+                    title: '🎉 معدل إنجاز ممتاز',
+                    description: `معدل الإنجاز ${currentStats.completionRate}% يدل على كفاءة عالية.`,
+                    recommendation: 'أداء ممتاز! يمكن مشاركة أفضل الممارسات مع الأقسام الأخرى.'
+                });
+            } else {
+                insights.push({
+                    type: 'info',
+                    title: 'ℹ️ معدل إنجاز مقبول',
+                    description: `معدل الإنجاز ${currentStats.completionRate}% ضمن المعدل المقبول.`,
+                    recommendation: 'يمكن تحسين الأداء بتطوير العمليات تدريجياً.'
+                });
+            }
+
+            // تحليل حجم العمل
+            if (currentStats.total > 100) {
+                insights.push({
+                    type: 'info',
+                    title: '📈 حجم عمل مرتفع',
+                    description: `${currentStats.total} طلب يشير إلى نشاط مكثف في النظام.`,
+                    recommendation: 'تأكد من توزيع الأعباء بشكل متوازن بين الموظفين.'
+                });
+            }
+
+            // عرض التحليلات
+            const insightsHtml = insights.map((insight, index) => {
+                const cssClass = insight.type === 'warning' ? 'ai-warning' : 
+                                insight.type === 'success' ? 'ai-success' : 'ai-info';
+                
+                return `
+                    <div class="ai-insight ${cssClass}">
+                        <div style="font-weight: bold; margin-bottom: 8px;">${insight.title}</div>
+                        <div style="margin-bottom: 8px;">${insight.description}</div>
+                        ${insight.recommendation ? 
+                            `<div style="font-size: 14px; font-style: italic; color: #666;">
+                                💡 <strong>التوصية:</strong> ${insight.recommendation}
+                            </div>` : ''
+                        }
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('aiInsights').innerHTML = insightsHtml;
+        }
+
+        // تصدير PDF (محاكاة)
+        function exportPDF() {
+            if (sampleTickets.length === 0) {
+                alert('يرجى توليد البيانات التجريبية أولاً!');
+                return;
+            }
+
+            const reportData = {
+                title: 'تقرير الإحصائيات الزمنية للطلبات والاستعلامات والشكاوي',
+                generatedAt: new Date().toLocaleString('ar-SY-u-nu-latn'),
+                stats: currentStats,
+                totalTickets: sampleTickets.length
+            };
+
+            alert(`📄 تم تصدير تقرير PDF!\n\nالملخص:\n- إجمالي الطلبات: ${reportData.totalTickets}\n- معدل الإنجاز: ${reportData.stats.completionRate}%\n- متوسط الاستجابة: ${reportData.stats.avgResponse} يوم\n- تاريخ الإنتاج: ${reportData.generatedAt}`);
+        }
+
+        // تصدير Excel (محاكاة)
+        function exportExcel() {
+            if (sampleTickets.length === 0) {
+                alert('يرجى توليد البيانات التجريبية أولاً!');
+                return;
+            }
+
+            alert('📊 تم تصدير ملف Excel بنجاح!\n\nالملف يحتوي على:\n- بيانات جميع الطلبات\n- الإحصائيات التفصيلية\n- التحليلات الذكية\n- التوصيات المقترحة');
+        }
+
+        // تهيئة الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 تم تحميل صفحة اختبار الإحصائيات الذكية');
+        });
+    </script>
+</body>
+</html>

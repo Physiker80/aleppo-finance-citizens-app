@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار الأرقام العربية في النظام</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #0f3c35 0%, #1a5752 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            color: white;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 20px;
+        }
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .number-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .number-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .number-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4ade80;
+            margin-bottom: 5px;
+        }
+        .number-label {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .btn {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 70, 229, 0.4);
+        }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .comparison-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .arabic-numerals {
+            border-left: 3px solid #22c55e;
+        }
+        .hindi-numerals {
+            border-left: 3px solid #ef4444;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .status.success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.5);
+            color: #22c55e;
+        }
+        .status.info {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            color: #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔢 اختبار الأرقام العربية في النظام</h1>
+            <p>التأكد من استخدام الأرقام العربية (1234) بدلاً من الأرقام الهندية (١٢٣٤)</p>
+            <div class="status info">
+                💡 يجب أن تظهر جميع الأرقام بالشكل العربي: 1234567890
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>📅 اختبار التواريخ والأوقات</h2>
+            <div class="number-display" id="dateTimeTests">
+                <div class="number-item">
+                    <div class="number-value" id="currentDate">جاري التحميل...</div>
+                    <div class="number-label">التاريخ الحالي</div>
+                </div>
+                <div class="number-item">
+                    <div class="number-value" id="currentTime">جاري التحميل...</div>
+                    <div class="number-label">الوقت الحالي</div>
+                </div>
+                <div class="number-item">
+                    <div class="number-value" id="currentDateTime">جاري التحميل...</div>
+                    <div class="number-label">التاريخ والوقت معاً</div>
+                </div>
+                <div class="number-item">
+                    <div class="number-value" id="shortDate">جاري التحميل...</div>
+                    <div class="number-label">تاريخ مختصر</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>💰 اختبار الأرقام والعملات</h2>
+            <div class="number-display" id="numberTests">
+                <div class="number-item">
+                    <div class="number-value" id="largeNumber">جاري التحميل...</div>
+                    <div class="number-label">رقم كبير</div>
+                </div>
+                <div class="number-item">
+                    <div class="number-value" id="currency">جاري التحميل...</div>
+                    <div class="number-label">مبلغ بالليرة السورية</div>
+                </div>
+                <div class="number-item">
+                    <div class="number-value" id="percentage">جاري التحميل...</div>
+                    <div class="number-label">نسبة مئوية</div>
+                </div>
+                <div class="number-item">
+                    <div class="number-value" id="duration">جاري التحميل...</div>
+                    <div class="number-label">مدة زمنية</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔄 مقارنة الأرقام</h2>
+            <div class="comparison">
+                <div class="comparison-item arabic-numerals">
+                    <h3>✅ الأرقام العربية (الصحيحة)</h3>
+                    <div id="arabicComparison">
+                        <div>التاريخ: <span id="arabicDate">جاري التحميل...</span></div>
+                        <div>الرقم: <span id="arabicNumber">جاري التحميل...</span></div>
+                        <div>المبلغ: <span id="arabicCurrency">جاري التحميل...</span></div>
+                    </div>
+                </div>
+                <div class="comparison-item hindi-numerals">
+                    <h3>❌ الأرقام الهندية (خطأ)</h3>
+                    <div id="hindiComparison">
+                        <div>التاريخ: <span id="hindiDate">جاري التحميل...</span></div>
+                        <div>الرقم: <span id="hindiNumber">جاري التحميل...</span></div>
+                        <div>المبلغ: <span id="hindiCurrency">جاري التحميل...</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>⚙️ اختبارات تفاعلية</h2>
+            <button class="btn" onclick="runAllTests()">🔄 تشغيل جميع الاختبارات</button>
+            <button class="btn" onclick="testCurrentSystem()">🧪 اختبار النظام الحالي</button>
+            <button class="btn" onclick="generateRandomData()">🎲 إنشاء بيانات عشوائية</button>
+            <div id="interactiveResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 نتائج الاختبار</h2>
+            <div id="testResults">
+                <p>اضغط على "تشغيل جميع الاختبارات" لرؤية النتائج...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // إعدادات التنسيق للأرقام العربية
+        const ARABIC_NUMERALS_LOCALE = 'ar-SY-u-nu-latn';
+        const HINDI_NUMERALS_LOCALE = 'ar-SY';
+
+        // دوال مساعدة محلية
+        function formatArabicNumber(num, options = {}) {
+            return new Intl.NumberFormat(ARABIC_NUMERALS_LOCALE, options).format(num);
+        }
+
+        function formatHindiNumber(num, options = {}) {
+            return new Intl.NumberFormat(HINDI_NUMERALS_LOCALE, options).format(num);
+        }
+
+        function formatArabicDate(date, options = {}) {
+            return new Intl.DateTimeFormat(ARABIC_NUMERALS_LOCALE, options).format(date);
+        }
+
+        function formatHindiDate(date, options = {}) {
+            return new Intl.DateTimeFormat(HINDI_NUMERALS_LOCALE, options).format(date);
+        }
+
+        // تشغيل الاختبارات الأساسية عند التحميل
+        function initializeTests() {
+            const now = new Date();
+            
+            // اختبار التواريخ والأوقات
+            document.getElementById('currentDate').textContent = formatArabicDate(now, { dateStyle: 'full' });
+            document.getElementById('currentTime').textContent = formatArabicDate(now, { timeStyle: 'medium' });
+            document.getElementById('currentDateTime').textContent = formatArabicDate(now, { 
+                dateStyle: 'medium', 
+                timeStyle: 'short' 
+            });
+            document.getElementById('shortDate').textContent = formatArabicDate(now, { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric' 
+            });
+
+            // اختبار الأرقام
+            document.getElementById('largeNumber').textContent = formatArabicNumber(1234567890);
+            document.getElementById('currency').textContent = formatArabicNumber(2500000) + ' ل.س';
+            document.getElementById('percentage').textContent = formatArabicNumber(0.785, { 
+                style: 'percent', 
+                minimumFractionDigits: 1 
+            });
+            document.getElementById('duration').textContent = `${formatArabicNumber(125)} دقيقة`;
+
+            // مقارنة الأرقام
+            updateComparison();
+        }
+
+        function updateComparison() {
+            const now = new Date();
+            const testNumber = 12345;
+            const testAmount = 500000;
+
+            // الأرقام العربية (الصحيحة)
+            document.getElementById('arabicDate').textContent = formatArabicDate(now, { 
+                day: 'numeric', 
+                month: 'numeric', 
+                year: 'numeric' 
+            });
+            document.getElementById('arabicNumber').textContent = formatArabicNumber(testNumber);
+            document.getElementById('arabicCurrency').textContent = formatArabicNumber(testAmount) + ' ل.س';
+
+            // الأرقام الهندية (للمقارنة)
+            document.getElementById('hindiDate').textContent = formatHindiDate(now, { 
+                day: 'numeric', 
+                month: 'numeric', 
+                year: 'numeric' 
+            });
+            document.getElementById('hindiNumber').textContent = formatHindiNumber(testNumber);
+            document.getElementById('hindiCurrency').textContent = formatHindiNumber(testAmount) + ' ل.س';
+        }
+
+        function runAllTests() {
+            const results = [];
+            
+            try {
+                // اختبار 1: التاريخ الحالي
+                const dateTest = formatArabicDate(new Date());
+                const hasArabicNumerals = /[0-9]/.test(dateTest);
+                const hasHindiNumerals = /[٠-٩]/.test(dateTest);
+                
+                results.push({
+                    test: 'تنسيق التاريخ',
+                    passed: hasArabicNumerals && !hasHindiNumerals,
+                    details: `النتيجة: ${dateTest}`
+                });
+
+                // اختبار 2: الأرقام الكبيرة
+                const numberTest = formatArabicNumber(1234567);
+                const numberHasArabic = /[0-9]/.test(numberTest);
+                const numberHasHindi = /[٠-٩]/.test(numberTest);
+                
+                results.push({
+                    test: 'تنسيق الأرقام الكبيرة',
+                    passed: numberHasArabic && !numberHasHindi,
+                    details: `النتيجة: ${numberTest}`
+                });
+
+                // اختبار 3: النسب المئوية
+                const percentTest = formatArabicNumber(0.75, { style: 'percent' });
+                const percentHasArabic = /[0-9]/.test(percentTest);
+                const percentHasHindi = /[٠-٩]/.test(percentTest);
+                
+                results.push({
+                    test: 'تنسيق النسب المئوية',
+                    passed: percentHasArabic && !percentHasHindi,
+                    details: `النتيجة: ${percentTest}`
+                });
+
+                // اختبار 4: العملات
+                const currencyTest = formatArabicNumber(50000, { 
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                });
+                const currencyHasArabic = /[0-9]/.test(currencyTest);
+                const currencyHasHindi = /[٠-٩]/.test(currencyTest);
+                
+                results.push({
+                    test: 'تنسيق العملات',
+                    passed: currencyHasArabic && !currencyHasHindi,
+                    details: `النتيجة: ${currencyTest} ل.س`
+                });
+
+            } catch (error) {
+                results.push({
+                    test: 'خطأ في الاختبار',
+                    passed: false,
+                    details: error.message
+                });
+            }
+
+            displayResults(results);
+        }
+
+        function testCurrentSystem() {
+            // محاكاة البيانات من النظام الحالي
+            const sampleData = [
+                { type: 'تاريخ إنشاء تذكرة', value: new Date().toLocaleString(ARABIC_NUMERALS_LOCALE) },
+                { type: 'رقم التذكرة', value: formatArabicNumber(2025001234) },
+                { type: 'عدد التذاكر', value: formatArabicNumber(1547) },
+                { type: 'معدل الاستجابة', value: formatArabicNumber(0.89, { style: 'percent' }) },
+                { type: 'متوسط وقت الرد', value: formatArabicNumber(3.5) + ' ساعة' }
+            ];
+
+            let html = '<h3>🖥️ بيانات النظام الحالي:</h3><ul>';
+            sampleData.forEach(item => {
+                const hasArabic = /[0-9]/.test(item.value);
+                const hasHindi = /[٠-٩]/.test(item.value);
+                const status = hasArabic && !hasHindi ? '✅' : '❌';
+                html += `<li>${status} <strong>${item.type}:</strong> ${item.value}</li>`;
+            });
+            html += '</ul>';
+
+            document.getElementById('interactiveResults').innerHTML = html;
+        }
+
+        function generateRandomData() {
+            const randomDate = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
+            const randomNumber = Math.floor(Math.random() * 1000000);
+            const randomPercentage = Math.random();
+            const randomAmount = Math.floor(Math.random() * 5000000);
+
+            const data = [
+                { label: 'تاريخ عشوائي', value: formatArabicDate(randomDate, { dateStyle: 'medium' }) },
+                { label: 'رقم عشوائي', value: formatArabicNumber(randomNumber) },
+                { label: 'نسبة عشوائية', value: formatArabicNumber(randomPercentage, { style: 'percent' }) },
+                { label: 'مبلغ عشوائي', value: formatArabicNumber(randomAmount) + ' ل.س' }
+            ];
+
+            let html = '<h3>🎲 بيانات عشوائية:</h3><div class="number-display">';
+            data.forEach(item => {
+                html += `
+                    <div class="number-item">
+                        <div class="number-value">${item.value}</div>
+                        <div class="number-label">${item.label}</div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            document.getElementById('interactiveResults').innerHTML = html;
+        }
+
+        function displayResults(results) {
+            let html = '<h3>📋 نتائج الاختبارات:</h3>';
+            let passedCount = 0;
+
+            results.forEach((result, index) => {
+                const status = result.passed ? '✅ نجح' : '❌ فشل';
+                const statusClass = result.passed ? 'success' : 'error';
+                passedCount += result.passed ? 1 : 0;
+
+                html += `
+                    <div class="status ${statusClass}" style="margin: 10px 0; text-align: right;">
+                        <strong>${index + 1}. ${result.test}:</strong> ${status}
+                        <br><small>${result.details}</small>
+                    </div>
+                `;
+            });
+
+            const overallStatus = passedCount === results.length ? 'success' : 'info';
+            html += `
+                <div class="status ${overallStatus}">
+                    <strong>الملخص:</strong> ${passedCount}/${results.length} اختبار نجح
+                    ${passedCount === results.length ? ' 🎉 جميع الاختبارات نجحت!' : ''}
+                </div>
+            `;
+
+            document.getElementById('testResults').innerHTML = html;
+        }
+
+        // تشغيل الاختبارات عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTests();
+            
+            // تحديث البيانات كل ثانية للساعة
+            setInterval(() => {
+                const now = new Date();
+                document.getElementById('currentTime').textContent = formatArabicDate(now, { timeStyle: 'medium' });
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

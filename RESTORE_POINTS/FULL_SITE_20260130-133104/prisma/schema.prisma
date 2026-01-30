@@ -1,0 +1,259 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 1. --- User and Auth Models ---
+
+model User {
+  id           String     @id @default(cuid())
+  username     String     @unique
+  email        String     @unique
+  departmentId String?
+  createdAt    DateTime   @default(now())
+  isActive     Boolean    @default(false)
+  emailVerified Boolean   @default(false)
+  activatedAt  DateTime?  
+
+  department      Department? @relation(fields: [departmentId], references: [id])
+  credential      UserCredential?
+  profile         UserProfile?
+  roles           UserRole[]
+  sessions        Session[]
+  activationTokens AccountActivationToken[]
+
+  // Relations to other parts of the system
+  ticketsCreated  Ticket[]  @relation("TicketCreatedBy")
+  ticketsUpdated  Ticket[]  @relation("TicketUpdatedBy")
+  notifications   Notification[]
+  auditLogs       AuditLog[] @relation("AuditActor")
+  uploadedFiles   Attachment[]
+  actedHistory    TicketHistory[] @relation("HistoryActor")
+  ticketResponses TicketResponse[]
+}
+
+model UserCredential {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  passwordHash    String
+  salt            String?   
+  algorithm       String    @default("argon2id")
+  lastChangedAt   DateTime  @default(now())
+
+  // MFA Fields
+  mfaSecret       String?   // Encrypted
+  mfaEnabled      Boolean   @default(false)
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recoveryCodes   RecoveryCode[]
+}
+
+model RecoveryCode {
+  id              String    @id @default(cuid())
+  credentialId    String
+  hashedCode      String    @unique
+  isUsed          Boolean   @default(false)
+
+  credential      UserCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+}
+
+model UserProfile {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  fullName    String?
+  phoneNumber String?
+  avatarUrl   String?
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Role {
+  id          String @id @default(cuid())
+  name        String @unique
+  description String?
+  users       UserRole[]
+}
+
+model UserRole {
+  userId    String
+  roleId    String
+  assignedAt DateTime @default(now())
+
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  tokenHash    String   @unique
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  ip           String?
+  userAgent    String?
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model AccountActivationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+
+// 2. --- Core Application Models (updated relations) ---
+
+model Department {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  code        String?   @unique
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  users        User[]
+  tickets     Ticket[]
+  forwardsFrom TicketForward[] @relation("ForwardFrom")
+  forwardsTo   TicketForward[] @relation("ForwardTo")
+}
+
+model Ticket {
+  id              String    @id @default(cuid())
+  departmentId    String
+  citizenName     String?
+  citizenNationalId String?
+  citizenEmail    String?
+  type            String?
+  status          String
+  responseText    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime? @updatedAt
+  answeredAt      DateTime?
+  closedAt        DateTime?
+  createdById     String?
+  updatedById     String?
+  archived        Boolean   @default(false)
+
+  department      Department @relation(fields: [departmentId], references: [id])
+  createdBy       User?      @relation("TicketCreatedBy", fields: [createdById], references: [id])
+  updatedBy       User?      @relation("TicketUpdatedBy", fields: [updatedById], references: [id])
+  
+  forwards        TicketForward[]
+  attachments     Attachment[]
+  notifications   Notification[]
+  history         TicketHistory[]
+  responses       TicketResponse[]
+
+  @@index([status, createdAt])
+  @@index([departmentId, createdAt])
+}
+
+model TicketResponse {
+  id              String   @id @default(cuid())
+  ticketId        String
+  authorId        String?
+  body            String
+  bodySanitized   String?
+  isInternal      Boolean  @default(false)
+  visibility      String   @default("PUBLIC")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  redactionFlags  String?
+
+  ticket          Ticket   @relation(fields: [ticketId], references: [id])
+  author          User?    @relation(fields: [authorId], references: [id])
+  attachments     Attachment[]
+
+  @@index([ticketId, createdAt])
+  @@index([authorId])
+}
+
+model TicketForward {
+  id                String     @id @default(cuid())
+  ticketId          String
+  fromDepartmentId  String
+  toDepartmentId    String
+  forwardedAt       DateTime   @default(now())
+  reason            String?
+
+  ticket            Ticket     @relation(fields: [ticketId], references: [id])
+  fromDepartment    Department @relation("ForwardFrom", fields: [fromDepartmentId], references: [id])
+  toDepartment      Department @relation("ForwardTo", fields: [toDepartmentId], references: [id])
+}
+
+model Attachment {
+  id           String   @id @default(cuid())
+  ticketId     String
+  ticketResponseId String? 
+  filename     String
+  mimeType     String
+  sizeBytes    Int
+  encrypted    Boolean  @default(false)
+  uploadedAt   DateTime @default(now())
+  uploadedById String?
+  storagePath  String?  
+
+  ticket       Ticket   @relation(fields: [ticketId], references: [id])
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+  response     TicketResponse? @relation(fields: [ticketResponseId], references: [id])
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  ticketId   String
+  userId     String?
+  type       String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  ticket     Ticket   @relation(fields: [ticketId], references: [id])
+  user       User?    @relation(fields: [userId], references: [id])
+}
+
+model TicketHistory {
+  id              String   @id @default(cuid())
+  ticketId        String
+  action          String
+  oldStatus       String?
+  newStatus       String?
+  diffSummary     String?
+  actorId         String?
+  occurredAt      DateTime @default(now())
+
+  ticket          Ticket   @relation(fields: [ticketId], references: [id])
+  actor           User?    @relation("HistoryActor", fields: [actorId], references: [id])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  actorId        String?
+  action         String
+  entity         String
+  entityId       String?
+  before         String? 
+  after          String? 
+  ip             String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+  hashChainPrev  String?
+  hashChainCurr  String?
+
+  actor          User?    @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([entity, entityId, createdAt])
+  @@index([createdAt])
+}

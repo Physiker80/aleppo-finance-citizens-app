@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Page</title>
+</head>
+<body>
+    <h1>اختبار الصفحة</h1>
+    <script>
+        console.log('الصفحة تعمل!');
+        fetch('http://localhost:3004/api/test')
+            .then(response => console.log('API Response:', response))
+            .catch(error => console.log('API Error:', error));
+    </script>
+</body>
+</html>
