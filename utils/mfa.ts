@@ -102,8 +102,17 @@ export class MFAManager {
     const secret = TOTPGenerator.generateSecret();
     const backupCodes = this.generateBackupCodes();
     
+    let directorateName = 'المديرية المالية';
+    try {
+      const savedConfig = localStorage.getItem('site_config');
+      if (savedConfig) {
+        const config = JSON.parse(savedConfig);
+        if (config.directorateName) directorateName = config.directorateName;
+      }
+    } catch (e) {}
+
     // Generate QR code URL for authenticator apps
-    const issuer = encodeURIComponent('مديرية مالية حلب');
+    const issuer = encodeURIComponent(directorateName);
     const accountName = encodeURIComponent(`${employee.name} (${employee.username})`);
     const qrCodeUrl = `otpauth://totp/${issuer}:${accountName}?secret=${secret}&issuer=${issuer}&algorithm=SHA256&digits=6&period=30`;
 

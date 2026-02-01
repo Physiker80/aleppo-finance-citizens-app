@@ -254,7 +254,7 @@ const Header: React.FC = () => {
           )}
         </button>
         {notifOpen && (
-          <div className="absolute right-0 mt-2 w-[32rem] max-w-[95vw] max-h-[80vh] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[80] flex flex-col">
+          <div className="absolute left-0 mt-2 w-[32rem] max-w-[95vw] max-h-[80vh] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[80] flex flex-col">
             <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
               <div className="text-sm font-semibold">
                 {isAdmin ? 'التنبيهات والمراسلات' : `تنبيهات ومراسلات قسم: ${myDepartment}`}
@@ -270,6 +270,13 @@ const Header: React.FC = () => {
                     markAllInternalBulkRead();
                   }}
                 >تحديد الكل</button>
+                <button
+                  className="text-xs px-2 py-1 rounded bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-800 text-red-700 dark:text-red-300"
+                  onClick={() => {
+                     if (appContext.clearReadNotifications) appContext.clearReadNotifications();
+                  }}
+                  title="حذف التنبيهات المقروءة من القائمة"
+                >حذف المقروءة</button>
                 <a
                   href="#/internal-messages"
                   className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-700 hover:bg-blue-200 dark:hover:bg-blue-600 text-blue-800 dark:text-blue-200"
@@ -635,8 +642,7 @@ const Header: React.FC = () => {
         <div className="container mx-auto px-4 h-full flex flex-col">
           <div className="flex items-center justify-between py-4">
             <a href="#/" className="flex items-center gap-3" onClick={closeMenu}>
-              <img src="https://syrian.zone/syid/materials/logo.ai.svg" alt="شعار" className="h-10" />
-              <img src="/header-title.png" alt="مديرية مالية محافظة حلب - نظام الاستعلامات والشكاوى" className="h-14 object-contain brightness-0 invert" />
+              <img src="/header-title.png" alt="مديرية مالية محافظة حلب - نظام الاستعلامات والشكاوى" className="h-10 object-contain brightness-0 invert" />
             </a>
             <button onClick={closeMenu} aria-label="إغلاق القائمة" className="text-white/90 hover:text-white p-2">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 24 24" fill="currentColor"><path d="M6.225 4.811L4.811 6.225 10.586 12l-5.775 5.775 1.414 1.414L12 13.414l5.775 5.775 1.414-1.414L13.414 12l5.775-5.775-1.414-1.414L12 10.586z" /></svg>
@@ -739,14 +745,9 @@ const Header: React.FC = () => {
             <div className="flex items-center gap-2 rtl:space-x-reverse">
               <a href="#/" className="flex items-center space-x-4 rtl:space-x-reverse">
                 <img
-                  src="https://syrian.zone/syid/materials/logo.ai.svg"
-                  alt="شعار الجمهورية العربية السورية"
-                  className="h-14"
-                />
-                <img
                   src="/header-title.png"
                   alt="مديرية مالية محافظة حلب - نظام الاستعلامات والشكاوى"
-                  className="h-20 md:h-24 object-contain"
+                  className="h-14 md:h-16 object-contain"
                 />
               </a>
               {/* قائمة منسدلة يسارية لروابط ثانوية - سطح المكتب فقط */}

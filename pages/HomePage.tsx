@@ -4,6 +4,7 @@ import { AppContext, AppStoreLinks } from '../App';
 
 const HomePage: React.FC = () => {
   const app = useContext(AppContext);
+  const config = app?.siteConfig;
   const surveys = app?.surveys || [];
   const appStoreLinks = app?.appStoreLinks || { android: { enabled: false, url: '' }, ios: { enabled: false, url: '' } };
   const surveyStats = useMemo(() => {
@@ -145,7 +146,7 @@ const HomePage: React.FC = () => {
                 أهلا بكم في البوابة الالكترونية
               </h1>
               <h2 className="text-2xl md:text-3xl font-bold text-blue-700 dark:text-blue-400 mb-4">
-                لمديرية مالية محافظة حلب
+                {config?.directorateName ? `ل${config.directorateName}` : 'لمديرية مالية محافظة حلب'}
               </h2>
               <p className="text-gray-600 dark:text-gray-300 text-lg max-w-3xl mx-auto leading-relaxed">
                 منصة إلكترونية شاملة لتسهيل التواصل مع المواطنين وتقديم خدمات مالية متميزة

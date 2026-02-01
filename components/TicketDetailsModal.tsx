@@ -23,6 +23,9 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({
   onUpdate
 }) => {
   const appContext = useContext(AppContext);
+  const config = appContext?.siteConfig;
+  const directorateName = config?.directorateName || "مالية محافظة حلب";
+  const fullDirectorateName = `مديرية ${directorateName}`;
   const departmentNames = useDepartmentNames();
   
   // التحقق من نوع الطلب
@@ -172,7 +175,7 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({
         <div class="header">
           <img class="logo" src="${window.location.origin}/syrian-eagle.svg" alt="شعار الجمهورية العربية السورية" />
           <h1>الجمهورية العربية السورية</h1>
-          <h2>مديرية مالية محافظة حلب</h2>
+          <h2>${fullDirectorateName}</h2>
           <h3>إدارة الاستعلامات والشكاوى</h3>
         </div>
 
@@ -293,7 +296,7 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({
         </div>` : ''}
 
         <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ccc; color: #666; font-size: 12px;">
-          <p>مديرية مالية محافظة حلب - إدارة الاستعلامات والشكاوى</p>
+          <p>${fullDirectorateName} - إدارة الاستعلامات والشكاوى</p>
           <p>تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SY-u-nu-latn')} - ${new Date().toLocaleTimeString('ar-SY')}</p>
         </div>
       </body>
@@ -358,7 +361,7 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({
   const sendEmailResponse = async (ticketData: Ticket, responseText: string) => {
     const emailData = {
       to: ticketData.email || '',
-      subject: `رد على ${ticketData.requestType} رقم ${ticketData.id} - مديرية مالية حلب`,
+      subject: `رد على ${ticketData.requestType} رقم ${ticketData.id} - ${fullDirectorateName}`,
       ticketId: ticketData.id,
       recipientName: ticketData.fullName,
       responseText: responseText,
@@ -371,7 +374,7 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({
     
     // إرسال إشعار SMS إضافي إذا كان رقم الهاتف متوفر
     if (ticketData.phone) {
-      const smsMessage = `مديرية مالية حلب: تم الرد على ${ticketData.requestType} رقم ${ticketData.id}. يرجى مراجعة بريدكم الإلكتروني أو زيارة الموقع للتفاصيل.`;
+      const smsMessage = `${fullDirectorateName}: تم الرد على ${ticketData.requestType} رقم ${ticketData.id}. يرجى مراجعة بريدكم الإلكتروني أو زيارة الموقع للتفاصيل.`;
       await sendSMSNotification(ticketData.phone, ticketData.id, smsMessage);
     }
     
@@ -392,12 +395,12 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-fade-in transition-all duration-300">
         {/* رأس النافذة */}
-        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 rounded-t-2xl">
+        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 rounded-t-2xl z-10">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-white animate-slide-up">
                 تفاصيل {isTicket(ticket) ? 
                   (ticket.requestType === 'استعلام' ? 'الاستعلام' : 'الشكوى') : 
                   'رسالة التواصل'
@@ -432,7 +435,11 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({
                   <div className="text-center">
                     <span className="text-xs text-gray-500 dark:text-gray-400">QR للتتبع السريع</span>
                     {trackingQRCodeUrl && (
-                      <img src={trackingQRCodeUrl} alt="QR Code للتتبع" className="w-12 h-12 mt-1" />
+                      <img 
+                        src={trackingQRCodeUrl} 
+                        alt="QR Code للتتبع" 
+                        className="w-12 h-12 mt-1 hover:scale-110 transition-transform duration-300 animate-pulse-soft" 
+                      />
                     )}
                   </div>
                 </div>
@@ -498,7 +505,11 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({
               </div>
               {trackingQRCodeUrl && (
                 <div className="text-center">
-                  <img src={trackingQRCodeUrl} alt="QR Code للتتبع" className="w-20 h-20" />
+                  <img 
+                    src={trackingQRCodeUrl} 
+                    alt="QR Code للتتبع" 
+                    className="w-20 h-20 hover:scale-105 transition-transform duration-300 animate-pulse-soft" 
+                  />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">QR للتتبع</p>
                   <button
                     onClick={() => {

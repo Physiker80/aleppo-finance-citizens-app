@@ -24,7 +24,7 @@ const DEV_SERVER_URL =
 
 const config: CapacitorConfig = {
   appId: 'com.aleppo.finance.system',
-  appName: 'مديرية مالية حلب',
+  appName: 'نظام الاستعلامات والشكاوى',
   webDir: 'dist',
   server: DEV_SERVER_URL
     ? {

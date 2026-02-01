@@ -1,4 +1,5 @@
 import React, { useContext, useState, useRef, useEffect } from 'react';
+import { Edit2, Save, X } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
@@ -7,6 +8,7 @@ import Button from '../components/ui/Button';
 import { AppContext } from '../App';
 import { ContactMessageType, Employee } from '../types';
 import { useDepartmentNames } from '../utils/departments';
+import { LocationMap } from '../components/IntegrationComponents';
 
 declare const jspdf: any;
 declare const html2canvas: any;
@@ -29,6 +31,38 @@ const ContactPage: React.FC = () => {
   const pdfContentRef = useRef<HTMLDivElement | null>(null);
   const app = useContext(AppContext);
   const departmentNames = useDepartmentNames();
+
+  // --- Info Edit State ---
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const defaultInfoContent = {
+    manager: {
+      title: "مدير مالية حلب",
+      subtitle: "السيد المدير العام",
+      description: "نسعى لتقديم أفضل الخدمات للمواطنين وتسهيل المعاملات المالية بشفافية.",
+      meetingTime: "أوقات مقابلة المواطنين: يومياً 10:00 - 12:00"
+    },
+    workingHours: {
+      days: "الأحد - الخميس",
+      hours: "08:00 AM - 03:30 PM",
+      weekend: "الجمعة - السبت",
+      weekendLabel: "عطلة رسمية"
+    }
+  };
+  const [infoContent, setInfoContent] = useState(defaultInfoContent);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('contactInfoContent');
+    if (saved) {
+      try { setInfoContent({ ...defaultInfoContent, ...JSON.parse(saved) }); } catch { }
+    }
+  }, []);
+
+  const handleSaveInfo = () => {
+    localStorage.setItem('contactInfoContent', JSON.stringify(infoContent));
+    setIsEditingInfo(false);
+  };
+
+  const isAdmin = app?.isEmployeeLoggedIn && app?.currentEmployee?.role === 'مدير';
 
   // توليد QR بعد الإرسال
   useEffect(() => {
@@ -380,6 +414,168 @@ const ContactPage: React.FC = () => {
           </Button>
         </div>
       </form>
+
+      {/* قسم معلومات مدير المالية وأوقات الدوام */}
+      <div className="mt-12 group relative">
+        {(isAdmin) && (
+          <div className="absolute -top-10 left-0 bg-transparent">
+             {!isEditingInfo ? (
+               <button
+                 type="button"
+                 onClick={() => setIsEditingInfo(true)}
+                 className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 bg-white/50 dark:bg-gray-800/50 px-3 py-1 rounded backdrop-blur border border-blue-200 dark:border-blue-900"
+               >
+                 <Edit2 size={14} /> تعديل المعلومات
+               </button>
+             ) : (
+               <div className="flex gap-2">
+                 <button
+                   type="button"
+                   onClick={handleSaveInfo}
+                   className="flex items-center gap-2 text-sm text-white bg-green-600 hover:bg-green-700 px-3 py-1 rounded shadow-sm"
+                 >
+                   <Save size={14} /> حفظ
+                 </button>
+                 <button
+                   type="button"
+                   onClick={() => {
+                     const saved = localStorage.getItem('contactInfoContent');
+                     if(saved) try { setInfoContent(JSON.parse(saved)); } catch{}
+                     setIsEditingInfo(false);
+                   }}
+                   className="flex items-center gap-2 text-sm text-white bg-gray-500 hover:bg-gray-600 px-3 py-1 rounded shadow-sm"
+                 >
+                   <X size={14} /> إلغاء
+                 </button>
+               </div>
+             )}
+          </div>
+        )}
+
+        <div className="grid md:grid-cols-2 gap-6">
+        {/* بطاقة المدير */}
+        <div className={`bg-white/50 dark:bg-gray-800/50 rounded-xl p-6 border ${isEditingInfo ? 'border-blue-400 border-dashed' : 'border-gray-200 dark:border-gray-700'} shadow-sm backdrop-blur-sm hover:shadow-md transition-all`}>
+          <div className="flex items-start gap-4">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 flex items-center justify-center shrink-0 border-2 border-white dark:border-gray-700 shadow-sm overflow-hidden">
+               <svg className="w-8 h-8 text-blue-600 dark:text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              {isEditingInfo ? (
+                <div className="space-y-2">
+                  <Input 
+                    value={infoContent.manager.title} 
+                    onChange={e => setInfoContent({...infoContent, manager: {...infoContent.manager, title: e.target.value}})}
+                    className="text-sm font-bold"
+                    placeholder="العنوان الرئيسي (مثال: مدير مالية حلب)"
+                  />
+                  <Input 
+                    value={infoContent.manager.subtitle}
+                    onChange={e => setInfoContent({...infoContent, manager: {...infoContent.manager, subtitle: e.target.value}})}
+                    className="text-xs"
+                    placeholder="العنوان الفرعي"
+                  />
+                  <TextArea 
+                    value={infoContent.manager.description}
+                    onChange={e => setInfoContent({...infoContent, manager: {...infoContent.manager, description: e.target.value}})}
+                    className="text-sm h-20"
+                    placeholder="الوصف"
+                  />
+                  <Input 
+                    value={infoContent.manager.meetingTime}
+                    onChange={e => setInfoContent({...infoContent, manager: {...infoContent.manager, meetingTime: e.target.value}})}
+                    className="text-xs"
+                    placeholder="أوقات المقابلة"
+                  />
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{infoContent.manager.title}</h3>
+                  <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mb-3">{infoContent.manager.subtitle}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-2">
+                    {infoContent.manager.description}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-200 bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-100 dark:border-blue-800/30">
+                    <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {infoContent.manager.meetingTime}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* بطاقة أوقات الدوام */}
+        <div className={`bg-white/50 dark:bg-gray-800/50 rounded-xl p-6 border ${isEditingInfo ? 'border-blue-400 border-dashed' : 'border-gray-200 dark:border-gray-700'} shadow-sm backdrop-blur-sm hover:shadow-md transition-all flex flex-col justify-center`}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">أوقات الدوام الرسمي</h3>
+          </div>
+          
+          <div className="space-y-3 text-sm">
+            {isEditingInfo ? (
+              <div className="space-y-3">
+                 <div className="flex gap-2">
+                    <Input 
+                      value={infoContent.workingHours.days}
+                      onChange={e => setInfoContent({...infoContent, workingHours: {...infoContent.workingHours, days: e.target.value}})}
+                      placeholder="الأيام"
+                      className="flex-1"
+                    />
+                    <Input 
+                      value={infoContent.workingHours.hours}
+                      onChange={e => setInfoContent({...infoContent, workingHours: {...infoContent.workingHours, hours: e.target.value}})}
+                      placeholder="الساعات"
+                      className="flex-1"
+                      dir="ltr"
+                    />
+                 </div>
+                 <div className="flex gap-2">
+                    <Input 
+                      value={infoContent.workingHours.weekend}
+                      onChange={e => setInfoContent({...infoContent, workingHours: {...infoContent.workingHours, weekend: e.target.value}})}
+                      placeholder="العطلة"
+                      className="flex-1"
+                    />
+                    <Input 
+                      value={infoContent.workingHours.weekendLabel}
+                      onChange={e => setInfoContent({...infoContent, workingHours: {...infoContent.workingHours, weekendLabel: e.target.value}})}
+                      placeholder="تسمية العطلة"
+                      className="flex-1"
+                    />
+                 </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2 border-dashed">
+                  <span className="text-gray-600 dark:text-gray-300 font-medium">{infoContent.workingHours.days}</span>
+                  <span className="font-bold text-gray-900 dark:text-white" dir="ltr">{infoContent.workingHours.hours}</span>
+                </div>
+                <div className="flex justify-between items-center pt-1">
+                  <span className="text-gray-600 dark:text-gray-300 font-medium">{infoContent.workingHours.weekend}</span>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                    {infoContent.workingHours.weekendLabel}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+        </div>
+      </div>
+
+      {/* قسم أين تجدنا */}
+      <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
+        <h3 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white text-center">أين تجدنا</h3>
+        <LocationMap className="w-full" showDirections={true} />
+      </div>
         </Card>
       </div>
     </div>

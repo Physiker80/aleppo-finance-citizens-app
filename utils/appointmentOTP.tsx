@@ -254,7 +254,7 @@ export const sendOTPviaSMS = async (
     phoneNumber: string,
     code: string
 ): Promise<{ success: boolean; message: string }> => {
-    const message = `رمز التحقق الخاص بك لحجز موعد في دائرة المالية بحلب هو: ${code}\nصالح لمدة ${OTP_EXPIRY_MINUTES} دقائق.`;
+    const message = `رمز التحقق الخاص بك لحجز موعد في المديرية هو: ${code}\nصالح لمدة ${OTP_EXPIRY_MINUTES} دقائق.`;
     return sendSMS(phoneNumber, message);
 };
 

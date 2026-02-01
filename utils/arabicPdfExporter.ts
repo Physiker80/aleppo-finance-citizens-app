@@ -166,6 +166,16 @@ export async function generateArabicPDF(
     data: ReceiptData,
     options: PDFExportOptions = { filename: 'receipt.pdf' }
 ): Promise<Blob | null> {
+    // Get directorate name
+    let directorateName = 'المديرية المالية';
+    try {
+        const savedConfig = localStorage.getItem('site_config');
+        if (savedConfig) {
+            const config = JSON.parse(savedConfig);
+            if (config.directorateName) directorateName = config.directorateName;
+        }
+    } catch (e) {}
+
     try {
         // تحميل الخطوط أولاً
         await preloadArabicFonts();
@@ -239,7 +249,7 @@ export async function generateArabicPDF(
             color: colors.primary
         });
 
-        drawArabicText(ctx, 'وزارة المالية - مديرية مالية حلب', A4_WIDTH - 120, 80, {
+        drawArabicText(ctx, `وزارة المالية - ${directorateName}`, A4_WIDTH - 120, 80, {
             font: fonts.body,
             color: colors.darkText
         });

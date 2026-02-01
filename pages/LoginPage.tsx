@@ -50,39 +50,48 @@ const LoginPage: React.FC = () => {
     setError(null);
     
     try {
+      // 1. محاولة تسجيل الدخول عبر الخادم أولاً (إذا كان متاحاً)
+      let backendSuccess = false;
       if (appContext?.backendLogin) {
-        const ok = await appContext.backendLogin(username, password);
-        if (ok) {
-          window.location.hash = '#/dashboard';
-        } else {
-          setError(appContext.authError || 'تعذر تسجيل الدخول');
+        try {
+          // لا نظهر الخطأ فوراً، بل نحاول محلياً في حال الفشل
+          backendSuccess = await appContext.backendLogin(username, password);
+        } catch (e) {
+          console.warn('Backend login failed, falling back to local:', e);
         }
-      } else {
-        // Local login with MFA support
-        const employees = JSON.parse(localStorage.getItem('employees') || '[]');
-        const employee = employees.find((emp: any) => 
-          emp.username === username && emp.password === password
-        );
         
-        if (!employee) {
-          setError('بيانات دخول غير صحيحة');
+        if (backendSuccess) {
+          window.location.hash = '#/dashboard';
           return;
         }
+      }
 
-        // Check if employee requires MFA
-        if (appContext?.requiresMFA && appContext.requiresMFA(employee)) {
-          // Store pending employee for MFA verification
-          setPendingEmployee(employee);
-          setShowMfaVerification(true);
-          setPassword(''); // Clear password for security
+      // 2. تسجيل الدخول المحلي (احتياط)
+      // Local login with MFA support
+      const employees = getEmployees();
+      const employee = employees.find((emp: any) => 
+        emp.username === username && emp.password === password
+      );
+      
+      if (!employee) {
+        // في حال فشل الاثنين معاً
+        setError(appContext?.authError || 'بيانات دخول غير صحيحة');
+        return;
+      }
+
+      // Check if employee requires MFA
+      if (appContext?.requiresMFA && appContext.requiresMFA(employee)) {
+        // Store pending employee for MFA verification
+        setPendingEmployee(employee);
+        setShowMfaVerification(true);
+        setPassword(''); // Clear password for security
+      } else {
+        // Direct login without MFA
+        const success = appContext?.employeeLogin(employee as any);
+        if (success) {
+          window.location.hash = '#/dashboard';
         } else {
-          // Direct login without MFA
-          const success = appContext?.employeeLogin(username, password as any);
-          if (success) {
-            window.location.hash = '#/dashboard';
-          } else {
-            setError('فشل في تسجيل الدخول');
-          }
+          setError('فشل في تسجيل الدخول');
         }
       }
     } catch (error) {

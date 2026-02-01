@@ -75,10 +75,41 @@ const SubmitRequestPage: React.FC = () => {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [foundEmployee, setFoundEmployee] = useState<Employee | null>(null);
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [autoClassification, setAutoClassification] = useState<AutoClassification | null>(null);
+  const [isEmployeeRequest, setIsEmployeeRequest] = useState(false);
+  const [matchedEmployee, setMatchedEmployee] = useState<Employee | null>(null);
+  
+  // Custom Hooks & State
   const previews = useFilePreviews(attachments);
+  const [autoClassification, setAutoClassification] = useState<AutoClassification | null>(null);
+
+  // تحديث حالة "طلب موظف" بناءً على الهوية الوطنية أو الاسم
+  // تعليمات المستخدم: "لمعرفة الموظفين مراجعة قاعدة البيانات (الاسم أو الرقم)"
+  useEffect(() => {
+    if (appContext?.isEmployeeLoggedIn) {
+      let foundEmp: Employee | null = null;
+
+      // 1. التحقق من الرقم الوطني
+      if (formData.nationalId && formData.nationalId.length >= 5) {
+        foundEmp = appContext.searchEmployeeByNationalId(formData.nationalId);
+      }
+
+      // 2. التحقق من الاسم الكامل (مطابقة تامة)
+      if (!foundEmp && formData.fullName && formData.fullName.length >= 3) {
+        const matches = appContext.searchEmployeeByName(formData.fullName);
+        // نتحقق من تطابق الاسم بالكامل لتجنب التشابه الجزئي
+        const exactMatch = matches.find(e => e.name.trim() === formData.fullName.trim());
+        if (exactMatch) foundEmp = exactMatch;
+      }
+
+      if (foundEmp) {
+        setIsEmployeeRequest(true);
+        setMatchedEmployee(foundEmp);
+      } else {
+        setMatchedEmployee(null);
+      }
+    }
+  }, [formData.nationalId, formData.fullName, appContext?.searchEmployeeByNationalId, appContext?.searchEmployeeByName, appContext?.isEmployeeLoggedIn]);
+
 
   const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
   const MAX_FILES = 5;
@@ -136,44 +167,12 @@ const SubmitRequestPage: React.FC = () => {
     const { id, value } = e.target;
     setFormData({ ...formData, [id]: value });
 
-    // البحث التلقائي في قاعدة البيانات عند كتابة الاسم
-    if (id === 'fullName') {
-      // إلغاء البحث السابق
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-      }
-
-      // البحث بعد 500ms من التوقف عن الكتابة
-      const newTimeout = setTimeout(() => {
-        if (value.trim().length >= 3 && appContext) {
-          const employees = appContext.searchEmployeeByName(value.trim());
-          const exactMatch = employees.find(emp =>
-            emp.name.toLowerCase() === value.trim().toLowerCase()
-          );
-          setFoundEmployee(exactMatch || null);
-        } else {
-          setFoundEmployee(null);
-        }
-      }, 500);
-
-      setSearchTimeout(newTimeout);
-    }
-
     // التصنيف التلقائي عند كتابة التفاصيل
     if (id === 'details' && value.trim().length >= 10) {
       const classification = classifyTicketAuto(formData.requestType, value);
       setAutoClassification(classification);
     }
   };
-
-  // تنظيف timeout عند إلغاء المكون
-  useEffect(() => {
-    return () => {
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-      }
-    };
-  }, [searchTimeout]);
 
   const readableSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes} B`;
@@ -201,29 +200,36 @@ const SubmitRequestPage: React.FC = () => {
       // تحديد المصدر بناءً على النتائج
       let source: 'مواطن' | 'موظف' = 'مواطن';
       let department = 'الديوان العام';
-      let employeeUsername: string | undefined = undefined;
 
-      if (foundEmployee) {
-        // إذا تم العثور على الموظف من البحث التلقائي
-        source = 'موظف';
-        department = foundEmployee.department || department;
-        employeeUsername = foundEmployee.username;
-      } else if (appContext?.isEmployeeLoggedIn && appContext?.currentEmployee) {
-        // إذا كان الموظف متصل
-        source = 'موظف';
-        department = appContext.currentEmployee.department || department;
-        employeeUsername = appContext.currentEmployee.username;
+      // استخدام القسم المقترح من التصنيف التلقائي إذا وجد
+      if (autoClassification?.suggestedDepartment) {
+        department = autoClassification.suggestedDepartment;
       }
 
-      const newTicketId = appContext?.addTicket({
+      if (appContext?.isEmployeeLoggedIn && isEmployeeRequest && appContext?.currentEmployee) {
+        // إذا كان الموظف متصل واختار التقديم بصفته الوظيفية
+        source = 'موظف';
+        department = appContext.currentEmployee.department || department;
+      }
+      
+      const ticketPayload = {
         ...formData,
         requestType: formData.requestType as RequestType,
         department,
         source,
-        employeeUsername,
         attachments: attachments.length ? attachments : undefined,
         submissionDate: new Date(),
-      });
+      };
+
+      let newTicketId: string | undefined;
+      try {
+        newTicketId = appContext?.addTicket(ticketPayload);
+      } catch (err) {
+        console.error("Failed to add ticket:", err);
+        setError("حدث خطأ غير متوقع أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.");
+        setIsSubmitting(false);
+        return;
+      }
 
       setIsSubmitting(false);
       if (newTicketId) {
@@ -300,25 +306,7 @@ const SubmitRequestPage: React.FC = () => {
                       required
                       className="transition-all duration-300 focus:ring-2 focus:ring-[#002623]/20"
                     />
-                    {foundEmployee && (
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-2 py-1 rounded-full text-xs font-medium border border-green-300 dark:border-green-600 shadow-sm z-10"
-                        title={`موظف في ${foundEmployee.department} - ${foundEmployee.role}`}>
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        موظف
-                      </div>
-                    )}
-                    {foundEmployee && (
-                      <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-md">
-                        <p className="text-xs text-green-700 dark:text-green-300">
-                          <span className="font-medium">تم التعرف على:</span> {foundEmployee.name} - {foundEmployee.department} ({foundEmployee.role})
-                        </p>
-                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                          سيتم إرسال الطلب تحت تصنيف "طلب من موظف"
-                        </p>
-                      </div>
-                    )}
+
                   </div>
                   <Input
                     id="nationalId"
@@ -538,6 +526,57 @@ const SubmitRequestPage: React.FC = () => {
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* Employee Options */}
+              {appContext?.isEmployeeLoggedIn && (
+                <div className="bg-indigo-50/50 dark:bg-indigo-900/20 rounded-2xl p-6 border border-indigo-200/50 dark:border-indigo-700/30">
+                  <h3 className="text-xl font-semibold text-indigo-800 dark:text-indigo-200 mb-4">
+                    خيارات الموظف
+                  </h3>
+
+                  {matchedEmployee && (
+                    <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-xl flex items-start gap-4 animate-fadeIn">
+                      <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center text-2xl shadow-sm">
+                        👨‍💼
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-green-800 dark:text-green-100 text-lg">
+                          تم التحقق: موظف
+                        </h4>
+                        <p className="text-green-700 dark:text-green-300 font-medium">
+                          {matchedEmployee.name}
+                        </p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <span className="px-2 py-0.5 rounded-md bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-100 text-xs font-bold">
+                            {matchedEmployee.role || 'موظف'}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-100 text-xs">
+                            {matchedEmployee.department}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="isEmployeeRequest"
+                      checked={isEmployeeRequest}
+                      onChange={(e) => setIsEmployeeRequest(e.target.checked)}
+                      className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                    />
+                    <label htmlFor="isEmployeeRequest" className="text-gray-700 dark:text-gray-300 font-medium select-none cursor-pointer">
+                      تسجيل هذا الطلب بصفة رسمية (طلب موظف)
+                    </label>
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 mr-8">
+                    {isEmployeeRequest
+                      ? 'سيتم تسجيل الطلب في سجلات طلبات الموظفين واحتسابه ضمن نشاطك.'
+                      : 'سيتم تسجيل الطلب كطلب مواطن عادي (نيابة عن مواطن).'}
+                  </p>
                 </div>
               )}
 

@@ -204,9 +204,11 @@ export interface TicketResponseRecord {
   bodySanitized: string;
   visibility: 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL';
   isInternal?: boolean; // convenience flag from backend
-  createdAt: string;    // ISO date string
+  createdAt: Date | string;    // Date object or ISO date string
   redactionFlags?: string[]; // applied redactions
   attachments?: TicketResponseAttachmentMeta[];
+  authorName?: string;
+  authorDepartment?: string;
 }
 
 export interface NewTicketResponseInput {
@@ -1058,4 +1060,17 @@ export interface InternalMessage {
   templateName?: string;           // اسم القالب إن وُجد
   read?: boolean;                  // تم القراءة أم لا
   replies?: InternalMessageReply[];
+}
+
+export interface SiteConfig {
+  governorate: string; 
+  directorateName: string; 
+  address: string; 
+  phone: string; 
+  location: {
+    lat: number;
+    lng: number;
+  };
+  whatsapp?: string;
+  workingHours?: string;
 }

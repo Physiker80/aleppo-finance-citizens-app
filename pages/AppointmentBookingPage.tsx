@@ -3,7 +3,7 @@
  * Public Appointment Booking Page - 3 Steps Process
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
     Appointment,
     ServiceCategory,
@@ -31,6 +31,8 @@ import {
     CalendarIntegration,
     AppointmentShareButtons
 } from '../components/IntegrationComponents';
+import { AppContext } from '../App';
+import { SiteConfig } from '../types';
 
 // أيقونات الخدمات
 const SERVICE_ICONS: Record<ServiceCategory, string> = {
@@ -769,7 +771,9 @@ const Step3Confirmation: React.FC<Step3Props> = ({ appointment, onNewBooking }) 
 };
 
 // دالة إرسال البريد الإلكتروني مع تذكرة الموعد
-const sendAppointmentEmailNotification = async (appointment: Appointment, email: string): Promise<void> => {
+const sendAppointmentEmailNotification = async (appointment: Appointment, email: string, config?: SiteConfig | null): Promise<void> => {
+    const dirName = config?.directorateName || 'مديرية مالية محافظة حلب';
+    
     // تفاصيل الموعد للإرسال
     const appointmentDetails = {
         id: appointment.id,
@@ -801,7 +805,8 @@ const sendAppointmentEmailNotification = async (appointment: Appointment, email:
                     appointment_date: appointmentDetails.date,
                     appointment_time: appointmentDetails.time,
                     service_type: appointmentDetails.service,
-                    reply_to: 'noreply@aleppo-finance.gov.sy'
+                    reply_to: 'noreply@aleppo-finance.gov.sy',
+                    directorate_name: dirName
                 }
             );
             console.log('✅ تم إرسال البريد بنجاح');
@@ -809,7 +814,7 @@ const sendAppointmentEmailNotification = async (appointment: Appointment, email:
             // استخدام mailto كبديل
             const subject = encodeURIComponent(`تذكرة حجز موعد - ${appointment.id}`);
             const body = encodeURIComponent(
-                `تذكرة حجز موعد - مديرية مالية حلب\n\n` +
+                `تذكرة حجز موعد - ${dirName}\n\n` +
                 `رقم الموعد: ${appointment.id}\n` +
                 `الاسم: ${appointment.fullName}\n` +
                 `التاريخ: ${appointmentDetails.date}\n` +
@@ -840,6 +845,9 @@ const sendAppointmentEmailNotification = async (appointment: Appointment, email:
 
 // الصفحة الرئيسية
 export const AppointmentBookingPage: React.FC = () => {
+    const context = useContext(AppContext);
+    const config = context?.siteConfig;
+
     const [currentStep, setCurrentStep] = useState(0);
     const [verifiedData, setVerifiedData] = useState<{
         phone: string;
@@ -914,7 +922,7 @@ export const AppointmentBookingPage: React.FC = () => {
 
         // إرسال البريد الإلكتروني مع التذكرة إذا تم توفير البريد
         if (verifiedData.email) {
-            sendAppointmentEmailNotification(appointment, verifiedData.email);
+            sendAppointmentEmailNotification(appointment, verifiedData.email, config);
         }
 
         setBookingError(null);
@@ -945,7 +953,7 @@ export const AppointmentBookingPage: React.FC = () => {
                         نظام حجز المواعيد الإلكتروني
                     </h1>
                     <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">
-                        مديرية مالية محافظة حلب
+                        {config?.directorateName || 'مديرية مالية محافظة حلب'}
                     </p>
                     <p className="text-gray-500 dark:text-gray-500 mt-1 text-sm">
                         احجز موعدك مسبقاً لتجنب الانتظار
@@ -995,8 +1003,8 @@ export const AppointmentBookingPage: React.FC = () => {
 
                 {/* Footer */}
                 <div className="mt-12 text-center text-sm text-gray-400 dark:text-gray-500">
-                    <p>للمساعدة اتصل على: 021-2234567</p>
-                    <p className="mt-1">ساعات العمل: 08:00 - 14:00 (الأحد - الخميس)</p>
+                    <p>للمساعدة اتصل على: {config?.phone || '021-2234567'}</p>
+                    <p className="mt-1">ساعات العمل: {config?.workingHours || '08:00 - 14:00 (الأحد - الخميس)'}</p>
                 </div>
             </div>
 

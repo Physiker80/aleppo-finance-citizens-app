@@ -1,6 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
+import { AppContext } from '../App';
 
 const TermsPage: React.FC = () => {
+  const appContext = useContext(AppContext);
+  const config = appContext?.siteConfig;
+  const directorateName = config?.directorateName || "المحافظة";
+  const fullDirectorateName = config?.directorateName ? `مديرية ${config.directorateName}` : "المديرية المالية";
   const [customHtml, setCustomHtml] = useState<string | null>(null);
 
   useEffect(() => {
@@ -15,7 +20,7 @@ const TermsPage: React.FC = () => {
       <div className="rounded-2xl p-8 transition-all duration-300 border border-white/20 dark:border-white/10 bg-white/80 dark:bg-gray-900/70 backdrop-blur shadow">
         <header className="mb-6 text-center">
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-1">الشروط والأحكام</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-300">الشروط والأحكام الخاصة بموقع مديرية المالية في محافظة حلب</p>
+          <p className="text-sm text-gray-600 dark:text-gray-300">الشروط والأحكام الخاصة بموقع {fullDirectorateName}</p>
         </header>
         {customHtml ? (
           <div dir="rtl" className="prose prose-lg max-w-none text-right leading-8 dark:prose-invert" dangerouslySetInnerHTML={{ __html: customHtml }} />
@@ -27,7 +32,7 @@ const TermsPage: React.FC = () => {
 
           <h2 className="text-xl font-bold">1. التعاريف</h2>
           <p>
-            يُقصد بـ «الموقع» بوابة مديرية المالية في محافظة حلب. ويُقصد بـ «المستخدم» كل من يتصفح الموقع أو يستعمل خدماته.
+            يُقصد بـ «الموقع» بوابة {fullDirectorateName}. ويُقصد بـ «المستخدم» كل من يتصفح الموقع أو يستعمل خدماته.
           </p>
 
           <h2 className="text-xl font-bold mt-6">2. قبول الشروط</h2>

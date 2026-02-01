@@ -89,7 +89,7 @@ const APPROVED_TEMPLATES: WhatsAppTemplate[] = [
         components: [
             { type: 'HEADER', format: 'TEXT', text: '🎫 تأكيد استلام الشكوى' },
             { type: 'BODY', text: 'مرحباً {{1}}،\n\nتم استلام شكواكم بنجاح.\n\n📋 رقم الشكوى: {{2}}\n📅 التاريخ: {{3}}\n\nسيتم مراجعة شكواكم والرد عليكم في أقرب وقت ممكن.' },
-            { type: 'FOOTER', text: 'مديرية مالية حلب' },
+            { type: 'FOOTER', text: '{{4}}' },
             { type: 'BUTTONS', buttons: [{ type: 'URL', text: 'تتبع الشكوى', url: 'https://example.com/track/{{2}}' }] }
         ]
     },
@@ -102,7 +102,7 @@ const APPROVED_TEMPLATES: WhatsAppTemplate[] = [
         components: [
             { type: 'HEADER', format: 'TEXT', text: '📢 تحديث حالة الشكوى' },
             { type: 'BODY', text: 'مرحباً،\n\nتم تحديث حالة شكواكم رقم {{1}}:\n\n🔄 الحالة الجديدة: {{2}}\n💬 ملاحظات: {{3}}\n\nشكراً لصبركم.' },
-            { type: 'FOOTER', text: 'مديرية مالية حلب' }
+            { type: 'FOOTER', text: '{{4}}' }
         ]
     },
     {
@@ -114,7 +114,7 @@ const APPROVED_TEMPLATES: WhatsAppTemplate[] = [
         components: [
             { type: 'HEADER', format: 'TEXT', text: '💰 تذكير بالدفع' },
             { type: 'BODY', text: 'عزيزي المواطن،\n\nنذكركم بوجود مستحقات مالية:\n\n💵 المبلغ: {{1}} ل.س\n📅 تاريخ الاستحقاق: {{2}}\n📝 التفاصيل: {{3}}\n\nيرجى التسديد في الموعد المحدد لتجنب الغرامات.' },
-            { type: 'FOOTER', text: 'مديرية مالية حلب' }
+            { type: 'FOOTER', text: '{{4}}' }
         ]
     }
 ];
@@ -400,26 +400,35 @@ export async function sendTicketNotification(
         date?: string;
     }
 ): Promise<{ success: boolean; error?: string }> {
+    let directorate = 'المديرية المالية';
+    try {
+        const saved = localStorage.getItem('site_config');
+        if (saved) directorate = JSON.parse(saved).directorateName || directorate;
+    } catch {}
+
     switch (type) {
         case 'created':
             return sendTemplateMessage(phone, 'ticket_confirmation', [
                 data.citizenName || 'المواطن',
                 ticketId,
-                data.date || new Date().toLocaleDateString('ar-SY')
+                data.date || new Date().toLocaleDateString('ar-SY'),
+                directorate
             ], { ticketId });
 
         case 'updated':
             return sendTemplateMessage(phone, 'ticket_status_update', [
                 ticketId,
                 data.status || 'قيد المعالجة',
-                data.notes || 'لا توجد ملاحظات'
+                data.notes || 'لا توجد ملاحظات',
+                directorate
             ], { ticketId });
 
         case 'resolved':
             return sendTemplateMessage(phone, 'ticket_status_update', [
                 ticketId,
                 'تم الحل',
-                data.notes || 'شكراً لتواصلكم معنا'
+                data.notes || 'شكراً لتواصلكم معنا',
+                directorate
             ], { ticketId });
 
         default:

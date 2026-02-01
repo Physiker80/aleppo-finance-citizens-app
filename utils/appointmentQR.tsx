@@ -230,7 +230,8 @@ export const startQRScanner = (
 
 // ==================== مكونات React ====================
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
+import { AppContext } from '../App';
 
 interface QRCodeDisplayProps {
     data: string;
@@ -419,6 +420,9 @@ export const AppointmentTicket: React.FC<AppointmentTicketProps> = ({
     appointment,
     showQR = true
 }) => {
+    const context = useContext(AppContext);
+    const config = context?.siteConfig;
+
     const qrData = generateAppointmentQRData(appointment);
 
     const formatDate = (dateStr: string) => {
@@ -462,7 +466,7 @@ export const AppointmentTicket: React.FC<AppointmentTicketProps> = ({
                         />
                     </div>
                     <h2 className="text-xl font-bold mb-1">الجمهورية العربية السورية</h2>
-                    <p className="text-sm opacity-90 mb-1">مديرية مالية محافظة حلب</p>
+                    <p className="text-sm opacity-90 mb-1">{config?.directorateName ? `مديرية ${config.directorateName}` : 'المديرية المالية'}</p>
                     <div className="inline-block bg-white/20 backdrop-blur-sm px-4 py-1.5 rounded-full mt-2">
                         <p className="text-sm font-semibold">🎫 تذكرة حجز موعد</p>
                     </div>

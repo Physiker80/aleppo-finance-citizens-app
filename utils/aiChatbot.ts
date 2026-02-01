@@ -42,6 +42,19 @@ export interface Intent {
     entities?: string[];
 }
 
+
+const getSiteConfig = () => {
+    try {
+        if (typeof localStorage === 'undefined') return { directorateName: 'مديرية المالية', city: 'المدينة' };
+        const saved = localStorage.getItem('site_config');
+        return saved ? JSON.parse(saved) : { directorateName: 'المديرية المالية', city: 'المدينة' };
+    } catch {
+        return { directorateName: 'المديرية المالية', city: 'المدينة' };
+    }
+};
+
+const siteConfig = getSiteConfig();
+
 // الأنماط والردود
 const INTENTS: Intent[] = [
     {
@@ -90,7 +103,7 @@ const INTENTS: Intent[] = [
         name: 'contact_info',
         patterns: ['رقم الهاتف', 'اتصال', 'تواصل', 'عنوان', 'موقع'],
         responses: [
-            'معلومات التواصل:\n📍 العنوان: حلب - شارع المالية\n📞 الهاتف: 021-XXXXXXX\n📧 البريد: info@aleppo-finance.gov.sy'
+            `معلومات التواصل:\n📍 العنوان: ${siteConfig.city} - شارع المالية\n📞 الهاتف: 021-XXXXXXX\n📧 البريد: info@finance.gov.sy`
         ]
     },
     {
@@ -191,7 +204,7 @@ export function getOrCreateSession(sessionId?: string): ChatSession {
     newSession.messages.push({
         id: generateId(),
         role: 'bot',
-        content: 'مرحباً بك في نظام مديرية مالية حلب! 👋\nكيف يمكنني مساعدتك اليوم؟',
+        content: `مرحباً بك في نظام ${siteConfig.directorateName}! 👋\nكيف يمكنني مساعدتك اليوم؟`,
         timestamp: Date.now()
     });
 

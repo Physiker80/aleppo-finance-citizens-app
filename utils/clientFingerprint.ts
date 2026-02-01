@@ -200,7 +200,7 @@ export class ClientFingerprintManager {
       // رسم نص باللغة العربية
       ctx.textBaseline = 'top';
       ctx.font = '14px Arial';
-      ctx.fillText('مديرية مالية حلب 🏛️', 2, 2);
+      ctx.fillText('بوابة الخدمات الإلكترونية 🏛️', 2, 2);
       
       // تحويل إلى hash
       const imageData = canvas.toDataURL();

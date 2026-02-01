@@ -12,11 +12,23 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 const DEFAULT_API_KEY = 'AIzaSyAh4KwrrNJQspjxhYT9txJbPK9wGttoCtg';
 
 // السياق العربي السوري للمساعد
-const SYSTEM_CONTEXT = `أنت المساعد الذكي لمديرية مالية محافظة حلب في الجمهورية العربية السورية.
+const getSystemContext = () => {
+    let directorateName = 'المديرية المالية';
+    let address = 'مبنى المديرية المالية';
+    try {
+        const config = localStorage.getItem('site_config');
+        if (config) {
+            const parsed = JSON.parse(config);
+            if (parsed.directorateName) directorateName = parsed.directorateName;
+            if (parsed.address) address = parsed.address;
+        }
+    } catch {}
+
+    return `أنت المساعد الذكي لـ ${directorateName}.
 
 معلومات عن المديرية:
-- الاسم: مديرية مالية محافظة حلب
-- الموقع: حلب - شارع بارون، مبنى المديرية المالية
+- الاسم: ${directorateName}
+- الموقع: ${address}
 - أوقات العمل: الأحد - الخميس، 8:00 صباحاً - 2:00 ظهراً
 - العطلة الرسمية: الجمعة والسبت
 
@@ -35,6 +47,7 @@ const SYSTEM_CONTEXT = `أنت المساعد الذكي لمديرية مالي
 - إذا كان السؤال خارج نطاق المديرية، اعتذر بلطف
 - استخدم الإيموجي بشكل معتدل
 - لا تعطي معلومات خاطئة أو غير دقيقة`;
+};
 
 export interface GeminiResponse {
     success: boolean;
@@ -108,7 +121,7 @@ export const askGemini = async (question: string): Promise<GeminiResponse> => {
                     {
                         parts: [
                             {
-                                text: `${SYSTEM_CONTEXT}\n\nسؤال المستخدم: ${question}\n\nالرد:`
+                                text: `${getSystemContext()}\n\nسؤال المستخدم: ${question}\n\nالرد:`
                             }
                         ]
                     }

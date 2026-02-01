@@ -51,29 +51,29 @@ const DEFAULT_TEMPLATES: SMSTemplate[] = [
     {
         id: 'ticket-created',
         name: 'تم إنشاء شكوى',
-        body: 'تم استلام شكواكم برقم {ticketId}. سيتم الرد عليكم قريباً. مديرية مالية حلب',
-        variables: ['ticketId'],
+        body: 'تم استلام شكواكم برقم {ticketId}. سيتم الرد عليكم قريباً. {directorate}',
+        variables: ['ticketId', 'directorate'],
         category: 'شكاوى'
     },
     {
         id: 'ticket-updated',
         name: 'تحديث شكوى',
-        body: 'تم تحديث حالة شكواكم رقم {ticketId} إلى: {status}. مديرية مالية حلب',
-        variables: ['ticketId', 'status'],
+        body: 'تم تحديث حالة شكواكم رقم {ticketId} إلى: {status}. {directorate}',
+        variables: ['ticketId', 'status', 'directorate'],
         category: 'شكاوى'
     },
     {
         id: 'ticket-resolved',
         name: 'حل شكوى',
-        body: 'تم حل شكواكم رقم {ticketId}. شكراً لتواصلكم معنا. مديرية مالية حلب',
-        variables: ['ticketId'],
+        body: 'تم حل شكواكم رقم {ticketId}. شكراً لتواصلكم معنا. {directorate}',
+        variables: ['ticketId', 'directorate'],
         category: 'شكاوى'
     },
     {
         id: 'payment-reminder',
         name: 'تذكير بالدفع',
-        body: 'تذكير: لديكم مستحقات مالية بقيمة {amount} ل.س. يرجى التسديد قبل {dueDate}. مديرية مالية حلب',
-        variables: ['amount', 'dueDate'],
+        body: 'تذكير: لديكم مستحقات مالية بقيمة {amount} ل.س. يرجى التسديد قبل {dueDate}. {directorate}',
+        variables: ['amount', 'dueDate', 'directorate'],
         category: 'مالية'
     },
     {
@@ -306,7 +306,18 @@ export async function sendTemplatedSMS(
     variables: Record<string, string>,
     options: { ticketId?: string } = {}
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    const body = applyTemplate(templateId, variables);
+    // Inject directorate name from config
+    let directorate = 'المديرية المالية';
+    try {
+        const savedConfig = localStorage.getItem('site_config');
+        if (savedConfig) {
+            const config = JSON.parse(savedConfig);
+            if (config.directorateName) directorate = config.directorateName;
+        }
+    } catch (e) { /* ignore */ }
+    
+    const finalVariables = { directorate, ...variables };
+    const body = applyTemplate(templateId, finalVariables);
 
     if (!body) {
         return { success: false, error: 'القالب غير موجود' };

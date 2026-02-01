@@ -26,6 +26,10 @@ import Mermaid from '../components/Mermaid';
  */
 const SessionSecurityPage: React.FC = () => {
   const appContext = useContext(AppContext);
+  const { siteConfig } = appContext;
+  const fullDirectorateName = siteConfig?.directorateName || 'المديرية المالية';
+  const currentYear = siteConfig?.year || new Date().getFullYear();
+
   const [showGuide, setShowGuide] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowGuide(false); };
@@ -568,7 +572,7 @@ const SessionSecurityPage: React.FC = () => {
         <div class="container">
           <div class="header">
             <h1>تقرير الأمان ${typeLabel}</h1>
-            <p>مديرية مالية حلب - نظام الاستعلامات والشكاوى</p>
+            <p>${fullDirectorateName} - نظام الاستعلامات والشكاوى</p>
             <p>تاريخ الإنشاء: ${new Date().toLocaleDateString('ar-SY')}</p>
           </div>
           <div class="content">
@@ -596,7 +600,7 @@ const SessionSecurityPage: React.FC = () => {
           </div>
           <div class="footer">
             <p>تم إنشاء هذا التقرير بواسطة نظام التحليل الذكي للأمان</p>
-            <p>© 2025 مديرية مالية حلب - جميع الحقوق محفوظة</p>
+            <p>© ${currentYear} ${fullDirectorateName} - جميع الحقوق محفوظة</p>
           </div>
         </div>
       </body>

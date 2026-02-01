@@ -392,9 +392,9 @@ export const QRCheckinPage: React.FC = () => {
                             className="w-20 h-20 drop-shadow-lg"
                         />
                         <div>
-                            <p className="text-xs opacity-80 mb-1">الجمهورية العربية السورية</p>
+                            <p className="text-xs opacity-80 mb-1">{appContext?.siteConfig?.countryName || 'الجمهورية العربية السورية'}</p>
                             <h1 className="text-xl font-bold">نقطة تسجيل الوصول</h1>
-                            <p className="text-sm opacity-80">مديرية مالية محافظة حلب</p>
+                            <p className="text-sm opacity-80">{appContext?.siteConfig?.directorateName ? `مديرية ${appContext.siteConfig.directorateName}` : 'مديرية مالية محافظة حلب'}</p>
                         </div>
                     </div>
 

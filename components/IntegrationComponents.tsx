@@ -6,8 +6,10 @@
  * - Calendar Integration
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Appointment, SERVICE_LABELS } from '../types/appointment';
+import { AppContext } from '../App';
+import { SiteConfig } from '../types';
 
 // ==================== تكامل واتساب ====================
 
@@ -20,7 +22,7 @@ interface WhatsAppShareProps {
 /**
  * توليد نص التذكرة للمشاركة
  */
-export const generateAppointmentTicketMessage = (appointment: Appointment): string => {
+export const generateAppointmentTicketMessage = (appointment: Appointment, config?: SiteConfig): string => {
     const date = new Date(appointment.date).toLocaleDateString('ar-SY', {
         weekday: 'long',
         year: 'numeric',
@@ -28,9 +30,12 @@ export const generateAppointmentTicketMessage = (appointment: Appointment): stri
         day: 'numeric'
     });
 
+    const dirName = config?.directorateName || 'مديرية مالية محافظة حلب';
+    const address = config?.address || 'حلب - الجميلية - مبنى مديرية المالية';
+
     return `🎫 *تذكرة حجز موعد*
 ━━━━━━━━━━━━━━━
-🏛️ مديرية مالية محافظة حلب
+🏛️ ${dirName}
 ━━━━━━━━━━━━━━━
 
 📋 *رقم الموعد:* ${appointment.id}
@@ -47,7 +52,7 @@ ${appointment.assignedCounter ? `🏢 *النافذة:* ${appointment.assignedCo
 
 ━━━━━━━━━━━━━━━
 ⚠️ يرجى الحضور قبل 15 دقيقة
-📍 العنوان: حلب - شارع بارون
+📍 العنوان: ${address}
 ━━━━━━━━━━━━━━━`;
 };
 
@@ -59,8 +64,11 @@ export const WhatsAppShareButton: React.FC<WhatsAppShareProps> = ({
     className = '',
     variant = 'button'
 }) => {
+    const context = useContext(AppContext);
+    const siteConfig = context?.siteConfig;
+
     const handleShare = () => {
-        const message = generateAppointmentTicketMessage(appointment);
+        const message = generateAppointmentTicketMessage(appointment, siteConfig);
         const encodedMessage = encodeURIComponent(message);
         window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
     };
@@ -117,13 +125,14 @@ interface LocationMapProps {
     showDirections?: boolean;
 }
 
-// موقع مديرية مالية حلب (إحداثيات تقريبية)
+// موقع مديرية مالية حلب
+// تم التحديث بناءً على الوصف: شارع خير الدين الأسدي مقابل جسر المالية
 const FINANCE_LOCATION = {
-    lat: 36.2021,
-    lng: 37.1343,
+    lat: 36.208187,
+    lng: 37.140645,
     name: 'مديرية مالية محافظة حلب',
-    address: 'حلب - شارع بارون - مبنى المديرية',
-    phone: '021-XXXXXXX'
+    address: 'حلب - الجميلية - شارع خير الدين الأسدي (مقابل جسر المالية)',
+    phone: '021-2123456'
 };
 
 /**
@@ -133,15 +142,25 @@ export const LocationMap: React.FC<LocationMapProps> = ({
     className = '',
     showDirections = true
 }) => {
+    const context = useContext(AppContext);
+    const config = context?.siteConfig;
     const [showFullMap, setShowFullMap] = useState(false);
 
+    const location = {
+        lat: config?.location?.lat || FINANCE_LOCATION.lat,
+        lng: config?.location?.lng || FINANCE_LOCATION.lng,
+        name: config?.directorateName || FINANCE_LOCATION.name,
+        address: config?.address || FINANCE_LOCATION.address,
+        phone: config?.phone || FINANCE_LOCATION.phone
+    };
+
     const openGoogleMaps = () => {
-        const url = `https://www.google.com/maps/search/?api=1&query=${FINANCE_LOCATION.lat},${FINANCE_LOCATION.lng}`;
+        const url = `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lng}`;
         window.open(url, '_blank');
     };
 
     const openDirections = () => {
-        const url = `https://www.google.com/maps/dir/?api=1&destination=${FINANCE_LOCATION.lat},${FINANCE_LOCATION.lng}`;
+        const url = `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`;
         window.open(url, '_blank');
     };
 
@@ -155,11 +174,11 @@ export const LocationMap: React.FC<LocationMapProps> = ({
             >
                 {/* صورة خريطة ثابتة */}
                 <iframe
-                    src={`https://maps.google.com/maps?q=${FINANCE_LOCATION.lat},${FINANCE_LOCATION.lng}&z=15&output=embed`}
+                    src={`https://maps.google.com/maps?q=${location.lat},${location.lng}&z=15&output=embed`}
                     className="w-full h-full border-0"
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
-                    title="موقع مديرية مالية حلب"
+                    title={location.name}
                 />
 
                 {/* طبقة تفاعلية */}
@@ -176,13 +195,13 @@ export const LocationMap: React.FC<LocationMapProps> = ({
             <div className="p-4">
                 <h3 className="font-bold text-gray-800 dark:text-white mb-2 flex items-center gap-2">
                     <span className="text-xl">📍</span>
-                    {FINANCE_LOCATION.name}
+                    {location.name}
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                    {FINANCE_LOCATION.address}
+                    {location.address}
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">
-                    📞 {FINANCE_LOCATION.phone}
+                    📞 {location.phone}
                 </p>
 
                 {/* أزرار التوجيه */}
@@ -223,18 +242,18 @@ export const LocationMap: React.FC<LocationMapProps> = ({
                     >
                         <div className="h-96">
                             <iframe
-                                src={`https://maps.google.com/maps?q=${FINANCE_LOCATION.lat},${FINANCE_LOCATION.lng}&z=16&output=embed`}
+                                src={`https://maps.google.com/maps?q=${location.lat},${location.lng}&z=16&output=embed`}
                                 className="w-full h-full border-0"
                                 loading="lazy"
-                                title="موقع مديرية مالية حلب - عرض كامل"
+                                title={`${location.name} - عرض كامل`}
                             />
                         </div>
                         <div className="p-4 flex justify-between items-center">
                             <div>
                                 <h3 className="font-bold text-gray-800 dark:text-white">
-                                    {FINANCE_LOCATION.name}
+                                    {location.name}
                                 </h3>
-                                <p className="text-sm text-gray-500">{FINANCE_LOCATION.address}</p>
+                                <p className="text-sm text-gray-500">{location.address}</p>
                             </div>
                             <button
                                 onClick={() => setShowFullMap(false)}
@@ -262,9 +281,10 @@ interface CalendarIntegrationProps {
 /**
  * توليد رابط Google Calendar
  */
-const generateGoogleCalendarUrl = (appointment: Appointment): string => {
+const generateGoogleCalendarUrl = (appointment: Appointment, config?: SiteConfig): string => {
     const startDate = new Date(`${appointment.date}T${appointment.timeSlot.startTime}:00`);
     const endDate = new Date(`${appointment.date}T${appointment.timeSlot.endTime}:00`);
+    const address = config?.address || FINANCE_LOCATION.address;
 
     const formatDate = (date: Date) => date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
@@ -273,7 +293,7 @@ const generateGoogleCalendarUrl = (appointment: Appointment): string => {
         text: `موعد مديرية المالية - ${SERVICE_LABELS[appointment.serviceCategory]}`,
         dates: `${formatDate(startDate)}/${formatDate(endDate)}`,
         details: `رقم الموعد: ${appointment.id}\nنوع المعاملة: ${SERVICE_LABELS[appointment.serviceCategory]}\n\nيرجى الحضور قبل 15 دقيقة`,
-        location: FINANCE_LOCATION.address,
+        location: address,
         sf: 'true'
     });
 
@@ -283,9 +303,10 @@ const generateGoogleCalendarUrl = (appointment: Appointment): string => {
 /**
  * توليد ملف ICS للتقويم
  */
-const generateICSFile = (appointment: Appointment): string => {
+const generateICSFile = (appointment: Appointment, config?: SiteConfig): string => {
     const startDate = new Date(`${appointment.date}T${appointment.timeSlot.startTime}:00`);
     const endDate = new Date(`${appointment.date}T${appointment.timeSlot.endTime}:00`);
+    const address = config?.address || FINANCE_LOCATION.address;
 
     const formatDate = (date: Date) => date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
     const now = formatDate(new Date());
@@ -300,7 +321,7 @@ DTSTART:${formatDate(startDate)}
 DTEND:${formatDate(endDate)}
 SUMMARY:موعد مديرية المالية - ${SERVICE_LABELS[appointment.serviceCategory]}
 DESCRIPTION:رقم الموعد: ${appointment.id}\\nنوع المعاملة: ${SERVICE_LABELS[appointment.serviceCategory]}\\n\\nيرجى الحضور قبل 15 دقيقة
-LOCATION:${FINANCE_LOCATION.address}
+LOCATION:${address}
 STATUS:CONFIRMED
 BEGIN:VALARM
 TRIGGER:-PT1H
@@ -323,15 +344,17 @@ export const CalendarIntegration: React.FC<CalendarIntegrationProps> = ({
     appointment,
     className = ''
 }) => {
+    const context = useContext(AppContext);
+    const config = context?.siteConfig;
     const [showOptions, setShowOptions] = useState(false);
 
     const addToGoogleCalendar = () => {
-        window.open(generateGoogleCalendarUrl(appointment), '_blank');
+        window.open(generateGoogleCalendarUrl(appointment, config), '_blank');
         setShowOptions(false);
     };
 
     const downloadICS = () => {
-        const icsContent = generateICSFile(appointment);
+        const icsContent = generateICSFile(appointment, config);
         const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -348,6 +371,7 @@ export const CalendarIntegration: React.FC<CalendarIntegrationProps> = ({
         // Outlook Web
         const startDate = new Date(`${appointment.date}T${appointment.timeSlot.startTime}:00`);
         const endDate = new Date(`${appointment.date}T${appointment.timeSlot.endTime}:00`);
+        const address = config?.address || FINANCE_LOCATION.address;
 
         const params = new URLSearchParams({
             path: '/calendar/action/compose',
@@ -356,7 +380,7 @@ export const CalendarIntegration: React.FC<CalendarIntegrationProps> = ({
             enddt: endDate.toISOString(),
             subject: `موعد مديرية المالية - ${SERVICE_LABELS[appointment.serviceCategory]}`,
             body: `رقم الموعد: ${appointment.id}`,
-            location: FINANCE_LOCATION.address
+            location: address
         });
 
         window.open(`https://outlook.live.com/calendar/0/deeplink/compose?${params.toString()}`, '_blank');

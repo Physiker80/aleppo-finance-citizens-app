@@ -178,6 +178,7 @@ interface AppContextType {
   forwardTicket: (ticketId: string, toDepartment: string, comment?: string) => void;
   markNotificationsReadForDepartment: (department: Department) => void;
   markAllNotificationsRead: () => void;
+  clearReadNotifications: () => void;
   addNotification: (n: Omit<DepartmentNotification, 'id' | 'createdAt' | 'read'> & { message?: string }) => void;
   updateContactMessageStatus: (id: string, newStatus: ContactMessageStatus) => void;
   lastSubmittedId: string | null;
@@ -370,7 +371,17 @@ const App: React.FC = () => {
   const [ticketResponses, setTicketResponses] = useState<Record<string, TicketResponseRecord[]>>(() => {
     try {
       const raw = localStorage.getItem('ticketResponses');
-      return raw ? JSON.parse(raw) : {};
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      // تحويل التواريخ من strings إلى Date objects
+      const converted: Record<string, TicketResponseRecord[]> = {};
+      for (const [ticketId, responses] of Object.entries(parsed)) {
+        converted[ticketId] = (responses as any[]).map(r => ({
+          ...r,
+          createdAt: r.createdAt ? new Date(r.createdAt) : new Date()
+        }));
+      }
+      return converted;
     } catch { return {}; }
   });
   // Prevent duplicate error toasts and coalesce concurrent fetches per ticket
@@ -806,11 +817,16 @@ const App: React.FC = () => {
         if (stored) {
           const parsed = JSON.parse(stored);
           if (parsed[ticketId] && Array.isArray(parsed[ticketId])) {
+            // تحويل التواريخ من strings إلى Date objects
+            const responsesWithDates = parsed[ticketId].map((r: any) => ({
+              ...r,
+              createdAt: r.createdAt ? new Date(r.createdAt) : new Date()
+            }));
             // تحديث الحالة إذا وجدت ردود جديدة
             if (!ticketResponses[ticketId] || ticketResponses[ticketId].length !== parsed[ticketId].length) {
-              setTicketResponses(prev => ({ ...prev, [ticketId]: parsed[ticketId] }));
+              setTicketResponses(prev => ({ ...prev, [ticketId]: responsesWithDates }));
             }
-            return parsed[ticketId];
+            return responsesWithDates;
           }
         }
       } catch (e) {
@@ -837,7 +853,7 @@ const App: React.FC = () => {
             bodySanitized: r.bodySanitized,
             visibility: r.visibility,
             isInternal: r.isInternal,
-            createdAt: r.createdAt,
+            createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
             redactionFlags: r.redactionFlags ? (() => { try { return JSON.parse(r.redactionFlags); } catch { return []; } })() : undefined
           }));
           setTicketResponses(prev => ({ ...prev, [ticketId]: mapped }));
@@ -891,7 +907,7 @@ const App: React.FC = () => {
       bodySanitized: body,
       visibility: input.isInternal ? 'INTERNAL' : 'PUBLIC',
       isInternal: !!input.isInternal,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
       redactionFlags: [],
       attachments: (input.files || []).map(f => ({ filename: f.name, mimeType: f.type, sizeBytes: f.size })),
       authorName: currentEmployee.username,
@@ -942,7 +958,7 @@ const App: React.FC = () => {
       bodySanitized: body,
       visibility: input.isInternal ? 'INTERNAL' : 'PUBLIC',
       isInternal: !!input.isInternal,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
       redactionFlags: [],
       attachments: (input.files || []).map(f => ({ filename: f.name, mimeType: f.type, sizeBytes: f.size }))
     };
@@ -970,7 +986,7 @@ const App: React.FC = () => {
         bodySanitized: data.response.bodySanitized,
         visibility: data.response.visibility,
         isInternal: data.response.visibility !== 'PUBLIC',
-        createdAt: data.response.createdAt,
+        createdAt: data.response.createdAt ? new Date(data.response.createdAt) : new Date(),
       };
       setTicketResponses(prev => ({
         ...prev,
@@ -1345,7 +1361,15 @@ const App: React.FC = () => {
             const data: any = await apiFetch('/api/tickets', { method: 'POST', body: payload as any });
             if (data?.ok && data.ticket) {
               const backendId = data.ticket.id;
-              setTickets(prev => prev.map(t => t.id === tempId ? { ...t, id: backendId } : t));
+              // تحويل التواريخ من strings إلى Date objects
+              const ticketWithDates = {
+                ...data.ticket,
+                submissionDate: data.ticket.submissionDate ? new Date(data.ticket.submissionDate) : new Date(),
+                startedAt: data.ticket.startedAt ? new Date(data.ticket.startedAt) : undefined,
+                answeredAt: data.ticket.answeredAt ? new Date(data.ticket.answeredAt) : undefined,
+                closedAt: data.ticket.closedAt ? new Date(data.ticket.closedAt) : undefined,
+              };
+              setTickets(prev => prev.map(t => t.id === tempId ? { ...ticketWithDates, id: backendId } : t));
               setLastSubmittedId(backendId);
               addToast?.({ message: `تم إنشاء التذكرة ${backendId} بنجاح`, type: 'success' });
               return;
@@ -1398,10 +1422,10 @@ const App: React.FC = () => {
       id: newId,
       status: RequestStatus.New,
       ...ticketData,
-      // توجيه إجباري إلى إدارة الاستعلامات والشكاوى
-      department: CENTRAL_DEPARTMENT,
-      // إلغاء أي إحالات أولية
-      forwardedTo: [],
+      // استخدام القسم الممرر من الطلب أو الافتراضي (الديوان العام)
+      department: ticketData.department || CENTRAL_DEPARTMENT,
+      // الحفاظ على الإحالات إذا وجدت
+      forwardedTo: ticketData.forwardedTo || [],
     };
     setTickets(prevTickets => [...prevTickets, newTicket]);
 
@@ -1964,6 +1988,21 @@ const App: React.FC = () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
+  const clearReadNotifications = () => {
+    setNotifications(prev => {
+      // If admin, remove all read
+      if (isAdmin) return prev.filter(n => !n.read);
+      // If employee, remove read notifications belonging to their department
+      if (employeeDept) {
+        return prev.filter(n => {
+          if (n.department === employeeDept && n.read) return false;
+          return true;
+        });
+      }
+      return prev;
+    });
+  };
+
   const addNotification = (n: Omit<DepartmentNotification, 'id' | 'createdAt' | 'read'> & { message?: string }) => {
     setNotifications(prev => [
       { id: `N-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, createdAt: new Date(), read: false, ...n },
@@ -2169,6 +2208,7 @@ const App: React.FC = () => {
         updateTicketForwardedTo,
         markNotificationsReadForDepartment,
         markAllNotificationsRead,
+        clearReadNotifications,
         addNotification,
         updateContactMessageStatus,
         updateTicket,
@@ -2264,8 +2304,8 @@ const App: React.FC = () => {
             {/* زر عائم عام للرجوع إلى أعلى الصفحة */}
             <BackToTopFab />
 
-            {/* المساعد الذكي - Chatbot */}
-            <Chatbot />
+            {/* المساعد الذكي - Chatbot - يظهر فقط في الصفحات العامة وليس في صفحات الموظفين أو تسجيل الدخول */}
+            {(!isEmployeeLoggedIn && route !== '#/login') && <Chatbot />}
 
             <Footer />
             {/* Toast container */}

@@ -12,13 +12,34 @@ declare const JsBarcode: any;
 
 const ConfirmationPage: React.FC = () => {
   const appContext = useContext(AppContext);
+  const config = appContext?.siteConfig;
   const { lastSubmittedId, findTicket } = appContext || {};
-  const ticket = lastSubmittedId ? findTicket?.(lastSubmittedId) : undefined;
+  
+  // Get ID from URL query params (e.g. #/confirmation?id=T-123)
+  const getTicketIdFromUrl = () => {
+    try {
+      const hash = window.location.hash;
+      const queryIndex = hash.indexOf('?');
+      if (queryIndex !== -1) {
+        const params = new URLSearchParams(hash.substring(queryIndex));
+        return params.get('id');
+      }
+    } catch (e) {
+      console.error('Error parsing URL params:', e);
+    }
+    return null;
+  };
+
+  const urlId = getTicketIdFromUrl();
+  const targetId = urlId || lastSubmittedId;
+  const ticket = targetId ? findTicket?.(targetId) : undefined;
+  
   const pdfContentRef = useRef<HTMLDivElement>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = React.useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = React.useState(false);
   const [emailStatus, setEmailStatus] = React.useState<'idle' | 'sending' | 'sent' | 'error' | 'disabled'>('idle');
   const [emailError, setEmailError] = React.useState<string>('');
+  const [whatsappSent, setWhatsappSent] = React.useState(false);
   const [serviceRating, setServiceRating] = React.useState<number>(0);
   const [ratingSubmitted, setRatingSubmitted] = React.useState(false);
   const emailEnabled = (import.meta as any).env?.VITE_ENABLE_EMAIL !== 'false';
@@ -142,8 +163,12 @@ const ConfirmationPage: React.FC = () => {
   };
 
   const sendEmail = async () => {
-    if (!ticket?.email) return;
+    if (!ticket?.email) {
+      console.log('No email address provided');
+      return;
+    }
     if (!emailEnabled) {
+      console.log('Email feature is disabled (VITE_ENABLE_EMAIL=false)');
       setEmailStatus('disabled');
       return;
     }
@@ -173,7 +198,7 @@ const ConfirmationPage: React.FC = () => {
       setEmailStatus('sent');
     } catch (err: any) {
       console.error('Auto email send failed', err);
-      setEmailError(err?.message || 'خطأ غير متوقع أثناء الإرسال');
+      setEmailError(err?.message || 'خطأ في الاتصال بخادم البريد الإلكتروني');
       setEmailStatus('error');
     }
   };
@@ -185,6 +210,70 @@ const ConfirmationPage: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticket?.id, ticket?.email]);
+
+  // WhatsApp message sender
+  const sendWhatsApp = () => {
+    if (!ticket?.phone) {
+      alert('لا يوجد رقم هاتف مسجل');
+      return;
+    }
+    
+    // تنظيف رقم الهاتف - إزالة المسافات والرموز
+    let phoneNumber = ticket.phone.replace(/[^0-9+]/g, '');
+    
+    // إضافة رمز سوريا إذا لم يكن موجوداً
+    if (!phoneNumber.startsWith('+') && !phoneNumber.startsWith('00')) {
+      // إذا كان الرقم يبدأ بـ 09، نزيل الصفر ونضيف +963
+      if (phoneNumber.startsWith('09')) {
+        phoneNumber = '+963' + phoneNumber.substring(1);
+      } else if (phoneNumber.startsWith('9')) {
+        phoneNumber = '+963' + phoneNumber;
+      } else {
+        phoneNumber = '+963' + phoneNumber;
+      }
+    } else if (phoneNumber.startsWith('00')) {
+      phoneNumber = '+' + phoneNumber.substring(2);
+    }
+    
+    const trackingUrl = `${window.location.origin}/#/track?id=${ticket.id}`;
+    
+    // بناء رسالة مفصلة
+    const submissionDate = ticket.submissionDate 
+      ? new Date(ticket.submissionDate).toLocaleString('ar-SY-u-nu-latn', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      : new Date().toLocaleString('ar-SY-u-nu-latn');
+    
+    const message = `🏛️ *مديرية مالية حلب*\n` +
+      `نظام الاستعلامات والشكاوى\n\n` +
+      `━━━━━━━━━━━━━━━━━━\n\n` +
+      `✅ تم استلام طلبكم بنجاح\n\n` +
+      `👤 الاسم: ${ticket.fullName || ''}\n` +
+      `📋 نوع الطلب: ${ticket.requestType || ''}\n` +
+      `🔢 رقم التتبع: *${ticket.id}*\n` +
+      `📅 تاريخ التقديم: ${submissionDate}\n` +
+      `📊 الحالة: ${ticket.status || 'جديد'}\n\n` +
+      `━━━━━━━━━━━━━━━━━━\n\n` +
+      `🔗 *رابط المتابعة:*\n${trackingUrl}\n\n` +
+      `💡 *ملاحظات مهمة:*\n` +
+      `• احفظ رقم التتبع للمراجعة\n` +
+      `• يمكنك متابعة طلبك عبر الرابط أعلاه\n` +
+      `• سيتم إشعارك بأي تحديثات\n\n` +
+      `شكراً لتواصلكم معنا 🌟`;
+    
+    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+    
+    // فتح الواتساب في نافذة جديدة
+    window.open(whatsappUrl, '_blank');
+    setWhatsappSent(true);
+    
+    // إعادة تعيين بعد 10 ثواني
+    setTimeout(() => setWhatsappSent(false), 10000);
+  };
 
   const handleDownloadPdf = async () => {
     if (!ticket?.id) {
@@ -439,7 +528,7 @@ const ConfirmationPage: React.FC = () => {
   if (!ticket) {
     console.log('No ticket found - Debug info:', { lastSubmittedId, appContext: !!appContext });
     return (
-      <div className="min-h-screen bg-transparent p-4">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 transition-colors duration-300">
         <div className="max-w-2xl mx-auto">
 
           {/* Simple "No Ticket" Message */}
@@ -500,7 +589,7 @@ const ConfirmationPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-transparent p-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 transition-colors duration-300">
       <div className="max-w-2xl mx-auto">
 
         {/* Success Header - Simple and Clear */}
@@ -734,21 +823,45 @@ const ConfirmationPage: React.FC = () => {
           </div>
 
           {/* Official Receipt Layout */}
-          <div ref={pdfContentRef} data-receipt-root style={{ fontFamily: "'Cairo','Noto Kufi Arabic','Fustat', sans-serif" }} className="bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-500 rounded-lg p-6 mx-auto max-w-lg shadow-lg">
-            {/* Header */}
-            <div className="text-center border-b-2 border-gray-800 dark:border-gray-300 pb-4 mb-6">
-              <div className="flex items-center justify-center mb-2">
-                <img src="/ministry-logo.svg" alt="شعار وزارة المالية" className="h-16 w-16" />
-              </div>
-              <h3 data-receipt-heading className="text-xl font-bold text-gray-800 dark:text-gray-100">مديرية مالية محافظة حلب</h3>
-              <h4 data-receipt-subheading className="text-lg font-semibold text-gray-700 dark:text-gray-200 mt-1">إيصال تقديم طلب</h4>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                الجمهورية العربية السورية
-              </div>
+          <div ref={pdfContentRef} data-receipt-root style={{ fontFamily: "'Cairo','Noto Kufi Arabic','Fustat', sans-serif" }} className="relative bg-white border-4 border-double border-[#cfb66b] rounded-none overflow-hidden mx-auto max-w-lg shadow-2xl printable-receipt">
+            
+            {/* Background Pattern & Watermark */}
+            <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+               {/* Golden Islamic/Geometric Pattern Overlay */}
+               <div className="absolute inset-0 opacity-[0.08]" 
+                    style={{
+                      backgroundImage: `repeating-linear-gradient(45deg, #cfb66b 0, #cfb66b 1px, transparent 0, transparent 50%),
+                                        repeating-linear-gradient(-45deg, #cfb66b 0, #cfb66b 1px, transparent 0, transparent 50%)`,
+                      backgroundSize: '16px 16px'
+                    }}
+               ></div>
+               
+               {/* Central Eagle Watermark */}
+               <div className="absolute inset-0 flex items-center justify-center p-12 opacity-[0.05]">
+                  <img src="/syrian-eagle.svg" alt="watermark" className="w-full h-full object-contain" />
+               </div>
+            </div>
+
+            {/* Header - Image Based */}
+            <div className="relative z-10 w-full border-b-[3px] border-[#cfb66b] mb-0">
+              <img 
+                src="/receipt-header.png" 
+                alt="ترويسة الإيصال الرسمي" 
+                className="w-full h-auto object-cover block"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  // Try jpg fallback if png fails
+                  if (target.src.endsWith('.png')) {
+                    target.src = "/receipt-header.jpg";
+                  } else {
+                    target.style.display = 'none';
+                  }
+                }}
+              />
             </div>
 
             {/* Receipt Content */}
-            <div className="space-y-4">
+            <div className="relative z-10 p-8 space-y-6">
               {/* Tracking Number - Prominent */}
               <div className="text-center bg-blue-50/80 dark:bg-blue-900/30 p-4 rounded-lg">
                 <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">رقم التتبع</div>
@@ -800,7 +913,7 @@ const ConfirmationPage: React.FC = () => {
               {/* Footer */}
               <div className="text-center pt-2 border-t border-gray-200 dark:border-gray-600">
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                  وزارة المالية - مديرية مالية محافظة حلب
+                  {config?.ministryName || 'وزارة المالية'} - {config?.directorateName ? `مديرية ${config.directorateName}` : 'مديرية مالية محافظة حلب'}
                 </div>
                 <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                   تم الإنشاء تلقائياً - {new Date().toLocaleDateString('ar-SY-u-nu-latn')}
@@ -869,24 +982,65 @@ const ConfirmationPage: React.FC = () => {
                 {isGeneratingPdf ? 'جاري التحضير...' : 'تحميل إيصال'}
               </Button>
             </div>
-            {ticket?.email && (
+            
+            {/* WhatsApp Button */}
+            {ticket?.phone && (
+              <div className="relative">
+                <Button
+                  onClick={sendWhatsApp}
+                  className={`w-full py-3 text-sm flex items-center justify-center space-x-2 rtl:space-x-reverse transition-all duration-300 ${
+                    whatsappSent 
+                      ? 'bg-green-500 hover:bg-green-600' 
+                      : 'bg-green-600 hover:bg-green-700'
+                  } text-white`}
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                  </svg>
+                  <span className="font-medium">
+                    {whatsappSent ? (
+                      <>
+                        <span className="inline-block animate-pulse">✓</span> تم الإرسال بنجاح
+                      </>
+                    ) : (
+                      'إرسال تفاصيل الطلب - واتساب'
+                    )}
+                  </span>
+                </Button>
+                {whatsappSent && (
+                  <div className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full animate-bounce">
+                    جديد
+                  </div>
+                )}
+              </div>
+            )}
+            {ticket?.email && emailEnabled && (
               <div className="text-center mt-2 text-xs space-y-1">
-                {emailStatus === 'disabled' && <span className="text-gray-500">تم تعطيل إرسال البريد في الإعدادات</span>}
                 {emailStatus === 'sending' && <span className="text-gray-500">يتم إرسال الإيصال إلى بريدك...</span>}
                 {emailStatus === 'sent' && <span className="text-green-600">تم إرسال نسخة من الإيصال إلى بريدك الإلكتروني</span>}
                 {emailStatus === 'error' && (
                   <>
                     <span className="text-red-600 block">تعذر إرسال البريد تلقائياً</span>
-                    {emailError && <span className="text-red-500 block ltr:text-left rtl:text-right break-all">{emailError}</span>}
+                    {emailError && <span className="text-red-500 block ltr:text-left rtl:text-right break-all text-[10px]">{emailError}</span>}
                     <button
                       onClick={() => {
                         setEmailStatus('idle');
                         setTimeout(() => sendEmail(), 50);
                       }}
-                      className="mt-1 inline-block bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded"
+                      className="mt-1 inline-block bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"
                     >إعادة المحاولة</button>
                   </>
                 )}
+              </div>
+            )}
+            
+            {/* WhatsApp Info */}
+            {ticket?.phone && (
+              <div className="text-center mt-2 text-xs text-gray-500 dark:text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline-block ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>يمكنك إرسال تفاصيل الطلب إلى الواتساب للحفظ والمراجعة</span>
               </div>
             )}
           </div>
@@ -916,6 +1070,12 @@ const ConfirmationPage: React.FC = () => {
               <span className="text-indigo-500">•</span>
               <span>اضغط على "متابعة الطلب الآن" للوصول المباشر</span>
             </div>
+            {ticket?.phone && (
+              <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                <span className="text-green-500">•</span>
+                <span>أرسل تفاصيل الطلب إلى الواتساب للحفظ والمراجعة السريعة</span>
+              </div>
+            )}
           </div>
 
           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">

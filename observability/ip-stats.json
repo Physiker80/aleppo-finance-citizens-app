@@ -1,31 +1,15 @@
 [
   {
-    "ip": "127.0.0.1",
-    "total": 170,
-    "byStatus": {
-      "2xx": 170,
-      "3xx": 0,
-      "4xx": 0,
-      "5xx": 0,
-      "other": 0
-    },
-    "lastSeen": 1758068123126,
-    "routeCounts": {
-      "/api/metrics-summary": 169,
-      "/api/ip-stats": 1
-    }
-  },
-  {
     "ip": "::1",
-    "total": 3031,
+    "total": 3037,
     "byStatus": {
-      "2xx": 1181,
-      "3xx": 1844,
-      "4xx": 5,
+      "2xx": 1183,
+      "3xx": 1847,
+      "4xx": 6,
       "5xx": 1,
       "other": 0
     },
-    "lastSeen": 1758644799292,
+    "lastSeen": 1769878212486,
     "routeCounts": {
       "/api/health": 9,
       "/api/metrics-summary": 485,
@@ -40,10 +24,11 @@
       "/api/otel-info": 6,
       "/api/ai/observability": 6,
       "/api/departments": 730,
-      "/api/security/status": 433,
+      "/api/security/status": 438,
       "/": 6,
       "/vite.svg": 2,
-      "/csp-violations": 1
+      "/csp-violations": 1,
+      "/health": 1
     }
   }
 ]

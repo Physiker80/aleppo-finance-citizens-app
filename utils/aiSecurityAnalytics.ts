@@ -1,7 +1,7 @@
 /**
  * نظام التحليل الذكي للأمان - AI Security Analytics
  * نظام متقدم للتحليل الأمني باستخدام خوارزميات الذكاء الاصطناعي
- * Aleppo Finance Directorate - Complaints and Inquiries System
+ * نظام الاستعلامات والشكاوى - بوابة الخدمات الإلكترونية
  */
 
 import { ActiveSession, SecurityLog, Employee } from '../types';
@@ -824,10 +824,17 @@ export class AISecurityEngine {
     const total = Array.from(locationStats.values()).reduce((a, b) => a + b, 0);
     const suspicious: string[] = [];
     
+    // Get authorized city from config
+    let authorizedCity = '';
+    try {
+        const config = JSON.parse(localStorage.getItem('site_config') || '{}');
+        authorizedCity = config.city || '';
+    } catch {}
+    
     locationStats.forEach((count, location) => {
       const percentage = (count / total) * 100;
-      // المواقع التي تشكل أقل من 5% من المجموع تعتبر مشبوهة
-      if (percentage < 5 && !location.includes('حلب')) {
+      // المواقع التي تشكل أقل من 5% ولا تحتوي على المدينة المصرح بها تعتبر مشبوهة
+      if (percentage < 5 && (authorizedCity && !location.includes(authorizedCity))) {
         suspicious.push(location);
       }
     });

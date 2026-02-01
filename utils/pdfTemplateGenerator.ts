@@ -190,12 +190,26 @@ export function getSavedTemplates(): PdfTemplate[] {
 
 // الحصول على القالب الافتراضي
 export function getDefaultTemplate(): PdfTemplate {
+  // محاولة الحصول على اسم المديرية من الإعدادات
+  let directorateName = 'المديرية المالية';
+  try {
+    const savedConfig = localStorage.getItem('site_config');
+    if (savedConfig) {
+      const config = JSON.parse(savedConfig);
+      if (config.directorateName) {
+        directorateName = config.directorateName;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load site config from localStorage', e);
+  }
+
   return {
     id: 'default-ticket',
     name: 'قالب إيصال الطلب الافتراضي',
     type: 'ticket_confirmation',
     header: {
-      title: 'الجمهورية العربية السورية\nمديرية مالية حلب',
+      title: `الجمهورية العربية السورية\n${directorateName}`,
       subtitle: 'نظام الاستعلامات والشكاوى',
       logo: true,
       logoWidth: 60,
@@ -222,7 +236,7 @@ export function getDefaultTemplate(): PdfTemplate {
     },
     footer: {
       text: 'يرجى الاحتفاظ بهذا الإيصال لمتابعة طلبكم\nيمكنكم متابعة الطلب عبر الموقع الإلكتروني باستخدام رقم الطلب',
-      subFooter: 'مديرية مالية حلب - الجمهورية العربية السورية\nللاستفسارات: 011-1234567 | البريد: info@aleppo-finance.gov.sy',
+      subFooter: `${directorateName} - الجمهورية العربية السورية\nللاستفسارات: 011-1234567 | البريد: info@aleppo-finance.gov.sy`,
       separatorColor: '#10b981',
       separatorThickness: '2',
       qrCode: true,
@@ -1379,13 +1393,27 @@ export function deleteTemplate(templateId: string): void {
 // تصدير قالب إلى ملف JSON
 export function exportTemplate(template: PdfTemplate): void {
   try {
+    // محاولة الحصول على اسم المديرية
+    let directorateName = 'المديرية المالية';
+    try {
+      const savedConfig = localStorage.getItem('site_config');
+      if (savedConfig) {
+        const config = JSON.parse(savedConfig);
+        if (config.directorateName) {
+          directorateName = config.directorateName;
+        }
+      }
+    } catch (e) {
+      // تجاهل الخطأ واستخدام الافتراضي
+    }
+
     // إضافة معلومات التصدير
     const exportData = {
       ...template,
       exportedAt: new Date().toISOString(),
       exportVersion: '1.0',
       metadata: {
-        exportedBy: 'نظام مديرية مالية حلب',
+        exportedBy: `نظام ${directorateName}`,
         isApproved: template.approved || false,
         approvalStatus: template.approved ? 'معتمد' : 'غير معتمد',
         templateVersion: template.updatedAt || template.createdAt || new Date().toISOString()

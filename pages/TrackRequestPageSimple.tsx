@@ -13,10 +13,14 @@ const TrackRequestPageSimple: React.FC = () => {
   const appContext = useContext(AppContext);
   const { tickets, findTicket } = appContext || {};
   const [searchId, setSearchId] = useState('');
+  const [searchName, setSearchName] = useState('');
+  const [searchNationalId, setSearchNationalId] = useState('');
   const [foundTicket, setFoundTicket] = useState<Ticket | null>(null);
+  const [searchResults, setSearchResults] = useState<Ticket[]>([]);
   const [trackedTickets, setTrackedTickets] = useState<Ticket[]>([]);
   const [searchError, setSearchError] = useState<string>('');
   const [searchMethod, setSearchMethod] = useState<'manual' | 'file' | 'camera'>('manual');
+  const [searchType, setSearchType] = useState<'id' | 'name' | 'nationalId'>('id');
   const [trackingMode, setTrackingMode] = useState<'single' | 'multiple'>('single');
   const [isProcessing, setIsProcessing] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
@@ -26,6 +30,62 @@ const TrackRequestPageSimple: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // استعادة آخر تذكرة تم تتبعها عند التحميل
+  React.useEffect(() => {
+    // 1. Check URL params first
+    const params = new URLSearchParams(window.location.hash.split('?')[1]);
+    const urlId = params.get('id');
+    
+    if (urlId && findTicket) {
+      setSearchId(urlId);
+      const ticket = findTicket(urlId);
+      if (ticket) {
+        setFoundTicket(ticket);
+        setTrackingMode('single');
+      }
+    } 
+    // 2. Fallback to localStorage for single tracking
+    else if (findTicket) {
+      const savedId = localStorage.getItem('last_tracked_id');
+      if (savedId) {
+        setSearchId(savedId);
+        const ticket = findTicket(savedId);
+        if (ticket) setFoundTicket(ticket);
+      }
+    }
+    
+    // 3. Restore multiple tracked tickets from localStorage
+    if (findTicket) {
+      try {
+        const rawTracked = localStorage.getItem('tracked_tickets_list');
+        if (rawTracked) {
+          const ids = JSON.parse(rawTracked);
+          if (Array.isArray(ids)) {
+            const found = ids.map((id: string) => findTicket(id)).filter((t): t is Ticket => !!t);
+            if (found.length > 0) setTrackedTickets(found);
+          }
+        }
+      } catch (e) {
+        console.error('Error restoring tracked tickets:', e);
+      }
+    }
+  }, [findTicket]); // Run when findTicket is available (tickets loaded)
+
+  // حفظ المعرف عند العثور على تذكرة (Single Mode)
+  React.useEffect(() => {
+    if (foundTicket) {
+      localStorage.setItem('last_tracked_id', foundTicket.id);
+    }
+  }, [foundTicket]);
+
+  // حفظ قائمة التذاكر المتتبعة (Multiple Mode)
+  React.useEffect(() => {
+    if (trackedTickets.length > 0) {
+      const ids = trackedTickets.map(t => t.id);
+      localStorage.setItem('tracked_tickets_list', JSON.stringify(ids));
+    }
+  }, [trackedTickets]);
 
   // يستخرج رقم التتبع فقط من نص/رابط (يدعم id= في الرابط وأنماط ALF-YYYYMMDD/YYMMDD-XXXXX)
   const extractTrackingId = (text: string): string | null => {
@@ -76,27 +136,61 @@ const TrackRequestPageSimple: React.FC = () => {
 
   const handleSearch = () => {
     setSearchError('');
+    setSearchResults([]);
 
-    if (!searchId.trim()) {
-      setSearchError('يرجى إدخال رقم الطلب');
-      return;
-    }
-    // طبيعـة الإدخال قد تكون رابطاً كاملاً؛ نستخرج المعرّف أولاً
-    const normalizedId = extractTrackingId(searchId) || searchId.trim();
-    setSearchId(normalizedId);
-    const ticket = findTicket?.(normalizedId);
-    if (ticket) {
-      if (trackingMode === 'single') {
-        setFoundTicket(ticket);
-      } else {
-        // في وضع التتبع المتعدد، أضف التذكرة إلى القائمة إذا لم تكن موجودة
-        if (!trackedTickets.some(t => t.id === ticket.id)) {
-          setTrackedTickets(prev => [...prev, ticket]);
-        }
-        setSearchId(''); // مسح حقل البحث للبحث التالي
+    if (searchType === 'id') {
+      if (!searchId.trim()) {
+        setSearchError('يرجى إدخال رقم الطلب');
+        return;
       }
-    } else {
-      setSearchError('لم يتم العثور على طلب بهذا الرقم');
+      // طبيعـة الإدخال قد تكون رابطاً كاملاً؛ نستخرج المعرّف أولاً
+      const normalizedId = extractTrackingId(searchId) || searchId.trim();
+      setSearchId(normalizedId);
+      const ticket = findTicket?.(normalizedId);
+      if (ticket) {
+        if (trackingMode === 'single') {
+          setFoundTicket(ticket);
+        } else {
+          if (!trackedTickets.some(t => t.id === ticket.id)) {
+            setTrackedTickets(prev => [...prev, ticket]);
+          }
+          setSearchId('');
+        }
+      } else {
+        setSearchError('لم يتم العثور على طلب بهذا الرقم');
+      }
+    } else if (searchType === 'name') {
+      if (!searchName.trim()) {
+        setSearchError('يرجى إدخال الاسم الكامل');
+        return;
+      }
+      const results = tickets?.filter(t => 
+        t.fullName && t.fullName.toLowerCase().includes(searchName.toLowerCase())
+      ) || [];
+      
+      if (results.length === 0) {
+        setSearchError('لم يتم العثور على طلبات بهذا الاسم');
+      } else if (results.length === 1) {
+        setFoundTicket(results[0]);
+      } else {
+        setSearchResults(results);
+      }
+    } else if (searchType === 'nationalId') {
+      if (!searchNationalId.trim()) {
+        setSearchError('يرجى إدخال الرقم الوطني');
+        return;
+      }
+      const results = tickets?.filter(t => 
+        t.nationalId && t.nationalId === searchNationalId.trim()
+      ) || [];
+      
+      if (results.length === 0) {
+        setSearchError('لم يتم العثور على طلبات بهذا الرقم الوطني');
+      } else if (results.length === 1) {
+        setFoundTicket(results[0]);
+      } else {
+        setSearchResults(results);
+      }
     }
   };
 
@@ -154,31 +248,86 @@ const TrackRequestPageSimple: React.FC = () => {
   // قراءة QR code من PDF
   const readQRFromPDF = async (pdfFile: File): Promise<string | null> => {
     try {
+      console.log("Starting PDF processing...");
+      // استيراد PDF.js ديناميكياً
       const pdfjs = await import('pdfjs-dist');
-      pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-      const arrayBuffer = await pdfFile.arrayBuffer();
-      const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-      const page = await pdf.getPage(1);
-
-      const viewport = page.getViewport({ scale: 2 });
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-
-      if (ctx) {
-        await page.render({ canvasContext: ctx, viewport }).promise;
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const jsQR = await import('jsqr');
-        const code = jsQR.default(imageData.data, imageData.width, imageData.height);
-        return code ? code.data : null;
+      
+      // إعداد Worker
+      // استخدام unpkg مع الإصدار المثبت لضمان التوافق
+      // في الإصدار 5+ نستخدم mjs
+      if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+         const version = pdfjs.version || '5.3.93';
+         console.log(`Setting PDF Worker to version: ${version}`);
+         pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
       }
 
+      const arrayBuffer = await pdfFile.arrayBuffer();
+      const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
+      
+      const pdf = await loadingTask.promise;
+      console.log(`PDF Loaded, pages: ${pdf.numPages}`);
+
+      // البحث في أول 5 صفحات (زاد العدد لضمان العثور)
+      const maxPages = Math.min(pdf.numPages, 5);
+      
+      // استيراد المكتبات
+      const jsQR = await import('jsqr');
+      const { BrowserMultiFormatReader } = await import('@zxing/browser');
+      const zxingReader = new BrowserMultiFormatReader();
+
+      for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+        console.log(`Scanning page ${pageNum}...`);
+        try {
+          const page = await pdf.getPage(pageNum);
+          
+          // زيادة الدقة إلى 3.0 لتحسين قراءة الرموز الصغيرة
+          const viewport = page.getViewport({ scale: 3.0 });
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          
+          if (!ctx) continue;
+          
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+
+          await page.render({ canvasContext: ctx, viewport }).promise;
+
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          
+          // === المحاولة 1: jsQR ===
+          const code = jsQR.default(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "attemptBoth",
+          });
+          
+          if (code && code.data) {
+             console.log(`QR Found via jsQR on page ${pageNum}:`, code.data);
+             return code.data;
+          }
+
+          // === المحاولة 2: ZXing ===
+          // نستخدم DataURL
+          const dataUrl = canvas.toDataURL('image/png');
+          try {
+             // إضافة Hints لتحسين الدقة
+             const result = await zxingReader.decodeFromImageUrl(dataUrl);
+             if (result && result.getText()) {
+                console.log(`QR Found via ZXing on page ${pageNum}:`, result.getText());
+                return result.getText();
+             }
+          } catch (zError) {
+             // ZXing failure is expected if no QR
+          }
+
+        } catch (pageError) {
+           console.warn(`Error scanning page ${pageNum}:`, pageError);
+        }
+      }
+
+      console.log("No QR code found in scanned pages");
       return null;
     } catch (error) {
       console.error('Error reading PDF:', error);
+      setSearchError('حدث خطأ أثناء معالجة ملف PDF. تأكد من أن الملف صالح وليس محمياً بكلمة مرور.');
       return null;
     }
   };
@@ -493,22 +642,107 @@ const TrackRequestPageSimple: React.FC = () => {
             {/* البحث اليدوي */}
             {searchMethod === 'manual' && (
               <div className="max-w-md mx-auto space-y-6">
-                <div className="relative">
-                  <Input
-                    type="text"
-                    placeholder="أدخل رقم الطلب"
-                    value={searchId}
-                    onChange={(e) => setSearchId(e.target.value)}
-                    className="text-center h-14 text-lg rounded-2xl border-2 focus:border-blue-500 transition-all duration-200"
-                  />
-                  <div className="absolute -top-3 left-4 px-2 bg-white dark:bg-gray-900 text-sm text-gray-500">
-                    مثال: ALF-20250912-001-ABC123
-                  </div>
+                {/* خيارات نوع البحث */}
+                <div className="flex gap-2 p-1 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                  <button
+                    onClick={() => {
+                      setSearchType('id');
+                      setSearchError('');
+                      setSearchResults([]);
+                    }}
+                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 text-sm ${searchType === 'id'
+                        ? 'bg-white dark:bg-gray-700 text-[#002623] dark:text-green-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                      }`}
+                  >
+                    رقم الطلب
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSearchType('name');
+                      setSearchError('');
+                      setSearchResults([]);
+                    }}
+                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 text-sm ${searchType === 'name'
+                        ? 'bg-white dark:bg-gray-700 text-[#002623] dark:text-green-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                      }`}
+                  >
+                    الاسم
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSearchType('nationalId');
+                      setSearchError('');
+                      setSearchResults([]);
+                    }}
+                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 text-sm ${searchType === 'nationalId'
+                        ? 'bg-white dark:bg-gray-700 text-[#002623] dark:text-green-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                      }`}
+                  >
+                    الرقم الوطني
+                  </button>
                 </div>
+
+                {/* حقل البحث حسب النوع */}
+                {searchType === 'id' && (
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      placeholder="أدخل رقم الطلب"
+                      value={searchId}
+                      onChange={(e) => setSearchId(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                      className="text-center h-14 text-lg rounded-2xl border-2 focus:border-blue-500 transition-all duration-200"
+                    />
+                    <div className="absolute -top-3 left-4 px-2 bg-white dark:bg-gray-900 text-sm text-gray-500">
+                      مثال: ALF-20250912-001-ABC123
+                    </div>
+                  </div>
+                )}
+
+                {searchType === 'name' && (
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      placeholder="أدخل الاسم الكامل"
+                      value={searchName}
+                      onChange={(e) => setSearchName(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                      className="text-center h-14 text-lg rounded-2xl border-2 focus:border-blue-500 transition-all duration-200"
+                    />
+                    <div className="absolute -top-3 left-4 px-2 bg-white dark:bg-gray-900 text-sm text-gray-500">
+                      مثال: محمد أحمد الخطيب
+                    </div>
+                  </div>
+                )}
+
+                {searchType === 'nationalId' && (
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      placeholder="أدخل الرقم الوطني (11 رقم)"
+                      value={searchNationalId}
+                      onChange={(e) => setSearchNationalId(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                      maxLength={11}
+                      className="text-center h-14 text-lg rounded-2xl border-2 focus:border-blue-500 transition-all duration-200"
+                    />
+                    <div className="absolute -top-3 left-4 px-2 bg-white dark:bg-gray-900 text-sm text-gray-500">
+                      مثال: 01234567890
+                    </div>
+                  </div>
+                )}
+
                 <Button
                   onClick={handleSearch}
                   className="w-full h-14 text-lg rounded-2xl bg-[#002623] hover:bg-[#003833] text-white font-medium shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200"
-                  disabled={!searchId.trim() || isProcessing}
+                  disabled={isProcessing || (
+                    searchType === 'id' && !searchId.trim() ||
+                    searchType === 'name' && !searchName.trim() ||
+                    searchType === 'nationalId' && !searchNationalId.trim()
+                  )}
                 >
                   {trackingMode === 'single' ? 'البحث عن الطلب' : 'إضافة طلب للتتبع'}
                 </Button>
@@ -674,6 +908,72 @@ const TrackRequestPageSimple: React.FC = () => {
           </div>
         </Card>
 
+        {/* عرض نتائج البحث المتعددة */}
+        {searchResults.length > 0 && (
+          <Card className="overflow-hidden shadow-xl border-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-white/20 dark:border-gray-700/20">
+            <div className="bg-[#002623]/90 backdrop-blur-sm p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">نتائج البحث</h2>
+                  <p className="text-green-100">تم العثور على {searchResults.length} طلب</p>
+                </div>
+                <Button
+                  onClick={() => {
+                    setSearchResults([]);
+                    setSearchName('');
+                    setSearchNationalId('');
+                  }}
+                  className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl text-sm"
+                >
+                  مسح النتائج
+                </Button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4 max-h-96 overflow-y-auto">
+              {searchResults.map((ticket, index) => (
+                <div 
+                  key={ticket.id} 
+                  className="border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-gray-50/50 dark:bg-gray-800/50 hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => {
+                    setFoundTicket(ticket);
+                    setSearchResults([]);
+                  }}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="bg-[#002623] text-white px-3 py-1 rounded-full text-xs font-medium">
+                          #{index + 1}
+                        </span>
+                        <span className="font-mono text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full">
+                          {ticket.id}
+                        </span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
+                          {getStatusInArabic(ticket.status)}
+                        </span>
+                      </div>
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">{ticket.fullName}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">الرقم الوطني: {ticket.nationalId}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">نوع الطلب: {ticket.requestType}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-500">
+                        تاريخ التقديم: {formatArabicDate(ticket.submissionDate)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {ticket.response && (
+                    <div className="mt-3 bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-200 dark:border-green-700">
+                      <h4 className="text-sm font-medium text-green-800 dark:text-green-300 mb-1">الرد:</h4>
+                      <p className="text-sm text-green-700 dark:text-green-300">{ticket.response}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
         {/* عرض الطلبات المتتبعة في الوضع المتعدد */}
         {trackingMode === 'multiple' && trackedTickets.length > 0 && (
           <Card className="overflow-hidden shadow-xl border-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-white/20 dark:border-gray-700/20">
@@ -771,11 +1071,30 @@ const TrackRequestPageSimple: React.FC = () => {
             <div className="p-6 bg-gray-50 dark:bg-gray-800/50">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 text-center">مسار الطلب</h3>
               <TicketTimeline
-                status={foundTicket.status}
-                createdAt={new Date(foundTicket.submissionDate)}
-                startedAt={foundTicket.startedAt ? new Date(foundTicket.startedAt) : undefined}
-                answeredAt={foundTicket.answeredAt ? new Date(foundTicket.answeredAt) : undefined}
-                closedAt={foundTicket.closedAt ? new Date(foundTicket.closedAt) : undefined}
+                steps={[
+                  {
+                    id: 'submitted',
+                    title: 'استلام الطلب',
+                    date: new Date(foundTicket.submissionDate),
+                    status: 'completed',
+                    icon: '📝'
+                  },
+                  {
+                    id: 'processing',
+                    title: 'قيد المعالجة',
+                    date: foundTicket.startedAt ? new Date(foundTicket.startedAt) : undefined,
+                    status: foundTicket.status === 'New' ? 'pending' : 
+                            foundTicket.status === 'InProgress' ? 'current' : 'completed',
+                    icon: '⚙️'
+                  },
+                  {
+                    id: 'answered',
+                    title: 'الرد النهائي',
+                    date: foundTicket.answeredAt ? new Date(foundTicket.answeredAt) : undefined,
+                    status: (foundTicket.status === 'Answered' || foundTicket.status === 'Closed') ? 'completed' : 'pending',
+                    icon: '✅'
+                  }
+                ]}
                 orientation="horizontal"
               />
             </div>

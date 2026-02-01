@@ -18,8 +18,8 @@ export const emailConfig: EmailConfig = {
   serviceId: 'service_aleppo_finance', // يجب استبداله بالـ service ID الحقيقي
   templateId: 'template_reply', // يجب استبداله بالـ template ID الحقيقي  
   userId: 'user_aleppo_finance', // يجب استبداله بالـ user ID الحقيقي
-  fromEmail: 'noreply@finance.aleppo.gov.sy',
-  fromName: 'مديرية مالية حلب - نظام الاستعلامات والشكاوى'
+  fromEmail: 'noreply@finance.sy',
+  fromName: 'المديرية المالية - نظام الاستعلامات والشكاوى'
 };
 
 // دالة إرسال البريد الإلكتروني باستخدام EmailJS
@@ -30,6 +30,7 @@ export const sendEmailWithEmailJS = async (emailData: {
   ticketId: string;
   recipientName: string;
   responseText: string;
+  directorateName?: string;
 }) => {
   try {
     // تحميل EmailJS إذا لم يكن موجوداً
@@ -51,7 +52,7 @@ export const sendEmailWithEmailJS = async (emailData: {
       subject: emailData.subject,
       ticket_id: emailData.ticketId,
       response_text: emailData.responseText,
-      from_name: emailConfig.fromName,
+      from_name: emailData.directorateName || emailConfig.fromName,
       reply_date: formatDate(new Date()),
       tracking_url: `${window.location.origin}/#/track?id=${emailData.ticketId}`
     };
@@ -81,10 +82,12 @@ export const sendEmailWithMailto = (emailData: {
   responseText: string;
   ticketType: string;
   department: string;
+  directorateName?: string;
 }) => {
+  const directorate = emailData.directorateName || 'المديرية المالية';
   const body = `السيد/ة ${emailData.recipientName} المحترم/ة،
 
-نشكركم على تواصلكم مع مديرية مالية حلب.
+نشكركم على تواصلكم مع ${directorate}.
 
 بخصوص ${emailData.ticketType} رقم التتبع: ${emailData.ticketId}
 القسم المختص: ${emailData.department}
@@ -98,7 +101,7 @@ ${window.location.origin}/#/track?id=${emailData.ticketId}
 رقم التتبع: ${emailData.ticketId}
 
 مع أطيب التحيات،
-مديرية مالية حلب
+${directorate}
 نظام الاستعلامات والشكاوى
 
 ---

@@ -1,7 +1,7 @@
 /**
  * Ù…ÙˆÙ„Ø¯ Ø§Ù„ØªÙ‚Ø§Ø±ÙŠØ± Ø§Ù„Ø£Ù…Ù†ÙŠØ© Ø§Ù„Ù…ØªÙ‚Ø¯Ù…
  * Advanced Security Report Generator
- * Aleppo Finance Directorate - Complaints and Inquiries System
+ * Finance Directorate - Complaints and Inquiries System
  */
 
 import { AISecurityAnalysis } from './aiSecurityAnalytics';
@@ -358,6 +358,15 @@ export class SecurityReportGenerator {
    * Ø¥Ù†Ø´Ø§Ø¡ ØªÙ‚Ø±ÙŠØ± HTML Ù…Ø¹ Ø§Ù„Ù‡ÙˆÙŠØ© Ø§Ù„Ø¨ØµØ±ÙŠØ© Ø§Ù„Ø±Ø³Ù…ÙŠØ© Ù„ÙˆØ²Ø§Ø±Ø© Ø§Ù„Ù…Ø§Ù„ÙŠØ©
    */
   generateHTMLReport(reportData: SecurityReportData): string {
+    let directorateName = 'المديرية المالية';
+    try {
+        const saved = localStorage.getItem('site_config');
+        if (saved) {
+             const c = JSON.parse(saved);
+             if (c.directorateName) directorateName = c.directorateName;
+        }
+    } catch (e) {}
+
     const arabicTypeLabels = {
       daily: 'Ø§Ù„ÙŠÙˆÙ…ÙŠ',
       weekly: 'Ø§Ù„Ø£Ø³Ø¨ÙˆØ¹ÙŠ', 
@@ -756,7 +765,7 @@ export class SecurityReportGenerator {
             </div>
             <h1 class="republic-name">Ø§Ù„Ø¬Ù…Ù‡ÙˆØ±ÙŠØ© Ø§Ù„Ø¹Ø±Ø¨ÙŠØ© Ø§Ù„Ø³ÙˆØ±ÙŠØ©</h1>
             <h2 class="ministry-name">ÙˆØ²Ø§Ø±Ø© Ø§Ù„Ù…Ø§Ù„ÙŠØ©</h2>
-            <h3 class="department-name">Ù…Ø¯ÙŠØ±ÙŠØ© Ù…Ø§Ù„ÙŠØ© Ø­Ù„Ø¨ - Ù†Ø¸Ø§Ù… Ø§Ù„Ø§Ø³ØªØ¹Ù„Ø§Ù…Ø§Øª ÙˆØ§Ù„Ø´ÙƒØ§ÙˆÙ‰</h3>
+            <h3 class="department-name">${directorateName} - نظام الاستعلامات والشكاوى</h3>
             <div class="report-title">Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ø§Ù„Ø£Ù…Ù†ÙŠ ${arabicTypeLabels[reportData.reportType]}</div>
         </header>
 
@@ -874,7 +883,7 @@ export class SecurityReportGenerator {
 
         <footer class="official-footer">
             <div class="footer-content">ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ù‡Ø°Ø§ Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ø¨ÙˆØ§Ø³Ø·Ø© Ø§Ù„Ù†Ø¸Ø§Ù… Ø§Ù„Ø£Ù…Ù†ÙŠ Ø§Ù„Ù…ØªØ·ÙˆØ±</div>
-            <div class="footer-content">Ù…Ø¯ÙŠØ±ÙŠØ© Ù…Ø§Ù„ÙŠØ© Ø­Ù„Ø¨ - ÙˆØ²Ø§Ø±Ø© Ø§Ù„Ù…Ø§Ù„ÙŠØ© - Ø§Ù„Ø¬Ù…Ù‡ÙˆØ±ÙŠØ© Ø§Ù„Ø¹Ø±Ø¨ÙŠØ© Ø§Ù„Ø³ÙˆØ±ÙŠØ©</div>
+            <div class="footer-content">${directorateName} - وزارة المالية - الجمهورية العربية السورية</div>
             <div class="footer-date">${arabicDate}</div>
             <div class="footer-copyright">Â© 2025 ÙˆØ²Ø§Ø±Ø© Ø§Ù„Ù…Ø§Ù„ÙŠØ© Ø§Ù„Ø³ÙˆØ±ÙŠØ© - Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø­Ù‚ÙˆÙ‚ Ù…Ø­ÙÙˆØ¸Ø©</div>
         </footer>

@@ -297,12 +297,22 @@ export const printTicket = (ticket: {
     message: string;
     createdAt: Date;
     response?: string;
+    directorateName?: string;
 }): void => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
         alert('يرجى السماح بالنوافذ المنبثقة للطباعة');
         return;
     }
+
+    let directorateName = ticket.directorateName || "المديرية المالية";
+    try {
+         const saved = localStorage.getItem('site_config');
+         if (saved) {
+             const config = JSON.parse(saved);
+             if (config.directorateName) directorateName = config.directorateName;
+         }
+    } catch {}
 
     const statusLabels: Record<string, string> = {
         'New': 'جديد',
@@ -413,7 +423,7 @@ export const printTicket = (ticket: {
       <div class="print-container">
         <div class="header">
           <h1>الجمهورية العربية السورية</h1>
-          <h2>مديرية مالية حلب</h2>
+          <h2>${directorateName}</h2>
           <h2>نظام الاستعلامات والشكاوى</h2>
         </div>
         

@@ -250,6 +250,8 @@ const DepartmentsPage: React.FC = () => {
   // استخدام AppContext للتحقق من تسجيل دخول الموظفين
   const appContext = useContext(AppContext);
   const isEmployeeLoggedIn = appContext?.isEmployeeLoggedIn || false;
+  const directorateName = appContext?.siteConfig?.directorateName || 'مالية محافظة حلب';
+  const fullDirectorateName = `مديرية ${directorateName}`;
 
   // Departments state synced with localStorage
   const [depItems, setDepItems] = useState<DepartmentInfo[]>(DEFAULT_DEPARTMENTS);
@@ -281,7 +283,7 @@ const DepartmentsPage: React.FC = () => {
   // Defaults for overview content
   const [leaderName, setLeaderName] = useState('السيد أحمد محمد الأحمد');
   const [leaderTitle, setLeaderTitle] = useState('المسؤول الأول عن إدارة الشؤون المالية للمحافظة');
-  const DEFAULT_ABOUT = 'تعتبر مديرية مالية محافظة حلب إحدى المؤسسات الحكومية الرائدة في الجمهورية العربية السورية والتي تُعنى بإدارة الشؤون المالية والمحاسبية للمحافظة. تأسست المديرية عام 1949 وتضم ما يقارب 280 موظفاً وموظفة يعملون في 8 أقسام رئيسية متخصصة في مختلف جوانب العمل المالي والإداري.';
+  const DEFAULT_ABOUT = `تعتبر ${fullDirectorateName} إحدى المؤسسات الحكومية الرائدة في الجمهورية العربية السورية والتي تُعنى بإدارة الشؤون المالية والمحاسبية للمحافظة. تأسست المديرية عام 1949 وتضم ما يقارب 280 موظفاً وموظفة يعملون في 8 أقسام رئيسية متخصصة في مختلف جوانب العمل المالي والإداري.`;
   const [aboutText, setAboutText] = useState(DEFAULT_ABOUT);
   const [stats, setStats] = useState({ totalEmployees: 280, mainDepartments: 10, subUnits: 126, yearsOfService: 75 });
   const [editingAbout, setEditingAbout] = useState(false);
@@ -977,7 +979,7 @@ const DepartmentsPage: React.FC = () => {
       <div className="max-w-6xl mx-auto">
         <header className="mb-4 text-center">
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-1">الهيكل الإداري</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-300">مديرية مالية محافظة حلب — الجمهورية العربية السورية</p>
+          <p className="text-sm text-gray-600 dark:text-gray-300">{fullDirectorateName} — الجمهورية العربية السورية</p>
         </header>
 
         {/* Tabs */}
@@ -1743,6 +1745,7 @@ const DepartmentsPage: React.FC = () => {
             {viewMode === 'tree' && (
               <ChartTree
                 departments={departments}
+                rootName={fullDirectorateName}
               />
             )}
     {viewMode === 'org' && (
@@ -1763,7 +1766,7 @@ const DepartmentsPage: React.FC = () => {
               )
             )}
             {viewMode === 'interactive' && (
-              <InteractiveOrgChart departments={departments} />
+              <InteractiveOrgChart departments={departments} rootName={fullDirectorateName} />
             )}
           </div>
         )}
@@ -1773,7 +1776,7 @@ const DepartmentsPage: React.FC = () => {
 };
 
 // Tree view component with details panel
-const ChartTree: React.FC<{ departments: DepartmentInfo[] }> = ({ departments }) => {
+const ChartTree: React.FC<{ departments: DepartmentInfo[]; rootName: string }> = ({ departments, rootName }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [selected, setSelected] = useState<null | { kind: 'root' | 'dep' | 'sub'; depIdx?: number; subIdx?: number }>(null);
   const toggle = (key: string) => setExpanded((m) => ({ ...m, [key]: !m[key] }));
@@ -1797,8 +1800,8 @@ const ChartTree: React.FC<{ departments: DepartmentInfo[] }> = ({ departments })
         )}
         {selected?.kind === 'root' && (
           <div className="text-sm text-gray-700 dark:text-gray-300" dir="rtl">
-            <div className="font-semibold text-gray-900 dark:text-gray-100 mb-1">مديرية مالية محافظة حلب</div>
-            <div>المدير: مدير مالية محافظة حلب</div>
+            <div className="font-semibold text-gray-900 dark:text-gray-100 mb-1">{rootName}</div>
+            <div>المدير: مدير {rootName.replace('مديرية ', '')}</div>
             <div className="mt-2">الهيكل الإداري والتنظيمي — الأقسام والوحدات التابعة.</div>
           </div>
         )}
@@ -1823,8 +1826,8 @@ const ChartTree: React.FC<{ departments: DepartmentInfo[] }> = ({ departments })
   <div className="md:col-span-2 rounded-2xl border border-white/20 dark:border-white/10 bg-white/60 dark:bg-gray-800/60 backdrop-blur p-4 shadow-sm md:order-2 order-1" dir="rtl">
         <div className="mb-2">
           <div className="text-sm text-gray-500 dark:text-gray-400">الهيكل الشجري</div>
-          <div className="text-base font-semibold text-gray-900 dark:text-gray-100">الهيكل الإداري والتنظيمي لمديرية مالية محافظة حلب</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">المدير: مدير مالية محافظة حلب</div>
+          <div className="text-base font-semibold text-gray-900 dark:text-gray-100">الهيكل الإداري والتنظيمي ل{rootName}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">المدير: مدير {rootName.replace('مديرية ', '')}</div>
         </div>
         <div className="border rounded-xl overflow-hidden border-gray-200 dark:border-gray-700">
           <ul className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -1872,7 +1875,7 @@ export default DepartmentsPage;
 type NodeType = 'root' | 'قسم' | 'دائرة' | 'شعبة' | 'جهة';
 type OrgNode = { name: string; type: NodeType; children?: OrgNode[] };
 
-const toOrgTree = (departments: DepartmentInfo[]): OrgNode => {
+const toOrgTree = (departments: DepartmentInfo[], rootName: string): OrgNode => {
   // Group subunits under groups split by ':' as دوائر; ungrouped as شعب
   const deptNodes: OrgNode[] = departments.map((dep) => {
     const grouped: Record<string, string[]> = {};
@@ -1903,16 +1906,16 @@ const toOrgTree = (departments: DepartmentInfo[]): OrgNode => {
     });
     return { name: dep.name, type: 'قسم', children };
   });
-  return { name: 'مديرية مالية محافظة حلب', type: 'root', children: deptNodes };
+  return { name: rootName, type: 'root', children: deptNodes };
 };
 
-const InteractiveOrgChart: React.FC<{ departments: DepartmentInfo[] }> = ({ departments }) => {
+const InteractiveOrgChart: React.FC<{ departments: DepartmentInfo[]; rootName: string }> = ({ departments, rootName }) => {
   const [query, setQuery] = useState('');
   const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
   const [scale, setScale] = useState<number>(1);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
 
-  const orgData = useMemo(() => toOrgTree(departments), [departments]);
+  const orgData = useMemo(() => toOrgTree(departments, rootName), [departments, rootName]);
 
   // collect all path keys
   const getAllKeys = (node: OrgNode, acc: string[] = [], path: string[] = []) => {

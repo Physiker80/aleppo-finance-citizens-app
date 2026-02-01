@@ -1,10 +1,11 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useContext, useMemo, useState, useEffect } from 'react';
 import { AppContext } from '../App';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { RequestStatus, Ticket, Department } from '../types';
+import { RequestStatus, Ticket, Department, ContactMessage } from '../types';
 import { formatArabicNumber, formatArabicDate } from '../constants';
 import { useDepartmentNames } from '../utils/departments';
+import TicketDetailsModal from '../components/TicketDetailsModal';
 import { Document, Page, pdfjs } from 'react-pdf';
 // Use a real module worker to avoid fake worker fallback
 // @ts-ignore Vite returns a Worker constructor for ?worker imports
@@ -289,7 +290,11 @@ const RequestsPage: React.FC = () => {
   const updateTicketForwardedTo = appContext?.updateTicketForwardedTo;
   const [galleryFiles, setGalleryFiles] = useState<File[] | null>(null);
   const [galleryStartIndex, setGalleryStartIndex] = useState<number>(0);
-  const [replyModal, setReplyModal] = useState<{ open: boolean; ticket: Ticket | null; text: string; files: File[] }>(() => ({ open: false, ticket: null, text: '', files: [] }));
+  
+  // Modal state for TicketDetailsModal (Edit/Reply/Process)
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | ContactMessage | null>(null);
+  const [showTicketDetails, setShowTicketDetails] = useState(false);
+  
   // Filters & UI state
   const [statusFilter, setStatusFilter] = useState<RequestStatus | 'ALL'>('ALL');
   const [departmentFilter, setDepartmentFilter] = useState<string>('ALL');
@@ -432,67 +437,54 @@ const RequestsPage: React.FC = () => {
   const openGallery = (files: File[], startIndex = 0) => { setGalleryFiles(files); setGalleryStartIndex(startIndex); };
   const closeGallery = () => setGalleryFiles(null);
 
+  // Handle detailed view/edit/reply via TicketDetailsModal
+  const handleOpenTicketDetails = (ticket: Ticket | ContactMessage) => {
+    setSelectedTicket(ticket);
+    setShowTicketDetails(true);
+  };
+
+  const handleCloseTicketDetails = () => {
+    setSelectedTicket(null);
+    setShowTicketDetails(false);
+  };
+
+  // Check for 'focus' parameter in URL to auto-open ticket
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes('?')) {
+      const query = hash.split('?')[1];
+      const params = new URLSearchParams(query);
+      const focusId = params.get('focus');
+      if (focusId && tickets.length > 0) {
+        const found = tickets.find(t => t.id === focusId);
+        if (found) {
+          handleOpenTicketDetails(found);
+          // Optional: clear param so it doesn't stick
+          // window.history.replaceState(null, '', '#/requests'); 
+        }
+      }
+    }
+  }, [tickets, window.location.hash]); // Depend on hash changes too
+
   const handleStatusChange = (ticket: Ticket, newStatus: string) => {
     if (updateTicketStatus) {
-      let responseText: string | undefined = undefined;
       if (newStatus === RequestStatus.Answered) {
-        // Prefer modal for multi-line replies
-        const existing = ticket.response || '';
-        setReplyModal({ open: true, ticket, text: existing, files: ticket.responseAttachments || [] });
-        return; // Defer status update to modal Save
+        // Open the full details modal to handle reply
+        handleOpenTicketDetails(ticket);
+        return; 
       }
-      updateTicketStatus(ticket.id, newStatus as RequestStatus, responseText);
+      updateTicketStatus(ticket.id, newStatus as RequestStatus);
       if (ticket.email) {
         const sendEmail = window.confirm(`تم تغيير حالة الطلب إلى "${newStatus}".\nهل تريد إرسال بريد إلكتروني لإعلام ${ticket.fullName}؟`);
         if (sendEmail) {
           const subject = `تحديث بخصوص طلبك رقم ${ticket.id}`;
           const trackUrl = new URL('#/track', window.location.href).href;
-          const body = `مرحباً ${ticket.fullName}،\n\nتم تحديث حالة طلبك.\n\nالحالة الجديدة: ${newStatus}\n${responseText ? `\nالرد:\n${responseText}\n` : ''}\nيمكنك متابعة طلبك عبر الرابط التالي:\n${trackUrl}\n\nرقم التتبع الخاص بك هو: ${ticket.id}\n\nمع تحيات،\nمديرية مالية حلب`;
+          const body = `مرحباً ${ticket.fullName}،\n\nتم تحديث حالة طلبك.\n\nالحالة الجديدة: ${newStatus}\nيمكنك متابعة طلبك عبر الرابط التالي:\n${trackUrl}\n\nرقم التتبع الخاص بك هو: ${ticket.id}\n\nمع تحيات،\nمديرية مالية حلب`;
           const mailtoLink = `mailto:${ticket.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body.trim())}`;
           window.open(mailtoLink, '_blank');
         }
       }
     }
-  };
-
-  const saveReplyAndSetAnswered = () => {
-    if (!replyModal.ticket || !updateTicketStatus) { setReplyModal({ open: false, ticket: null, text: '', files: [] }); return; }
-    const txt = replyModal.text?.trim() || '';
-    updateTicketStatus(replyModal.ticket.id, RequestStatus.Answered, txt || undefined, replyModal.files);
-    // Automatic email with reply
-    try {
-      if (replyModal.ticket.email) {
-        const t = replyModal.ticket;
-        const subject = `رد بخصوص طلبك رقم ${t.id}`;
-        const trackUrl = new URL(`#/track?id=${t.id}`, window.location.href).href;
-        const parts = [
-          `مرحباً ${t.fullName}،`,
-          '',
-          'تم الرد على طلبك، ونرفق الرد أدناه:',
-          '',
-          txt ? `الرد:\n${txt}` : '—',
-          '',
-          'معلومات الطلب:',
-          `رقم التتبع: ${t.id}`,
-          `نوع الطلب: ${t.requestType}`,
-          `القسم الحالي: ${t.department}`,
-          `تاريخ التقديم: ${formatArabicDate(t.submissionDate)}`,
-          '',
-          'يمكنك متابعة حالة الطلب عبر الرابط التالي:',
-          trackUrl,
-        ];
-        let body = parts.join('\n');
-        if (replyModal.files?.length) {
-          body += `\n\nمرفقات (${replyModal.files.length}):`;
-          body += `\n(يُرجى إرفاق الملفات يدوياً من قبل الموظف قبل الإرسال إذا لم يدعم عميل البريد إضافة المرفقات تلقائياً)`;
-          body += `\n${replyModal.files.map(f => `- ${f.name}`).join('\n')}`;
-        }
-        body += `\n\nمع التحيات،\nمديرية مالية حلب`;
-        const mailto = `mailto:${t.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        window.open(mailto, '_blank');
-      }
-    } catch {}
-    setReplyModal({ open: false, ticket: null, text: '', files: [] });
   };
 
   const handleTransfer = (ticket: Ticket, dept: Department) => {
@@ -843,7 +835,22 @@ const RequestsPage: React.FC = () => {
                         </div>
                       </div>
                     </td>
-                    <td className={`px-6 py-4 whitespace-nowrap text-sm`}><StatusBadge status={ticket.status} /></td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={ticket.status} />
+                        <button
+                          onClick={() => handleOpenTicketDetails(ticket)}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-800/50 rounded-lg text-xs text-blue-700 dark:text-blue-300 transition-colors"
+                          title="عرض التفاصيل الكاملة أو التحرير"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          عرض/تحرير
+                        </button>
+                      </div>
+                    </td>
                     <td className={`px-6 py-4 whitespace-nowrap text-xs`}>
                       {ticket.printSnapshotHtml ? (
                         <button
@@ -901,110 +908,17 @@ const RequestsPage: React.FC = () => {
 
       {galleryFiles && <AttachmentGalleryModal files={galleryFiles} startIndex={galleryStartIndex} onClose={closeGallery} />}
 
-      {/* Reply Modal */}
-      {replyModal.open && replyModal.ticket && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setReplyModal({ open: false, ticket: null, text: '', files: [] })}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-xl w-full p-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-2 dark:text-gray-100">الرد على الطلب {replyModal.ticket.id}</h3>
-            <textarea
-              className="w-full h-40 p-3 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm"
-              value={replyModal.text}
-              onChange={(e) => setReplyModal((s) => ({ ...s, text: e.target.value }))}
-              placeholder="اكتب الرد هنا..."
-            />
-            <div className="mt-3 grid sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm mb-1 text-gray-700 dark:text-gray-300">تحويل لأقسام إضافية</label>
-                <select
-                  multiple
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-                  value={(replyModal.ticket.forwardedTo || []) as unknown as string[]}
-                  onChange={(e) => {
-                    const sel = e.target as HTMLSelectElement;
-                    const selected = Array.from(sel.selectedOptions).map(o => o.value as Department);
-                    updateTicketForwardedTo?.(replyModal.ticket!.id, selected);
-                  }}
-                >
-                  {departmentNames.map(dep => <option key={dep} value={dep}>{dep}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm mb-1 text-gray-700 dark:text-gray-300">رأي/ملاحظة داخلية</label>
-                <textarea
-                  className="w-full h-24 p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-                  defaultValue={replyModal.ticket.opinion || ''}
-                  onBlur={(e) => updateTicketOpinion?.(replyModal.ticket!.id, e.target.value)}
-                  placeholder="يمكنك كتابة رأي داخلي أو ملاحظة للمتابعة"
-                />
-              </div>
-            </div>
-            <div className="mt-3">
-              <label className="block text-sm mb-1 text-gray-700 dark:text-gray-300">مرفقات الرد (اختياري)</label>
-              <input
-                type="file"
-                multiple
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  setReplyModal((s) => ({ ...s, files: [...(s.files || []), ...files] }));
-                  e.currentTarget.value = '';
-                }}
-                className="block w-full text-sm"
-              />
-              {replyModal.files && replyModal.files.length > 0 && (
-                <ul className="mt-2 space-y-1 text-xs text-gray-700 dark:text-gray-300">
-                  {replyModal.files.map((f, i) => (
-                    <li key={`${f.name}-${i}`} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/40 rounded px-2 py-1">
-                      <span className="truncate" title={f.name}>{f.name}</span>
-                      <button className="text-red-600 dark:text-red-400 text-xs" onClick={() => setReplyModal((s) => ({ ...s, files: s.files.filter((_, idx) => idx !== i) }))}>إزالة</button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div className="flex justify-end gap-2 mt-3">
-              <Button variant="secondary" onClick={() => setReplyModal({ open: false, ticket: null, text: '', files: [] })}>إلغاء</Button>
-              <Button onClick={() => {
-                const t = replyModal.ticket!;
-                const txt = replyModal.text.trim();
-                updateTicketResponse?.(t.id, txt, replyModal.files);
-                // Automatic email on saving reply (without changing status)
-                try {
-                  if (t.email) {
-                    const subject = `رد بخصوص طلبك رقم ${t.id}`;
-                    const trackUrl = new URL(`#/track?id=${t.id}`, window.location.href).href;
-                    const parts = [
-                      `مرحباً ${t.fullName}،`,
-                      '',
-                      'وردكم الرد التالي على طلبكم:',
-                      '',
-                      txt ? `الرد:\n${txt}` : '—',
-                      '',
-                      'معلومات الطلب:',
-                      `رقم التتبع: ${t.id}`,
-                      `نوع الطلب: ${t.requestType}`,
-                      `القسم الحالي: ${t.department}`,
-                      `تاريخ التقديم: ${formatArabicDate(t.submissionDate)}`,
-                      '',
-                      'يمكنك متابعة حالة الطلب عبر الرابط التالي:',
-                      trackUrl,
-                    ];
-                    let body = parts.join('\n');
-                    if (replyModal.files?.length) {
-                      body += `\n\nمرفقات (${replyModal.files.length}):`;
-                      body += `\n(يُرجى إرفاق الملفات يدوياً من قبل الموظف قبل الإرسال إذا لم يدعم عميل البريد إضافة المرفقات تلقائياً)`;
-                      body += `\n${replyModal.files.map(f => `- ${f.name}`).join('\n')}`;
-                    }
-                    body += `\n\nمع التحيات،\nمديرية مالية حلب`;
-                    const mailto = `mailto:${t.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-                    window.open(mailto, '_blank');
-                  }
-                } catch {}
-                setReplyModal({ open: false, ticket: null, text: '', files: [] });
-              }}>حفظ الرد</Button>
-              <Button onClick={saveReplyAndSetAnswered}>حفظ + تم الرد</Button>
-            </div>
-          </div>
-        </div>
+      {/* Ticket Details Modal (Edit/Reply/Process) */}
+      {selectedTicket && (
+        <TicketDetailsModal
+          ticket={selectedTicket}
+          isOpen={showTicketDetails}
+          onClose={handleCloseTicketDetails}
+          onUpdate={(updatedTicket) => {
+            // Context updates automatically trigger re-render of this list
+            // Modal handles all updates via AppContext
+          }}
+        />
       )}
     </Card>
   );

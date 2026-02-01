@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useEffect, useContext } from 'react';
+import { AppContext } from '../App';
+import { SiteConfig } from '../types';
 import Tesseract from 'tesseract.js';
 import { FaFileUpload, FaSpinner, FaFilePdf, FaFileWord, FaFileImage, FaCheck, FaTimes, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 import { useFilePreview } from '../hooks/useFilePreview';
@@ -1862,8 +1864,84 @@ const PdfTemplateManager: React.FC<{ onChanged?: () => void }> = ({ onChanged })
   );
 };
 
+// محرر إعدادات الموقع (الموقع، الهاتف، أوقات الدوام)
+const SiteConfigEditor: React.FC = () => {
+  const context = useContext(AppContext);
+  const siteConfig = context?.siteConfig;
+  const updateSiteConfig = context?.updateSiteConfig;
+
+  const [draft, setDraft] = useState<SiteConfig>(() => siteConfig || {
+    governorate: '', directorateName: '', address: '', phone: '',
+    location: { lat: 0, lng: 0 }, whatsapp: '', workingHours: ''
+  });
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (siteConfig) setDraft(prev => ({ ...prev, ...siteConfig }));
+  }, [siteConfig]);
+
+  const save = () => {
+    if (updateSiteConfig) {
+      updateSiteConfig(draft);
+      setMsg('تم حفظ الإعدادات بنجاح.');
+      setTimeout(() => setMsg(null), 2000);
+    } else {
+      setMsg('خطأ: التحديث غير متاح.');
+    }
+  };
+
+  return (
+    <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-xl p-6 space-y-4">
+      <div className="grid md:grid-cols-2 gap-4">
+        <label className="text-sm">المحافظة
+          <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+            value={draft.governorate} onChange={e => setDraft({...draft, governorate: e.target.value})} />
+        </label>
+        <label className="text-sm">اسم المديرية
+          <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+            value={draft.directorateName} onChange={e => setDraft({...draft, directorateName: e.target.value})} />
+        </label>
+        <label className="text-sm md:col-span-2">العنوان
+          <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+            value={draft.address} onChange={e => setDraft({...draft, address: e.target.value})} />
+        </label>
+        <label className="text-sm">رقم الهاتف
+          <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-left" dir="ltr"
+            value={draft.phone} onChange={e => setDraft({...draft, phone: e.target.value})} />
+        </label>
+        <label className="text-sm">رقم واتساب
+          <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-left" dir="ltr"
+            value={draft.whatsapp} onChange={e => setDraft({...draft, whatsapp: e.target.value})} />
+        </label>
+        <label className="text-sm md:col-span-2">أوقات الدوام
+          <input className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+            value={draft.workingHours} onChange={e => setDraft({...draft, workingHours: e.target.value})} />
+        </label>
+        <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-4 mt-2">
+            <h4 className="font-semibold mb-2 text-sm">إحداثيات الموقع (Google Maps)</h4>
+            <div className="grid grid-cols-2 gap-4">
+                <label className="text-sm">خط العرض (Latitude)
+                <input type="number" step="any" className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+                    value={draft.location.lat} onChange={e => setDraft({...draft, location: {...draft.location, lat: parseFloat(e.target.value)}})} />
+                </label>
+                <label className="text-sm">خط الطول (Longitude)
+                <input type="number" step="any" className="mt-1 w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+                    value={draft.location.lng} onChange={e => setDraft({...draft, location: {...draft.location, lng: parseFloat(e.target.value)}})} />
+                </label>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">يمكنك الحصول على الإحداثيات بالنقر بزر الفأرة الأيمن على المكان في خرائط جوجل واختيار الأرقام.</p>
+        </div>
+      </div>
+      <div className="flex justify-end gap-2 pt-4">
+        <button onClick={save} className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">حفظ الإعدادات</button>
+      </div>
+      {msg && <div className="text-sm text-green-700 dark:text-green-400 mt-2">{msg}</div>}
+    </div>
+  );
+};
+
 const ToolsPage: React.FC = () => {
-  const [active, setActive] = useState<null | 'ocr' | 'newsAdd' | 'newsManage' | 'faqAdd' | 'faqManage' | 'privacyEdit' | 'termsEdit' | 'idConfig' | 'pdfTemplates' | 'observability'>(null);
+  const [active, setActive] = useState<null | 'ocr' | 'newsAdd' | 'newsManage' | 'faqAdd' | 'faqManage' | 'privacyEdit' | 'termsEdit' | 'idConfig' | 'pdfTemplates' | 'observability' | 'siteConfig'>(null);
   const [newsCount, setNewsCount] = useState<number>(0);
   const [faqCount, setFaqCount] = useState<number>(0);
   const [ocrStats, setOcrStats] = useState<OcrStats | null>(null);
@@ -2111,6 +2189,21 @@ const ToolsPage: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">قسم المعلوماتية</h1>
 
   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Site Config Card */}
+          <div className="relative">
+            <div
+              role="button" tabIndex={0}
+              onClick={() => setActive(active === 'siteConfig' ? null : 'siteConfig')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'siteConfig' ? null : 'siteConfig'); } }}
+              className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <h3 className="text-xl font-semibold mb-1">إعدادات الموقع</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">تعديل معلومات المديرية (الموقع، الهاتف، أوقات الدوام).</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">الإعدادات العامة</span>
+              </div>
+            </div>
+          </div>
           {/* Observability Card */}
           <div className="relative">
             <div
@@ -2287,6 +2380,7 @@ const ToolsPage: React.FC = () => {
           <div className="relative mt-4 rounded-xl overflow-hidden border border-white/20 dark:border-white/10 bg-white/90 dark:bg-gray-900/90 shadow-xl">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                {active === 'siteConfig' && 'إعدادات معلومات الموقع'}
                 {active === 'idConfig' && 'إعدادات توليد معرف التذكرة'}
                 {active === 'ocr' && 'أداة التعرف الضوئي على الحروف (OCR)'}
                 {active === 'newsAdd' && 'إضافة خبر جديد'}
@@ -2301,6 +2395,7 @@ const ToolsPage: React.FC = () => {
               <button onClick={() => setActive(null)} aria-label="إغلاق" className="w-8 h-8 rounded hover:bg-black/5 dark:hover:bg-white/10">✕</button>
             </div>
             <div className="p-4 max-h-[70vh] overflow-auto">
+              {active === 'siteConfig' && <SiteConfigEditor />}
               {active === 'ocr' && <OcrTool onStatsChanged={refreshStats} />}
               {active === 'idConfig' && (
                 <div className="space-y-5" dir="rtl">

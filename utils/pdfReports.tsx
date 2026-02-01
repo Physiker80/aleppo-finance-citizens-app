@@ -336,6 +336,7 @@ export const generateTicketsReport = async (
     options: {
         title?: string;
         dateRange?: { from: Date; to: Date };
+        directorateName?: string;
     } = {}
 ): Promise<Blob> => {
     const statusLabels: Record<string, string> = {
@@ -349,11 +350,13 @@ export const generateTicketsReport = async (
         acc[t.status] = (acc[t.status] || 0) + 1;
         return acc;
     }, {} as Record<string, number>);
+    
+    const subtitle = options.directorateName ? `${options.directorateName} - نظام الاستعلامات والشكاوى` : 'نظام الاستعلامات والشكاوى - بوابة الخدمات الإلكترونية';
 
     return generateProfessionalPDF(
         {
             title: options.title || 'تقرير التذاكر',
-            subtitle: 'مديرية مالية حلب - نظام الاستعلامات والشكاوى',
+            subtitle: subtitle,
             watermark: 'سري',
             headerInfo: {
                 'تاريخ التقرير': new Date().toLocaleDateString('ar-SY'),
@@ -396,7 +399,8 @@ export const generateEmployeesReport = async (
         name?: string;
         department?: string;
         role: string;
-    }>
+    }>,
+    directorateName: string = 'المديرية المالية'
 ): Promise<Blob> => {
     const roleCounts = employees.reduce((acc, e) => {
         acc[e.role] = (acc[e.role] || 0) + 1;
@@ -406,7 +410,7 @@ export const generateEmployeesReport = async (
     return generateProfessionalPDF(
         {
             title: 'تقرير الموظفين',
-            subtitle: 'مديرية مالية حلب',
+            subtitle: directorateName,
             headerInfo: {
                 'تاريخ التقرير': new Date().toLocaleDateString('ar-SY'),
                 'عدد الموظفين': String(employees.length)
@@ -443,12 +447,13 @@ export const generateStatisticsReport = async (
         avgResponseTime: string;
         topDepartments: Array<{ name: string; count: number }>;
         monthlyData: Array<{ month: string; count: number }>;
-    }
+    },
+    directorateName: string = 'المديرية المالية'
 ): Promise<Blob> => {
     return generateProfessionalPDF(
         {
             title: 'تقرير الإحصائيات الشهري',
-            subtitle: 'مديرية مالية حلب - نظام الاستعلامات والشكاوى',
+            subtitle: `${directorateName} - نظام الاستعلامات والشكاوى`,
             headerInfo: {
                 'تاريخ التقرير': new Date().toLocaleDateString('ar-SY'),
                 'الفترة': 'آخر 30 يوم'
@@ -484,7 +489,8 @@ export const generateStatisticsReport = async (
 };
 
 // ==================== مكون React ====================
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
+import { AppContext } from '../App';
 
 interface ReportGeneratorProps {
     type: 'tickets' | 'employees' | 'statistics';
@@ -498,6 +504,10 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({
     onGenerate
 }) => {
     const [isGenerating, setIsGenerating] = useState(false);
+    const appContext = useContext(AppContext);
+    const config = appContext?.siteConfig;
+    const directorateName = config?.directorateName || "المالية";
+    const fullDirectorateName = `مديرية ${directorateName}`;
 
     const handleGenerate = async () => {
         setIsGenerating(true);
@@ -507,15 +517,15 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({
 
             switch (type) {
                 case 'tickets':
-                    blob = await generateTicketsReport(data);
+                    blob = await generateTicketsReport(data, { directorateName: fullDirectorateName });
                     filename = `tickets_report_${Date.now()}`;
                     break;
                 case 'employees':
-                    blob = await generateEmployeesReport(data);
+                    blob = await generateEmployeesReport(data, fullDirectorateName);
                     filename = `employees_report_${Date.now()}`;
                     break;
                 case 'statistics':
-                    blob = await generateStatisticsReport(data);
+                    blob = await generateStatisticsReport(data, fullDirectorateName);
                     filename = `statistics_report_${Date.now()}`;
                     break;
                 default:
