@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vite build",
     "preview": "vite preview",
     "server": "node server.js",
     "server:csp-enforce": "cross-env CSP_ENABLED=true CSP_REPORT_ONLY=false PORT=4000 node server.js",
