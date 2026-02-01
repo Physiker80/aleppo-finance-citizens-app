@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 import Card from '../components/ui/Card';
 import { LocationMap } from '../components/IntegrationComponents';
 import { AppContext } from '../App';
+// @ts-ignore
 import { FaPhone, FaClock, FaMapMarkerAlt, FaEnvelope, FaEdit, FaSave, FaTimes } from 'react-icons/fa';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
