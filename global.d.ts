@@ -1,6 +1,8 @@
+/// <reference types="vite/client" />
 // Remove conflicting React module declarations - React 19 handles this automatically
 
 // React Icons - Comprehensive declarations
+/*
 declare module 'react-icons' {
   import { ComponentType, SVGAttributes } from 'react';
   export interface IconBaseProps extends SVGAttributes<SVGElement> {
@@ -49,6 +51,7 @@ declare module 'react-icons/fa' {
   export const FaReset: IconType;
   export const FaRefresh: IconType;
 }
+*/
 
 declare module 'pdfjs-dist' {
   export const GlobalWorkerOptions: { workerSrc: string };
