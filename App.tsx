@@ -253,6 +253,9 @@ interface AppContextType {
   // ===== App Store Links (Admin Configurable) =====
   appStoreLinks?: AppStoreLinks;
   updateAppStoreLinks?: (links: AppStoreLinks) => void;
+  // ===== Site Configuration =====
+  siteConfig?: SiteConfig;
+  updateSiteConfig?: (config: SiteConfig) => void;
 }
 
 export const AppContext = createContext<AppContextType | null>(null);
