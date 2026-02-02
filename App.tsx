@@ -1580,19 +1580,37 @@ const App: React.FC = () => {
     // Notify target department of new ticket
     try {
       const dep = CENTRAL_DEPARTMENT;
+      const adminDep = 'الإدارة';
+      const newNotifs: DepartmentNotification[] = [];
+      
+      // إرسال تنبيه لقسم الاستعلامات والشكاوى
       if (dep) {
-        setNotifications(prev => [
-          {
-            id: `N-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            kind: 'ticket-new',
-            ticketId: newTicket.id,
-            department: dep,
-            message: `طلب جديد (${newTicket.id}) وارد إلى قسم ${dep}`,
-            createdAt: new Date(),
-            read: false,
-          },
-          ...prev,
-        ]);
+        newNotifs.push({
+          id: `N-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          kind: 'ticket-new',
+          ticketId: newTicket.id,
+          department: dep,
+          message: `طلب جديد (${newTicket.id}) وارد إلى قسم ${dep}`,
+          createdAt: new Date(),
+          read: false,
+        });
+      }
+      
+      // إرسال تنبيه لقسم الإدارة (المدير)
+      if (adminDep !== dep) {
+        newNotifs.push({
+          id: `N-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          kind: 'ticket-new',
+          ticketId: newTicket.id,
+          department: adminDep,
+          message: `طلب جديد (${newTicket.id}) تم استلامه`,
+          createdAt: new Date(),
+          read: false,
+        });
+      }
+      
+      if (newNotifs.length > 0) {
+        setNotifications(prev => [...newNotifs, ...prev]);
       }
     } catch { }
     setLastSubmittedId(newTicket.id);
@@ -1715,6 +1733,15 @@ const App: React.FC = () => {
           role: 'موظف',
           employeeNumber: 'EMP005',
           nationalId: '01234567894'
+        },
+        {
+          username: 'complaints1',
+          password: 'complaints123',
+          name: 'علي محمود',
+          department: 'إدارة الاستعلامات والشكاوى',
+          role: 'موظف',
+          employeeNumber: 'EMP006',
+          nationalId: '01234567895'
         }
       ];
       localStorage.setItem('employees', JSON.stringify(defaultEmployees));
