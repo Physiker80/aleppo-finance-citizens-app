@@ -1520,7 +1520,6 @@ const App: React.FC = () => {
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndodXRtcmJqdnZwbHF1Z29id2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzA0NzgsImV4cCI6MjA4NTQ0NjQ3OH0.bzynb0G41o2c1m35AodyVVgZBNXzPvGbKWJWKpBqGH8';
     
     // IMPORTANT: All fields must match the schema in migrateToCloud to avoid PGRST102
-    // NOTE: Only include columns that exist in Supabase schema (no 'source' column)
     const supabaseTicket = {
       id: newTicket.id,
       type: newTicket.requestType || 'استعلام',
@@ -1532,6 +1531,7 @@ const App: React.FC = () => {
       department: newTicket.department || '',
       description: newTicket.details || '',
       date: new Date().toISOString(),
+      source: newTicket.source || 'web',
       forwarded_to: newTicket.forwardedTo || [],
       response: null,
       notes: null,

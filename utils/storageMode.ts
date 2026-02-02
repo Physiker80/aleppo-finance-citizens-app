@@ -587,7 +587,6 @@ export const storageModeService = {
         if (Array.isArray(tickets) && tickets.length > 0) {
           // Clean data for Supabase - map to columns that exist in the database
           // IMPORTANT: All objects MUST have the same keys for Supabase REST API (PGRST102)
-          // NOTE: Only include columns that exist in Supabase schema (no 'source' column)
           const cleanTickets = tickets.map((t: any) => ({
             id: t.id || `ticket_${Date.now()}_${Math.random().toString(36).slice(2)}`,
             type: t.requestType || t.type || 'استعلام',
@@ -600,6 +599,7 @@ export const storageModeService = {
             status: t.status || 'جديد',
             response: t.response || null,
             notes: t.notes || null,
+            source: t.source || 'web',
             date: t.createdAt || t.submissionDate || t.date || new Date().toISOString(),
             answered_at: t.answeredAt || t.answered_at || null,
             started_at: t.startedAt || t.started_at || null,
