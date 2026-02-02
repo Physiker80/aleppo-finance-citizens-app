@@ -586,23 +586,25 @@ export const storageModeService = {
         const tickets = JSON.parse(ticketsRaw);
         if (Array.isArray(tickets) && tickets.length > 0) {
           // Clean data for Supabase - map to columns that exist in the database
+          // IMPORTANT: All objects MUST have the same keys for Supabase REST API (PGRST102)
+          // NOTE: Only include columns that exist in Supabase schema (no 'source' column)
           const cleanTickets = tickets.map((t: any) => ({
-            id: t.id,
-            type: t.requestType || t.type,
-            name: t.name || t.fullName,
-            phone: t.phone,
-            email: t.email,
-            national_id: t.nationalId,
-            department: t.department,
-            description: t.details || t.subject || t.message,
-            status: t.status,
-            response: t.response,
-            notes: t.notes,
-            created_at: t.createdAt || t.submissionDate || new Date().toISOString(),
-            answered_at: t.answeredAt,
-            started_at: t.startedAt,
-            closed_at: t.closedAt,
-            forwarded_to: t.forwardedTo,
+            id: t.id || `ticket_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+            type: t.requestType || t.type || 'استعلام',
+            name: t.name || t.fullName || '',
+            phone: t.phone || '',
+            email: t.email || '',
+            national_id: t.nationalId || t.national_id || '',
+            department: t.department || '',
+            description: t.details || t.subject || t.message || t.description || '',
+            status: t.status || 'جديد',
+            response: t.response || null,
+            notes: t.notes || null,
+            date: t.createdAt || t.submissionDate || t.date || new Date().toISOString(),
+            answered_at: t.answeredAt || t.answered_at || null,
+            started_at: t.startedAt || t.started_at || null,
+            closed_at: t.closedAt || t.closed_at || null,
+            forwarded_to: t.forwardedTo || t.forwarded_to || [],
           }));
           
           // Use REST API with upsert - 'id' as conflict column

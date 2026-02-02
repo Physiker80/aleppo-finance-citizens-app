@@ -233,14 +233,31 @@ const App: React.FC = () => {
     }
   }, [USE_BACKEND_TICKETS, isEmployeeLoggedIn]);
 
-  // Sync from Supabase automatically on app load
+  // Auto-sync: Upload local data to cloud AND download cloud data on app load
   useEffect(() => {
-    const syncFromSupabase = async () => {
-      console.log('[App] Auto-syncing from Supabase on app load...');
+    const autoSync = async () => {
+      console.log('[App] Starting auto-sync...');
+      
+      // Step 1: Upload local data to Supabase (if any)
+      const localTicketsRaw = localStorage.getItem('tickets');
+      const localTickets = localTicketsRaw ? JSON.parse(localTicketsRaw) : [];
+      
+      if (localTickets.length > 0) {
+        console.log('[App] Uploading', localTickets.length, 'local tickets to cloud...');
+        const uploadResult = await storageModeService.migrateToCloud();
+        if (uploadResult.success) {
+          console.log('[App] ✅ Auto-upload successful:', uploadResult.syncedCounts);
+        } else {
+          console.warn('[App] ⚠️ Auto-upload had issues:', uploadResult.error);
+        }
+      }
+      
+      // Step 2: Download latest data from Supabase
+      console.log('[App] Downloading latest data from cloud...');
       const result = await storageModeService.syncToLocal();
       
       if (result.success) {
-        console.log('[App] Supabase sync successful:', result.syncedCounts);
+        console.log('[App] ✅ Sync from cloud successful:', result.syncedCounts);
         
         // Reload tickets from localStorage after sync
         const raw = localStorage.getItem('tickets');
@@ -264,7 +281,7 @@ const App: React.FC = () => {
       }
     };
     
-    syncFromSupabase();
+    autoSync();
   }, []);
 
   // Real-time subscription for live updates (no page refresh needed)
@@ -1502,9 +1519,11 @@ const App: React.FC = () => {
     const SUPABASE_URL = 'https://whutmrbjvvplqugobwbq.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndodXRtcmJqdnZwbHF1Z29id2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzA0NzgsImV4cCI6MjA4NTQ0NjQ3OH0.bzynb0G41o2c1m35AodyVVgZBNXzPvGbKWJWKpBqGH8';
     
+    // IMPORTANT: All fields must match the schema in migrateToCloud to avoid PGRST102
+    // NOTE: Only include columns that exist in Supabase schema (no 'source' column)
     const supabaseTicket = {
       id: newTicket.id,
-      type: newTicket.requestType || '',
+      type: newTicket.requestType || 'استعلام',
       status: newTicket.status || 'جديد',
       name: newTicket.fullName || '',
       phone: newTicket.phone || '',
@@ -1513,8 +1532,12 @@ const App: React.FC = () => {
       department: newTicket.department || '',
       description: newTicket.details || '',
       date: new Date().toISOString(),
-      source: newTicket.source || 'web',
       forwarded_to: newTicket.forwardedTo || [],
+      response: null,
+      notes: null,
+      answered_at: null,
+      started_at: null,
+      closed_at: null,
     };
     
     // Use upsert to handle duplicates
