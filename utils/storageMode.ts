@@ -93,6 +93,105 @@ export function shouldUseDatabase(): boolean {
   return false;
 }
 
+// ============= Attachment Handling =============
+
+/**
+ * Interface for attachment metadata (stored in database)
+ */
+export interface AttachmentMeta {
+  name: string;
+  size: number;
+  type: string;
+  url?: string;        // URL from Supabase Storage
+  base64?: string;     // Base64 data for small files
+  uploadedAt?: string;
+}
+
+/**
+ * Convert File to base64 string
+ */
+export async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+}
+
+/**
+ * Convert base64 string back to File
+ */
+export function base64ToFile(base64: string, filename: string, mimeType: string): File {
+  // Extract base64 data from data URL
+  const base64Data = base64.includes(',') ? base64.split(',')[1] : base64;
+  const byteCharacters = atob(base64Data);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  const byteArray = new Uint8Array(byteNumbers);
+  return new File([byteArray], filename, { type: mimeType });
+}
+
+/**
+ * Convert File array to AttachmentMeta array (with base64 for small files)
+ * Files larger than 5MB are skipped (too large for database storage)
+ */
+export async function filesToAttachmentMeta(files: File[]): Promise<AttachmentMeta[]> {
+  const MAX_SIZE = 5 * 1024 * 1024; // 5MB limit for base64 storage
+  const attachments: AttachmentMeta[] = [];
+  
+  for (const file of files) {
+    if (file.size <= MAX_SIZE) {
+      try {
+        const base64 = await fileToBase64(file);
+        attachments.push({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          base64,
+          uploadedAt: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.error('Error converting file to base64:', file.name, e);
+      }
+    } else {
+      // For large files, store metadata only (no base64)
+      attachments.push({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        uploadedAt: new Date().toISOString(),
+      });
+    }
+  }
+  
+  return attachments;
+}
+
+/**
+ * Convert AttachmentMeta array back to File array
+ */
+export function attachmentMetaToFiles(attachments: AttachmentMeta[]): File[] {
+  const files: File[] = [];
+  
+  for (const att of attachments) {
+    if (att.base64) {
+      try {
+        const file = base64ToFile(att.base64, att.name, att.type);
+        files.push(file);
+      } catch (e) {
+        console.error('Error converting base64 to file:', att.name, e);
+      }
+    }
+  }
+  
+  return files;
+}
+
+// ============= End Attachment Handling =============
+
 // Pending sync operations interface
 export interface PendingSyncOperation {
   id: string;
@@ -393,6 +492,9 @@ export const storageModeService = {
           forwardedTo: t.forwarded_to || t.forwardedTo || [],
           source: t.source || 'web',
           notes: t.notes || '',
+          // بيانات المرفقات (للتزامن)
+          attachments_data: t.attachments_data || null,
+          response_attachments_data: t.response_attachments_data || null,
         }));
         localStorage.setItem('tickets', JSON.stringify(convertedTickets));
         syncedCounts.tickets = convertedTickets.length;
@@ -605,6 +707,9 @@ export const storageModeService = {
             started_at: t.startedAt || t.started_at || null,
             closed_at: t.closedAt || t.closed_at || null,
             forwarded_to: t.forwardedTo || t.forwarded_to || [],
+            // بيانات المرفقات (JSON)
+            attachments_data: t.attachments_data || null,
+            response_attachments_data: t.response_attachments_data || null,
           }));
           
           // Use REST API with upsert - 'id' as conflict column

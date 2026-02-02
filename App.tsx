@@ -123,7 +123,7 @@ import { trackNewTicket, trackFirstResponse, trackResolution } from './utils/res
 import { playSound } from './utils/notificationSounds';
 
 // Storage mode for Supabase sync
-import { storageModeService, getCurrentMode } from './utils/storageMode';
+import { storageModeService, getCurrentMode, filesToAttachmentMeta, attachmentMetaToFiles, AttachmentMeta } from './utils/storageMode';
 import { getDynamicSupabaseClient } from './utils/supabaseClient';
 
 
@@ -1519,30 +1519,38 @@ const App: React.FC = () => {
     const SUPABASE_URL = 'https://whutmrbjvvplqugobwbq.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndodXRtcmJqdnZwbHF1Z29id2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzA0NzgsImV4cCI6MjA4NTQ0NjQ3OH0.bzynb0G41o2c1m35AodyVVgZBNXzPvGbKWJWKpBqGH8';
     
-    // IMPORTANT: All fields must match the schema in migrateToCloud to avoid PGRST102
-    const supabaseTicket = {
-      id: newTicket.id,
-      type: newTicket.requestType || 'استعلام',
-      status: newTicket.status || 'جديد',
-      name: newTicket.fullName || '',
-      phone: newTicket.phone || '',
-      email: newTicket.email || '',
-      national_id: newTicket.nationalId || '',
-      department: newTicket.department || '',
-      description: newTicket.details || '',
-      date: new Date().toISOString(),
-      source: newTicket.source || 'web',
-      forwarded_to: newTicket.forwardedTo || [],
-      response: null,
-      notes: null,
-      answered_at: null,
-      started_at: null,
-      closed_at: null,
-    };
-    
     // Use upsert to handle duplicates
     (async () => {
       try {
+        // تحويل المرفقات إلى base64 للتخزين في السحابة
+        let attachmentsData: AttachmentMeta[] = [];
+        if (ticketData.attachments && ticketData.attachments.length > 0) {
+          attachmentsData = await filesToAttachmentMeta(ticketData.attachments);
+        }
+        
+        // IMPORTANT: All fields must match the schema in migrateToCloud to avoid PGRST102
+        const supabaseTicket = {
+          id: newTicket.id,
+          type: newTicket.requestType || 'استعلام',
+          status: newTicket.status || 'جديد',
+          name: newTicket.fullName || '',
+          phone: newTicket.phone || '',
+          email: newTicket.email || '',
+          national_id: newTicket.nationalId || '',
+          department: newTicket.department || '',
+          description: newTicket.details || '',
+          date: new Date().toISOString(),
+          source: newTicket.source || 'web',
+          forwarded_to: newTicket.forwardedTo || [],
+          response: null,
+          notes: null,
+          answered_at: null,
+          started_at: null,
+          closed_at: null,
+          attachments_data: attachmentsData.length > 0 ? attachmentsData : null,
+          response_attachments_data: null,
+        };
+        
         const res = await fetch(`${SUPABASE_URL}/rest/v1/tickets`, {
           method: 'POST',
           headers: {
@@ -1554,7 +1562,7 @@ const App: React.FC = () => {
           body: JSON.stringify(supabaseTicket)
         });
         if (res.ok) {
-          console.log('[Supabase] ✅ Ticket synced:', newTicket.id);
+          console.log('[Supabase] ✅ Ticket synced:', newTicket.id, attachmentsData.length > 0 ? `with ${attachmentsData.length} attachment(s)` : '');
         } else {
           const errText = await res.text();
           console.error('[Supabase] ❌ Sync failed:', res.status, errText);
@@ -2206,6 +2214,48 @@ const App: React.FC = () => {
       }
       return { ...t, ...patch };
     }));
+
+    // ===== Sync Response to Supabase =====
+    (async () => {
+      try {
+        const SUPABASE_URL = 'https://whutmrbjvvplqugobwbq.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndodXRtcmJqdnZwbHF1Z29id2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzA0NzgsImV4cCI6MjA4NTQ0NjQ3OH0.bzynb0G41o2c1m35AodyVVgZBNXzPvGbKWJWKpBqGH8';
+        
+        // تحويل مرفقات الرد إلى base64
+        let responseAttachmentsData: AttachmentMeta[] = [];
+        if (responseAttachments && responseAttachments.length > 0) {
+          responseAttachmentsData = await filesToAttachmentMeta(responseAttachments);
+        }
+        
+        const updateData = {
+          response: responseText,
+          status: 'مُجاب',
+          answered_at: new Date().toISOString(),
+          response_attachments_data: responseAttachmentsData.length > 0 ? responseAttachmentsData : null,
+        };
+        
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/tickets?id=eq.${encodeURIComponent(ticketId)}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify(updateData)
+        });
+        
+        if (res.ok) {
+          console.log('[Supabase] ✅ Response synced for ticket:', ticketId, responseAttachmentsData.length > 0 ? `with ${responseAttachmentsData.length} attachment(s)` : '');
+        } else {
+          const errText = await res.text();
+          console.error('[Supabase] ❌ Response sync failed:', res.status, errText);
+        }
+      } catch (err) {
+        console.error('[Supabase] ❌ Response sync error:', err);
+      }
+    })();
+    // ===== End Supabase Response Sync =====
 
     // تسجيل النشاط وتتبع الرد الأول
     try {
