@@ -1,5 +1,5 @@
 import React, { useContext, useState, useMemo, useEffect } from 'react';
-import { AppContext } from '../App';
+import { AppContext } from '../AppContext';
 import { RequestStatus, ContactMessageStatus, RequestType } from '../types';
 import type { Ticket, ContactMessage } from '../types';
 import Input from '../components/ui/Input';

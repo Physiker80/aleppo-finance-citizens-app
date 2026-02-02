@@ -99,19 +99,9 @@ import Chatbot from './components/Chatbot';
 
 import { Ticket, Employee, ContactMessage, ContactMessageStatus, ContactMessageType, Department, DepartmentNotification, CitizenSurvey, ContactMessageReply, ContactReplyAttachment, TicketResponseRecord, NewTicketResponseInput, MfaFactorType, RbacEmployee, SystemRoleType, ResourceType, ActionType, Incident, NewIncidentInput, BCPPlan, NewBCPInput, DailyReport, GovernanceState, PolicyComplianceResult, SecurityViolation, PolicyException, InternalMessage } from './types';
 
-// App Store Links Configuration
-export interface AppStoreLinks {
-  android: {
-    enabled: boolean;
-    url: string;
-    qrCode?: string;
-  };
-  ios: {
-    enabled: boolean;
-    url: string;
-    qrCode?: string;
-  };
-}
+import { AppStoreLinks, AppContextType, Theme } from './types';
+import { AppContext } from './AppContext';
+export { AppContext };
 
 import { generateTicketId } from './utils/idGenerator';
 import { sessionManager } from './utils/sessionManager';
@@ -132,133 +122,11 @@ import { addActivityLog } from './utils/activityLog';
 import { trackNewTicket, trackFirstResponse, trackResolution } from './utils/responseTracking';
 import { playSound } from './utils/notificationSounds';
 
-type Theme = 'light' | 'dark';
+// Storage mode for Supabase sync
+import { storageModeService, getCurrentMode } from './utils/storageMode';
+import { getDynamicSupabaseClient } from './utils/supabaseClient';
 
-interface AppContextType {
-  tickets: Ticket[];
-  notifications: DepartmentNotification[];
-  // --- Multi-response ticket system ---
-  ticketResponses?: Record<string, TicketResponseRecord[]>; // keyed by ticketId
-  fetchTicketResponses?: (ticketId: string, force?: boolean) => Promise<TicketResponseRecord[]>;
-  addTicketResponse?: (ticketId: string, input: NewTicketResponseInput) => Promise<TicketResponseRecord | null>;
-  addTicket: (ticket: Omit<Ticket, 'id' | 'status'>) => string;
-  findTicket: (id: string) => Ticket | undefined;
-  contactMessages: ContactMessage[];
-  addContactMessage: (msg: Omit<ContactMessage, 'id' | 'status' | 'submissionDate'>) => string;
-  addContactMessageReply: (reply: Omit<ContactMessageReply, 'id' | 'timestamp' | 'isRead'>) => ContactMessageReply;
-  updateContactMessageDepartment: (id: string, newDepartment: Department) => void;
-  updateContactMessageForwardedTo: (id: string, departments: Department[]) => void;
-  updateContactMessageForwardedPriorities: (id: string, priorities: Record<string, number>) => void;
-  documentContactMessage: (id: string) => void;
-  documentTicket: (id: string) => void;
-  updateContactMessageSource: (id: string, source: 'مواطن' | 'موظف') => void;
-  updateTicketSource: (id: string, source: 'مواطن' | 'موظف') => void;
-  updateContactMessage?: (id: string, updates: Partial<ContactMessage>) => void;
-  searchEmployeeByName: (name: string) => Employee[];
-  searchEmployeeByNationalId: (nationalId: string) => Employee | null;
-  surveys: CitizenSurvey[];
-  addSurvey: (data: Omit<CitizenSurvey, 'id' | 'createdAt'>) => string;
-  isEmployeeLoggedIn: boolean;
-  currentEmployee: Employee | null;
-  employeeLogin: (employee: Employee) => void;
-  logout: () => void;
-  employeeLogout: () => void;
-  backendLogin?: (username: string, password: string) => Promise<boolean>;
-  refreshSession?: () => Promise<void>;
-  authLoading?: boolean;
-  authError?: string | null;
-  addToast?: (t: { message: string; type?: 'success' | 'error' | 'info'; ttlMs?: number }) => string;
-  removeToast?: (id: string) => void;
-  updateTicketStatus: (ticketId: string, newStatus: RequestStatus, responseText?: string, responseAttachments?: File[]) => void;
-  updateTicketDepartment: (ticketId: string, newDepartment: Department) => void;
-  updateTicketResponse: (ticketId: string, responseText: string, responseAttachments?: File[]) => void;
-  updateTicketOpinion: (ticketId: string, opinion: string) => void;
-  updateTicketForwardedTo: (ticketId: string, departments: Department[]) => void;
-  updateTicket: (ticketId: string, updates: Partial<Ticket>) => void;
-  forwardTicket: (ticketId: string, toDepartment: string, comment?: string) => void;
-  markNotificationsReadForDepartment: (department: Department) => void;
-  markAllNotificationsRead: () => void;
-  clearReadNotifications: () => void;
-  addNotification: (n: Omit<DepartmentNotification, 'id' | 'createdAt' | 'read'> & { message?: string }) => void;
-  updateContactMessageStatus: (id: string, newStatus: ContactMessageStatus) => void;
-  lastSubmittedId: string | null;
-  theme: Theme;
-  toggleTheme: () => void;
-  // MFA functions
-  updateEmployee: (employee: Employee) => void;
-  requiresMFA: (employee: Employee) => boolean;
-  onMfaSuccess: (factorUsed: MfaFactorType) => void;
-  // Navigation function with automatic scroll to top
-  navigateTo: (hash: string) => void;
 
-  // ===== RBAC Authorization Functions =====
-  hasPermission: (resource: ResourceType, action: ActionType, context?: any) => Promise<boolean>;
-  requirePermission: (resource: ResourceType, action: ActionType, context?: any) => Promise<void>;
-  canAccessTicket: (ticket: Ticket) => Promise<boolean>;
-  canEditTicket: (ticket: Ticket) => Promise<boolean>;
-  canDeleteTicket: (ticket: Ticket) => Promise<boolean>;
-  canCreateTicket: () => Promise<boolean>;
-  canViewReports: (departmentContext?: string) => Promise<boolean>;
-  canManageEmployees: () => Promise<boolean>;
-  canManageRoles: () => Promise<boolean>;
-  canViewAuditLogs: () => Promise<boolean>;
-  canExportData: () => Promise<boolean>;
-  getCurrentUserRoles: () => SystemRoleType[];
-  isSystemAdmin: () => boolean;
-  isDepartmentManager: () => boolean;
-  // Enhanced employee data with RBAC
-  currentRbacEmployee: RbacEmployee | null;
-  // ===== Incident Response =====
-  incidents?: Incident[];
-  listIncidents?: () => Incident[];
-  createIncident?: (input: NewIncidentInput) => Promise<Incident>;
-  updateIncident?: (incident: Incident) => void;
-  runIncidentPlan?: (input: NewIncidentInput) => Promise<Incident>;
-  // Demo/maintenance helpers
-  replaceIncidents?: (list: Incident[]) => void;
-  // ===== Business Continuity (BCP) =====
-  continuityPlans?: BCPPlan[];
-  listBCPPlans?: () => BCPPlan[];
-  createBCP?: (input: NewBCPInput) => Promise<BCPPlan>;
-  runBCP?: (input: NewBCPInput) => Promise<BCPPlan>;
-  runBCPPhase?: (planId: string, phase: 'assessment' | 'team_activation' | 'failover' | 'data_recovery' | 'service_recovery' | 'validation' | 'normalization') => Promise<BCPPlan | null>;
-  exportBCP?: (planId: string, format: 'csv' | 'pdf') => Promise<Blob | string | null>;
-  submitBCPEvidence?: (planId: string, evidence: { kind: string; ref?: string; notes?: string }) => Promise<void>;
-  requestBCPBackup?: (planId: string, target: string) => Promise<void>;
-  replaceBCPPlans?: (list: BCPPlan[]) => void;
-  // ===== Daily Operations (SOP 7.1) =====
-  dailyReports?: DailyReport[];
-  listDailyReports?: () => DailyReport[];
-  runDailyChecks?: () => Promise<DailyReport>;
-  exportDailyReport?: (id: string, format: 'csv' | 'pdf') => Promise<Blob | string | null>;
-  replaceDailyReports?: (list: DailyReport[]) => void;
-  // ===== Governance (8.x) =====
-  governanceState?: GovernanceState;
-  listViolations?: () => SecurityViolation[];
-  enforcePolicy?: (policyName: 'accessControl' | 'passwordPolicy' | 'encryptionPolicy' | 'incidentResponse', context?: any) => Promise<PolicyComplianceResult>;
-  exportGovernance?: (format: 'csv' | 'pdf') => Promise<string | Blob>;
-  // Governance lifecycle & exceptions management
-  listExceptions?: () => PolicyException[];
-  addException?: (exc: Omit<PolicyException, 'id' | 'createdAt' | 'status'> & { status?: PolicyException['status'] }) => PolicyException | undefined;
-  approveException?: (id: string, approver: string) => void;
-  revokeException?: (id: string, reason?: string) => void;
-  updatePolicyLifecycle?: (policy: 'accessControl' | 'passwordPolicy' | 'encryptionPolicy' | 'incidentResponse', updates: Partial<{ owner: string; approvers: string[]; nextReviewDate: string; lastApprovedAt: string; status: 'draft' | 'active' | 'under_review'; version: string }>) => void;
-  // Backend security status (for encryption checks)
-  securityStatus?: { tlsVersion?: string; hstsEnabled?: boolean; weakCiphers?: string[] } | null;
-  refreshSecurityStatus?: () => Promise<void>;
-  // ===== Internal Messages =====
-  internalMessages?: InternalMessage[];
-  sendInternalMessage?: (msg: Omit<InternalMessage, 'id' | 'createdAt' | 'updatedAt' | 'read' | 'replies'> & { toDepartment?: string; toDepartments?: string[] }) => string | null;
-  markInternalMessageRead?: (id: string) => void;
-  // ===== App Store Links (Admin Configurable) =====
-  appStoreLinks?: AppStoreLinks;
-  updateAppStoreLinks?: (links: AppStoreLinks) => void;
-  // ===== Site Configuration =====
-  siteConfig?: SiteConfig;
-  updateSiteConfig?: (config: SiteConfig) => void;
-}
-
-export const AppContext = createContext<AppContextType | null>(null);
 
 const App: React.FC = () => {
   // القسم المركزي الوحيد لاستلام الطلبات/الشكاوى/الرسائل
@@ -289,6 +157,8 @@ const App: React.FC = () => {
       return [];
     }
   });
+
+
   const [notifications, setNotifications] = useState<DepartmentNotification[]>(() => {
     const raw = localStorage.getItem('notifications');
     if (!raw) return [];
@@ -330,6 +200,175 @@ const App: React.FC = () => {
   const [authError, setAuthError] = useState<string | null>(null);
   const [backendDepartments, setBackendDepartments] = useState<{ id: string; name: string; }[] | null>(null);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info'; createdAt: number; ttlMs: number; }[]>([]);
+
+  // Fetch tickets from backend if enabled
+  useEffect(() => {
+    if (USE_BACKEND_TICKETS && isEmployeeLoggedIn) {
+      const fetchBackendTickets = async () => {
+        try {
+          const res = await apiFetch('/api/tickets', { method: 'GET' });
+          if (res?.ok && Array.isArray(res.tickets)) {
+             const mapped = res.tickets.map((t: any) => ({
+                 id: t.id,
+                 status: t.status === 'NEW' ? 'جديد' : t.status === 'IN_PROGRESS' ? 'قيد المعالجة' : t.status === 'ANSWERED' ? 'تم الرد' : 'مغلق',
+                 fullName: t.citizenName || 'غير متوفر',
+                 phone: '', // Not in default list payload
+                 email: '',
+                 nationalId: t.citizenNationalId,
+                 requestType: t.type || 'شكوى',
+                 department: t.department || '—',
+                 details: t.details || '',
+                 submissionDate: t.submissionDate ? new Date(t.submissionDate) : new Date(),
+                 source: 'web',
+                 attachments: [],
+                 forwardedTo: []
+             }));
+             setTickets(mapped);
+          }
+        } catch (e) {
+          console.error('Failed to fetch backend tickets', e);
+        }
+      };
+      fetchBackendTickets();
+    }
+  }, [USE_BACKEND_TICKETS, isEmployeeLoggedIn]);
+
+  // Sync from Supabase automatically on app load
+  useEffect(() => {
+    const syncFromSupabase = async () => {
+      console.log('[App] Auto-syncing from Supabase on app load...');
+      const result = await storageModeService.syncToLocal();
+      
+      if (result.success) {
+        console.log('[App] Supabase sync successful:', result.syncedCounts);
+        
+        // Reload tickets from localStorage after sync
+        const raw = localStorage.getItem('tickets');
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            const mapped = parsed.map((t: any) => ({
+              ...t,
+              submissionDate: t.submissionDate ? new Date(t.submissionDate) : new Date(),
+              startedAt: t.startedAt ? new Date(t.startedAt) : undefined,
+              answeredAt: t.answeredAt ? new Date(t.answeredAt) : undefined,
+              closedAt: t.closedAt ? new Date(t.closedAt) : undefined,
+            }));
+            setTickets(mapped);
+          } catch (e) {
+            console.error('[App] Error parsing synced tickets:', e);
+          }
+        }
+      } else {
+        console.warn('[App] Supabase sync failed:', result.error);
+      }
+    };
+    
+    syncFromSupabase();
+  }, []);
+
+  // Real-time subscription for live updates (no page refresh needed)
+  useEffect(() => {
+    const supabase = getDynamicSupabaseClient();
+    if (!supabase) return;
+
+    console.log('[App] Setting up Supabase Realtime subscription...');
+
+    // Subscribe to changes on tickets table
+    const channel = supabase
+      .channel('tickets-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tickets' },
+        (payload: any) => {
+          console.log('[Realtime] Change received:', payload?.eventType, payload);
+          
+          // Safety check
+          if (!payload || !payload.eventType) {
+            console.warn('[Realtime] Invalid payload received:', payload);
+            return;
+          }
+          
+          if (payload.eventType === 'INSERT') {
+            // New ticket added - convert from Supabase schema to local schema
+            const newTicket = payload.new;
+            const localTicket = {
+              id: newTicket.id,
+              fullName: newTicket.name || '',
+              nationalId: newTicket.national_id || '',
+              phone: newTicket.phone || '',
+              email: newTicket.email || '',
+              address: newTicket.address || '',
+              requestType: newTicket.subject || '',
+              details: newTicket.message || '',
+              submissionDate: newTicket.created_at ? new Date(newTicket.created_at) : new Date(),
+              status: newTicket.status || 'جديد',
+              response: newTicket.response || '',
+              department: newTicket.department || '',
+              forwardedTo: newTicket.forwarded_to || [],
+              priority: newTicket.priority || 'متوسط',
+              notes: newTicket.notes || '',
+              answeredBy: newTicket.answered_by || '',
+              assignedTo: newTicket.assigned_to || '',
+              startedAt: newTicket.started_at ? new Date(newTicket.started_at) : undefined,
+              answeredAt: newTicket.answered_at ? new Date(newTicket.answered_at) : undefined,
+              closedAt: newTicket.closed_at ? new Date(newTicket.closed_at) : undefined,
+            };
+            
+            setTickets(prev => {
+              // Check if ticket already exists
+              if (prev.some(t => t.id === localTicket.id)) return prev;
+              console.log('[Realtime] Adding new ticket:', localTicket.id);
+              return [...prev, localTicket];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            // Ticket updated
+            const updatedTicket = payload.new;
+            setTickets(prev => prev.map(t => {
+              if (t.id !== updatedTicket.id) return t;
+              console.log('[Realtime] Updating ticket:', updatedTicket.id);
+              return {
+                ...t,
+                fullName: updatedTicket.name || t.fullName,
+                nationalId: updatedTicket.national_id || t.nationalId,
+                phone: updatedTicket.phone || t.phone,
+                email: updatedTicket.email || t.email,
+                address: updatedTicket.address || t.address,
+                requestType: updatedTicket.subject || t.requestType,
+                details: updatedTicket.message || t.details,
+                status: updatedTicket.status || t.status,
+                response: updatedTicket.response || t.response,
+                department: updatedTicket.department || t.department,
+                forwardedTo: updatedTicket.forwarded_to || t.forwardedTo,
+                priority: updatedTicket.priority || t.priority,
+                notes: updatedTicket.notes || t.notes,
+                answeredBy: updatedTicket.answered_by || t.answeredBy,
+                assignedTo: updatedTicket.assigned_to || t.assignedTo,
+                startedAt: updatedTicket.started_at ? new Date(updatedTicket.started_at) : t.startedAt,
+                answeredAt: updatedTicket.answered_at ? new Date(updatedTicket.answered_at) : t.answeredAt,
+                closedAt: updatedTicket.closed_at ? new Date(updatedTicket.closed_at) : t.closedAt,
+              };
+            }));
+          } else if (payload.eventType === 'DELETE') {
+            // Ticket deleted
+            const deletedId = payload.old?.id;
+            if (deletedId) {
+              console.log('[Realtime] Removing ticket:', deletedId);
+              setTickets(prev => prev.filter(t => t.id !== deletedId));
+            }
+          }
+        }
+      )
+      .subscribe((status: any, err?: any) => {
+        console.log('[Realtime] Subscription status:', status, err || '');
+      });
+
+    // Cleanup on unmount
+    return () => {
+      console.log('[App] Cleaning up Supabase Realtime subscription...');
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // حالات UX Enhancements
   const [showSpotlight, setShowSpotlight] = useState(false);
@@ -636,6 +675,20 @@ const App: React.FC = () => {
     const init = async () => {
       setAuthLoading(true);
       setAuthError(null);
+      
+      // Skip backend auth check if not using backend - use localStorage only
+      if (!USE_BACKEND_TICKETS) {
+        try {
+          const employee = await secureStorage.get<Employee>('currentUser', { sessionBased: true });
+          if (employee) {
+            setCurrentEmployee(employee);
+            setIsEmployeeLoggedIn(true);
+          }
+        } catch { /* ignore */ }
+        setAuthLoading(false);
+        return;
+      }
+      
       try {
         const res = await fetch('/api/auth/me', { credentials: 'include' });
         if (res.status === 200) {
@@ -883,7 +936,7 @@ const App: React.FC = () => {
 
     pendingResponsesFetchRef.current[ticketId] = p;
     return p;
-  }, [ticketResponses, USE_BACKEND_TICKETS, addToast]);
+  }, [USE_BACKEND_TICKETS, addToast]);
 
   const addTicketResponse = useCallback(async (ticketId: string, input: NewTicketResponseInput): Promise<TicketResponseRecord | null> => {
     console.log('[addTicketResponse] Called with:', { ticketId, input, USE_BACKEND_TICKETS, currentEmployee: currentEmployee?.username });
@@ -967,6 +1020,10 @@ const App: React.FC = () => {
     };
     setTicketResponses(prev => ({ ...prev, [ticketId]: [...(prev[ticketId] || []), optimistic] }));
     try {
+      if (!USE_BACKEND_TICKETS) {
+          throw new Error('Local storage mode disabled');
+      }
+
       const form = new FormData();
       form.append('body', body);
       if (input.isInternal) form.append('isInternal', 'true');
@@ -982,65 +1039,55 @@ const App: React.FC = () => {
         throw new Error('HTTP ' + rawRes.status);
       }
       const data = await rawRes.json();
-      if (!data?.ok || !data.response) throw new Error('استجابة غير متوقعة');
-      const finalResp: TicketResponseRecord = {
-        id: data.response.id,
-        ticketId,
-        bodySanitized: data.response.bodySanitized,
-        visibility: data.response.visibility,
-        isInternal: data.response.visibility !== 'PUBLIC',
-        createdAt: data.response.createdAt ? new Date(data.response.createdAt) : new Date(),
-      };
-      setTicketResponses(prev => ({
-        ...prev,
-        [ticketId]: (prev[ticketId] || []).map(r => r.id === tempId ? finalResp : r)
-      }));
-      // Auto mark ticket answered if first public response
+      if (!data?.ok || !data.ticket) throw new Error('استجابة غير متوقعة'); 
+      const updatedTicket = data.ticket; // Backend returns the updated ticket, not just response
+
+      // Instead of manual response merging, we should arguably refresh the ticket context.
+      // But for now, let's just confirm success.
+      
+      // Update local view with success
       setTickets(prev => prev.map(t => {
-        if (t.id !== ticketId) return t;
-        if ((finalResp.visibility === 'PUBLIC') && (t.status === 'جديد' || t.status === 'قيد المعالجة')) {
-          return { ...t, status: 'تم الرد', answeredAt: t.answeredAt || new Date() } as Ticket;
-        }
-        return t;
-      }));
-      addToast?.({ message: 'تم إضافة الرد', type: 'success' });
-      return finalResp;
-    } catch (e) {
-      console.warn('[addTicketResponse] Backend failed, falling back to localStorage:', e);
-
-      // Fallback: حفظ في localStorage بدلاً من الـ rollback
-      const localResponse: TicketResponseRecord = {
-        ...optimistic,
-        id: responseId, // استخدام ID حقيقي بدلاً من temp
-        authorName: currentEmployee.username,
-        authorDepartment: currentEmployee.department
-      };
-
-      setTicketResponses(prev => ({
-        ...prev,
-        [ticketId]: (prev[ticketId] || []).map(r => r.id === tempId ? localResponse : r)
-      }));
-
-      // تحديث حالة التذكرة
-      if (!input.isInternal) {
-        setTickets(prev => prev.map(t => {
-          if (t.id !== ticketId) return t;
-          if (t.status === 'جديد' || t.status === 'قيد المعالجة') {
-            return { ...t, status: 'تم الرد', answeredAt: t.answeredAt || new Date() } as Ticket;
+          if (t.id === ticketId) {
+             return { 
+                 ...t, 
+                 status: updatedTicket.status as any,
+                 answeredAt: updatedTicket.answeredAt ? new Date(updatedTicket.answeredAt) : undefined 
+             };
           }
           return t;
-        }));
-      }
+      }));
 
-      // حفظ في localStorage
-      try {
-        const stored = JSON.parse(localStorage.getItem('ticketResponses') || '{}');
-        stored[ticketId] = [...(stored[ticketId] || []), localResponse];
-        localStorage.setItem('ticketResponses', JSON.stringify(stored));
-      } catch { }
+      // NOTE: Our backend currently returns the Ticket object, but maybe it should also return the Response object so we can append it to the list.
+      // Assuming backend logic for '/api/tickets/:id/responses' returns { ok:true, ticket: ... }
+      
+      // Since we need to update the responses list in the UI:
+      const newResponse: TicketResponseRecord = {
+          id: `R-BACKEND-${Date.now()}`, // We might need actual ID from backend if available
+          ticketId,
+          bodySanitized: body, // approximate
+          visibility: input.isInternal ? 'INTERNAL' : 'PUBLIC',
+          isInternal: !!input.isInternal,
+          createdAt: new Date(),
+          authorName: currentEmployee.name,
+          authorDepartment: currentEmployee.department
+      };
 
-      addToast?.({ message: 'تم إضافة الرد (محلياً)', type: 'success' });
-      return localResponse;
+      setTicketResponses(prev => ({
+        ...prev,
+        [ticketId]: (prev[ticketId] || []).map(r => r.id === tempId ? newResponse : r)
+      }));
+
+      addToast?.({ message: 'تم إضافة الرد بنجاح', type: 'success' });
+      return newResponse;
+
+    } catch (e: any) {
+      // Remove optimistic update if backend fails (Strict Mode)
+      setTicketResponses(prev => ({
+          ...prev,
+          [ticketId]: (prev[ticketId] || []).filter(r => r.id !== tempId)
+      }));
+      addToast?.({ message: e?.message || 'فشل الاتصال بالخادم', type: 'error' });
+      return null;
     }
   }, [USE_BACKEND_TICKETS, currentEmployee, addToast, setTicketResponses, setTickets]);
   // persist ticket responses (only when backend is disabled)
@@ -1267,8 +1314,26 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Fetch backend security status (best-effort)
+  // Fetch backend security status (best-effort) - only when backend is enabled
   const refreshSecurityStatus = useCallback(async () => {
+    // Skip API call if backend is not enabled
+    if (!USE_BACKEND_TICKETS) {
+      // fallback to localStorage only
+      try {
+        const raw = localStorage.getItem('security_status');
+        if (raw) {
+          const snap = JSON.parse(raw);
+          setSecurityStatus({
+            tlsVersion: snap.tlsVersion || snap.tls || snap.protocol,
+            hstsEnabled: snap.hstsEnabled ?? snap.hsts ?? false,
+            weakCiphers: snap.weakCiphers || snap.weak || []
+          });
+          return;
+        }
+      } catch { }
+      setSecurityStatus(null);
+      return;
+    }
     try {
       const r = await fetch('/api/security/status', { credentials: 'include' });
       if (r.ok) {
@@ -1298,7 +1363,7 @@ const App: React.FC = () => {
     } catch { }
     // final fallback: unknown
     setSecurityStatus(null);
-  }, []);
+  }, [USE_BACKEND_TICKETS]);
 
   useEffect(() => {
     refreshSecurityStatus();
@@ -1345,63 +1410,64 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
 
-  const addTicket = (ticketData: Omit<Ticket, 'id' | 'status'>) => {
+  const addTicket = async (ticketData: Omit<Ticket, 'id' | 'status'>) => {
     // Backend path (feature flagged)
     if (USE_BACKEND_TICKETS) {
       // Department selection heuristic: find department whose name includes a core keyword of CENTRAL_DEPARTMENT else fallback first
-      const targetDept = backendDepartments?.find(d => CENTRAL_DEPARTMENT.includes(d.name) || d.name.includes('شكاوى')) || backendDepartments?.[0];
+      // Robust selection handling
+      const targetDept = backendDepartments?.find(d => 
+        (d.name && CENTRAL_DEPARTMENT.includes(d.name)) || (d.name && d.name.includes('شكاوى'))
+      ) || backendDepartments?.[0];
+
       if (targetDept) {
-        const tempId = `TEMP-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-        // Async create without blocking return (optimistic UI)
-        (async () => {
           try {
             const payload = {
               departmentId: targetDept.id,
               citizenName: ticketData.fullName,
               citizenNationalId: ticketData.nationalId,
-              type: ticketData.requestType
+              citizenEmail: ticketData.email,
+              type: ticketData.requestType,
+              details: ticketData.details, // Send 'details' for backend processing
             };
             const data: any = await apiFetch('/api/tickets', { method: 'POST', body: payload as any });
-            if (data?.ok && data.ticket) {
-              const backendId = data.ticket.id;
+            
+            if (data?.ok && (data.ticketId || data.ticket?.id)) {
+              const backendId = data.ticketId || data.ticket?.id;
               // تحويل التواريخ من strings إلى Date objects
               const ticketWithDates = {
-                ...data.ticket,
-                submissionDate: data.ticket.submissionDate ? new Date(data.ticket.submissionDate) : new Date(),
-                startedAt: data.ticket.startedAt ? new Date(data.ticket.startedAt) : undefined,
-                answeredAt: data.ticket.answeredAt ? new Date(data.ticket.answeredAt) : undefined,
-                closedAt: data.ticket.closedAt ? new Date(data.ticket.closedAt) : undefined,
+                id: backendId,
+                status: RequestStatus.New,
+                fullName: ticketData.fullName,
+                phone: ticketData.phone,
+                email: ticketData.email,
+                nationalId: ticketData.nationalId,
+                requestType: ticketData.requestType,
+                department: ticketData.department || CENTRAL_DEPARTMENT,
+                details: ticketData.details,
+                submissionDate: new Date(),
+                source: ticketData.source,
+                attachments: ticketData.attachments,
+                forwardedTo: [],
               };
-              setTickets(prev => prev.map(t => t.id === tempId ? { ...ticketWithDates, id: backendId } : t));
+              setTickets(prev => [...prev, ticketWithDates]);
               setLastSubmittedId(backendId);
               addToast?.({ message: `تم إنشاء التذكرة ${backendId} بنجاح`, type: 'success' });
-              return;
+              return backendId;
             }
-            throw new Error('استجابة غير متوقعة');
+            
+            // Handle structured error from backend
+            if (data?.error) {
+               const details = data.details ? Object.values(data.details).join(', ') : '';
+               const errMsg = details ? `${data.error}: ${details}` : data.error;
+               throw new Error(errMsg);
+            }
+
+            throw new Error('استجابة غير متوقعة من الخادم');
           } catch (e: any) {
-            setTickets(prev => prev.filter(t => t.id !== tempId));
-            addToast?.({ message: e?.message || 'فشل إنشاء التذكرة', type: 'error' });
+            const msg = e?.message || 'فشل إنشاء التذكرة';
+            addToast?.({ message: msg, type: 'error' });
+            throw e; // Throw so SubmitRequestPage knows
           }
-        })();
-        // Insert optimistic ticket immediately
-        const optimistic: Ticket = {
-          id: tempId,
-          status: RequestStatus.New,
-          fullName: ticketData.fullName,
-          phone: ticketData.phone,
-          email: ticketData.email,
-          nationalId: ticketData.nationalId,
-          requestType: ticketData.requestType,
-          department: ticketData.department,
-          details: ticketData.details,
-          submissionDate: new Date(),
-          source: ticketData.source,
-          attachments: ticketData.attachments,
-          forwardedTo: [],
-        };
-        setTickets(prev => [...prev, optimistic]);
-        setLastSubmittedId(tempId);
-        return tempId;
       }
     }
     // السماح بإدخال معرف يدوي مخزّن مؤقتاً في localStorage (مفتاح manualTicketId)
@@ -1431,6 +1497,50 @@ const App: React.FC = () => {
       forwardedTo: ticketData.forwardedTo || [],
     };
     setTickets(prevTickets => [...prevTickets, newTicket]);
+
+    // ===== Sync to Supabase (with upsert) =====
+    const SUPABASE_URL = 'https://whutmrbjvvplqugobwbq.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndodXRtcmJqdnZwbHF1Z29id2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzA0NzgsImV4cCI6MjA4NTQ0NjQ3OH0.bzynb0G41o2c1m35AodyVVgZBNXzPvGbKWJWKpBqGH8';
+    
+    const supabaseTicket = {
+      id: newTicket.id,
+      type: newTicket.requestType || '',
+      status: newTicket.status || 'جديد',
+      name: newTicket.fullName || '',
+      phone: newTicket.phone || '',
+      email: newTicket.email || '',
+      national_id: newTicket.nationalId || '',
+      department: newTicket.department || '',
+      description: newTicket.details || '',
+      date: new Date().toISOString(),
+      source: newTicket.source || 'web',
+      forwarded_to: newTicket.forwardedTo || [],
+    };
+    
+    // Use upsert to handle duplicates
+    (async () => {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/tickets`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates,return=minimal'
+          },
+          body: JSON.stringify(supabaseTicket)
+        });
+        if (res.ok) {
+          console.log('[Supabase] ✅ Ticket synced:', newTicket.id);
+        } else {
+          const errText = await res.text();
+          console.error('[Supabase] ❌ Sync failed:', res.status, errText);
+        }
+      } catch (err) {
+        console.error('[Supabase] ❌ Sync error:', err);
+      }
+    })();
+    // ===== End Supabase Sync =====
 
     // تسجيل النشاط وتتبع وقت الاستجابة
     try {
@@ -1732,8 +1842,10 @@ const App: React.FC = () => {
     if (route === '#/dashboard') {
       window.location.hash = '#/';
     }
-    // Attempt backend logout (non-blocking)
-    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => { });
+    // Attempt backend logout (non-blocking) - only if backend is enabled
+    if (USE_BACKEND_TICKETS) {
+      fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => { });
+    }
   };
 
   // MFA helper functions
@@ -1795,6 +1907,7 @@ const App: React.FC = () => {
 
   // HR Database Search Functions
   const searchEmployeeByName = (name: string): Employee[] => {
+    if (!name) return [];
     const employees = JSON.parse(localStorage.getItem('employees') || '[]');
     return employees.filter((emp: Employee) =>
       emp.name && emp.name.toLowerCase().includes(name.toLowerCase())
@@ -1850,7 +1963,55 @@ const App: React.FC = () => {
       CLOSED: RequestStatus.Closed
     } as const;
 
-    // Optimistic local update
+    if (USE_BACKEND_TICKETS) {
+      (async () => {
+        try {
+          // Send status AND optional responseText
+          await apiFetch(`/api/tickets/${ticketId}/status`, {
+            method: 'PATCH',
+            body: { 
+                status: backendMap[newStatus],
+                responseText: responseText 
+            } as any
+          });
+
+          // Update local state ONLY on success
+          setTickets(prev => prev.map(t => {
+            if (t.id !== ticketId) return t;
+            const now = new Date();
+            const patch: Partial<Ticket> = { status: newStatus };
+            if (newStatus === RequestStatus.InProgress && !t.startedAt) patch.startedAt = now;
+            if (newStatus === RequestStatus.Answered) {
+                patch.answeredAt = now;
+                if (responseText && responseText.trim()) patch.response = responseText.trim();
+            }
+            if (newStatus === RequestStatus.Closed) patch.closedAt = now;
+            return { ...t, ...patch };
+          }));
+          
+          addToast?.({ message: `تم تحديث حالة التذكرة ${ticketId}`, type: 'success' });
+          
+          // Activity Logging
+          try {
+            addActivityLog({
+                type: 'ticket_update',
+                description: `تم تحديث حالة التذكرة ${ticketId} إلى: ${newStatus}`,
+                userId: currentEmployee?.username,
+                details: { ticketId, newStatus },
+                severity: 'info'
+            });
+            if (newStatus === RequestStatus.Closed) trackResolution(ticketId);
+            if (newStatus === RequestStatus.Answered) trackFirstResponse(ticketId, currentEmployee?.username);
+           } catch {}
+
+        } catch (e: any) {
+          addToast?.({ message: e?.message || 'فشل تحديث الحالة', type: 'error' });
+        }
+      })();
+      return; 
+    }
+
+    // Optimistic local update (Legacy/LocalStorage Mode)
     let previous: Ticket | undefined;
     setTickets(prev => prev.map(t => {
       if (t.id !== ticketId) return t;
@@ -1868,6 +2029,41 @@ const App: React.FC = () => {
       return { ...t, ...patch };
     }));
 
+    // ===== Sync status update to Supabase =====
+    try {
+      const SUPABASE_URL = 'https://whutmrbjvvplqugobwbq.supabase.co';
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndodXRtcmJqdnZwbHF1Z29id2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzA0NzgsImV4cCI6MjA4NTQ0NjQ3OH0.bzynb0G41o2c1m35AodyVVgZBNXzPvGbKWJWKpBqGH8';
+      
+      const now = new Date().toISOString();
+      const updateData: any = { status: newStatus };
+      if (newStatus === RequestStatus.InProgress) updateData.started_at = now;
+      if (newStatus === RequestStatus.Answered) {
+        updateData.answered_at = now;
+        if (responseText) updateData.response = responseText.trim();
+      }
+      if (newStatus === RequestStatus.Closed) updateData.closed_at = now;
+      
+      fetch(`${SUPABASE_URL}/rest/v1/tickets?id=eq.${ticketId}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(updateData)
+      }).then(res => {
+        if (res.ok) {
+          console.log('[Supabase] Status synced:', ticketId, newStatus);
+        } else {
+          res.text().then(t => console.error('[Supabase] Status sync failed:', t));
+        }
+      }).catch(err => console.error('[Supabase] Status sync error:', err));
+    } catch (e) {
+      console.error('[Supabase] Status sync exception:', e);
+    }
+    // ===== End Supabase Sync =====
+
     // تسجيل النشاط وتتبع حالة التذكرة
     try {
       addActivityLog({
@@ -1884,22 +2080,6 @@ const App: React.FC = () => {
         trackFirstResponse(ticketId, currentEmployee?.username);
       }
     } catch { }
-
-    if (USE_BACKEND_TICKETS) {
-      (async () => {
-        try {
-          await apiFetch(`/api/tickets/${ticketId}/status`, {
-            method: 'PATCH',
-            body: { status: backendMap[newStatus] } as any
-          });
-          addToast?.({ message: `تم تحديث حالة التذكرة ${ticketId}`, type: 'success' });
-        } catch (e: any) {
-          // Revert
-          setTickets(prev => prev.map(t => t.id === ticketId && previous ? previous : t));
-          addToast?.({ message: e?.message || 'فشل تحديث الحالة', type: 'error' });
-        }
-      })();
-    }
   };
 
   const updateContactMessageStatus = (id: string, newStatus: ContactMessageStatus) => {
@@ -1921,7 +2101,49 @@ const App: React.FC = () => {
     let previous: Ticket | undefined;
     const shouldMarkAnswered = (t: Ticket) => t.status !== RequestStatus.Answered && t.status !== RequestStatus.Closed;
 
-    // Optimistic update
+    if (USE_BACKEND_TICKETS) {
+      (async () => {
+        try {
+          const attachmentsMeta = (responseAttachments || []).map(f => ({ filename: f.name, mimeType: f.type, sizeBytes: f.size }));
+          const data: any = await apiFetch(`/api/tickets/${ticketId}/response`, {
+            method: 'PATCH',
+            body: {
+              responseText: responseText.trim(),
+              markAnswered: true,
+              attachments: attachmentsMeta
+            } as any
+          });
+          
+          if (data?.ok) {
+            setTickets(prev => prev.map(t => {
+                if (t.id !== ticketId) return t;
+                const updated = { ...t, response: responseText.trim(), status: RequestStatus.Answered };
+                if (!t.answeredAt) updated.answeredAt = new Date();
+                return updated;
+            }));
+            addToast?.({ message: `تم إرسال الرد للتذكرة ${ticketId}`, type: 'success' });
+            
+            // تسجيل النشاط بعد النجاح
+            try {
+              addActivityLog({
+                type: 'ticket_respond',
+                description: `تم الرد على التذكرة: ${ticketId}`,
+                userId: currentEmployee?.username,
+                details: { ticketId, responseLength: responseText.length },
+                severity: 'success'
+              });
+              trackFirstResponse(ticketId, currentEmployee?.username);
+              playSound('success');
+            } catch { }
+          }
+        } catch (e: any) {
+          addToast?.({ message: e?.message || 'فشل إرسال الرد', type: 'error' });
+        }
+      })();
+      return; // Stop here, no optimistic update!
+    }
+
+    // Optimistic update (Local Mode only)
     setTickets(prev => prev.map(t => {
       if (t.id !== ticketId) return t;
       if (!canEditTicket(t)) return t;

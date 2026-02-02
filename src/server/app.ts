@@ -12,6 +12,8 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
+import * as dbService from './dbService';
+import * as dbConfig from './dbConfig';
 
 const app = express();
 
@@ -147,7 +149,351 @@ app.use('/api/health', (req, res) => {
   });
 });
 
-// 10. خدمة ملفات React المبنية
+// 10. Database Control API Routes (للمدير فقط)
+
+// التحقق من صلاحيات المدير
+const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'غير مصرح - يلزم تسجيل الدخول' });
+  }
+  
+  try {
+    const token = authHeader.split(' ')[1];
+    const userData = JSON.parse(Buffer.from(token, 'base64').toString('utf8'));
+    if (userData.role !== 'مدير') {
+      return res.status(403).json({ error: 'غير مصرح - صلاحيات المدير مطلوبة' });
+    }
+    next();
+  } catch {
+    return res.status(401).json({ error: 'رمز غير صالح' });
+  }
+};
+
+// فحص صحة قاعدة البيانات
+app.get('/api/db/health', requireAdmin, async (req, res) => {
+  try {
+    const result = await dbService.checkHealth();
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ 
+      connected: false, 
+      error: error.message 
+    });
+  }
+});
+
+// قياس زمن الاستجابة
+app.get('/api/db/latency', requireAdmin, async (req, res) => {
+  try {
+    const result = await dbService.measureLatency();
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// تنفيذ استعلام اختباري
+app.post('/api/db/test', requireAdmin, async (req, res) => {
+  try {
+    const { query } = req.body;
+    // السماح فقط باستعلامات SELECT للأمان
+    if (!query || !query.trim().toLowerCase().startsWith('select')) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'يُسمح فقط باستعلامات SELECT' 
+      });
+    }
+    const result = await dbService.runTestQuery(query);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// إحصائيات pool الاتصالات
+app.get('/api/db/stats', requireAdmin, async (req, res) => {
+  try {
+    const result = await dbService.poolStats();
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ 
+      error: error.message 
+    });
+  }
+});
+
+// إعادة تعيين الاتصال
+app.post('/api/db/reconnect', requireAdmin, async (req, res) => {
+  try {
+    const result = await dbService.resetPool();
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// الأخطاء الأخيرة
+app.get('/api/db/errors', requireAdmin, async (req, res) => {
+  try {
+    const result = await dbService.getRecentErrors();
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ 
+      error: error.message 
+    });
+  }
+});
+
+// ===== 11. Database Configuration Management API =====
+
+// الحصول على قائمة التكوينات
+app.get('/api/db/configs', requireAdmin, (req, res) => {
+  try {
+    const configs = dbConfig.exportConfigurations(); // بدون كلمات المرور
+    res.json({ configs });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// الحصول على التكوين النشط
+app.get('/api/db/configs/active', requireAdmin, (req, res) => {
+  try {
+    const config = dbConfig.getActiveConfiguration();
+    if (config) {
+      // إخفاء كلمة المرور
+      res.json({
+        ...config,
+        connection: { ...config.connection, password: '***HIDDEN***' }
+      });
+    } else {
+      res.status(404).json({ error: 'لا يوجد تكوين نشط' });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// الحصول على قوالب المزودين
+app.get('/api/db/providers', requireAdmin, (req, res) => {
+  try {
+    res.json({
+      providers: dbConfig.providerInfo,
+      templates: dbConfig.providerTemplates,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// إضافة تكوين جديد
+app.post('/api/db/configs', requireAdmin, (req, res) => {
+  try {
+    const { name, provider, connection, providerMeta, isActive } = req.body;
+    
+    if (!name || !provider || !connection) {
+      return res.status(400).json({ error: 'البيانات المطلوبة ناقصة' });
+    }
+    
+    const newConfig = dbConfig.addConfiguration({
+      name,
+      provider,
+      connection,
+      providerMeta,
+      isActive: isActive || false,
+    });
+    
+    res.status(201).json({
+      success: true,
+      config: { ...newConfig, connection: { ...newConfig.connection, password: '***HIDDEN***' } }
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// تحديث تكوين
+app.put('/api/db/configs/:id', requireAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    
+    const updatedConfig = dbConfig.updateConfiguration(id, updates);
+    
+    if (!updatedConfig) {
+      return res.status(404).json({ error: 'التكوين غير موجود' });
+    }
+    
+    res.json({
+      success: true,
+      config: { ...updatedConfig, connection: { ...updatedConfig.connection, password: '***HIDDEN***' } }
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// حذف تكوين
+app.delete('/api/db/configs/:id', requireAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = dbConfig.deleteConfiguration(id);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: 'التكوين غير موجود' });
+    }
+    
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// تبديل التكوين النشط
+app.post('/api/db/configs/:id/activate', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { updateEnv } = req.body;
+    
+    const config = dbConfig.switchActiveConfiguration(id);
+    
+    if (!config) {
+      return res.status(404).json({ error: 'التكوين غير موجود' });
+    }
+    
+    // تحديث ملف .env إذا طلب
+    if (updateEnv) {
+      const envUpdated = dbConfig.updateEnvFile(config);
+      if (!envUpdated) {
+        return res.json({
+          success: true,
+          warning: 'تم التبديل لكن فشل تحديث ملف .env',
+          config: { ...config, connection: { ...config.connection, password: '***HIDDEN***' } }
+        });
+      }
+    }
+    
+    // إعادة الاتصال بقاعدة البيانات الجديدة
+    await dbService.resetPool();
+    
+    res.json({
+      success: true,
+      message: 'تم تبديل قاعدة البيانات بنجاح',
+      config: { ...config, connection: { ...config.connection, password: '***HIDDEN***' } }
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// اختبار اتصال تكوين معين
+app.post('/api/db/configs/:id/test', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const configs = dbConfig.loadConfigurations();
+    const config = configs.find(c => c.id === id);
+    
+    if (!config) {
+      return res.status(404).json({ error: 'التكوين غير موجود' });
+    }
+    
+    // اختبار الاتصال (نستخدم فحص الصحة الحالي للتبسيط)
+    // في الإنتاج يجب إنشاء اتصال مؤقت للاختبار
+    const startTime = Date.now();
+    const connectionString = dbConfig.buildConnectionString(config);
+    
+    // محاكاة اختبار الاتصال
+    try {
+      const { Pool } = require('pg');
+      const testPool = new Pool({ connectionString, connectionTimeoutMillis: 5000 });
+      const client = await testPool.connect();
+      await client.query('SELECT 1');
+      client.release();
+      await testPool.end();
+      
+      const latencyMs = Date.now() - startTime;
+      
+      // تحديث حالة الاختبار
+      dbConfig.updateConfiguration(id, {
+        lastTestedAt: new Date().toISOString(),
+        lastTestSuccess: true,
+      });
+      
+      res.json({
+        success: true,
+        latencyMs,
+        message: 'الاتصال ناجح'
+      });
+    } catch (testError: any) {
+      dbConfig.updateConfiguration(id, {
+        lastTestedAt: new Date().toISOString(),
+        lastTestSuccess: false,
+      });
+      
+      res.json({
+        success: false,
+        error: testError.message,
+        hint: getConnectionErrorHint(testError)
+      });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// تصدير تكوينات
+app.get('/api/db/configs/export', requireAdmin, (req, res) => {
+  try {
+    const configs = dbConfig.exportConfigurations();
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename=db-configs-${new Date().toISOString().slice(0,10)}.json`);
+    res.json({ configs, exportedAt: new Date().toISOString() });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// استيراد تكوينات
+app.post('/api/db/configs/import', requireAdmin, (req, res) => {
+  try {
+    const { configs } = req.body;
+    
+    if (!Array.isArray(configs)) {
+      return res.status(400).json({ error: 'التنسيق غير صحيح' });
+    }
+    
+    const imported = dbConfig.importConfigurations(configs);
+    res.json({ success: true, imported });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// دالة مساعدة لتلميحات الأخطاء
+function getConnectionErrorHint(err: any): string {
+  const code = err.code || '';
+  const message = err.message || '';
+  
+  if (code === 'ECONNREFUSED') return 'تأكد من تشغيل خادم قاعدة البيانات';
+  if (code === 'ENOTFOUND') return 'تحقق من عنوان الخادم';
+  if (message.includes('password')) return 'تحقق من كلمة المرور';
+  if (message.includes('timeout')) return 'انتهت مهلة الاتصال';
+  if (message.includes('SSL')) return 'تحقق من إعدادات SSL';
+  
+  return 'راجع إعدادات الاتصال';
+}
+
+// 12. خدمة ملفات React المبنية
 const distPath = path.join(__dirname, '../../dist');
 app.use(express.static(distPath, {
   maxAge: process.env.NODE_ENV === 'production' ? '1y' : '0',

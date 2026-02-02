@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useContext } from 'react';
 import { AppContext } from '../App';
 import { SiteConfig } from '../types';
 import Tesseract from 'tesseract.js';
+import DatabaseControlPanel from '../components/informatics/DatabaseControlPanel';
 import { FaFileUpload, FaSpinner, FaFilePdf, FaFileWord, FaFileImage, FaCheck, FaTimes, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 import { useFilePreview } from '../hooks/useFilePreview';
 import { NewsItem, FaqItem } from '../types';
@@ -2186,9 +2187,35 @@ const ToolsPage: React.FC = () => {
   return (
     <div className="rounded-2xl p-8 animate-fade-in-up transition-all duration-300 border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-900/60 backdrop-blur shadow-lg">
       <div className="max-w-6xl mx-auto">
+        {/* زر الرجوع إلى لوحة التحكم */}
+        <div className="mb-6">
+          <button
+            onClick={() => { window.location.hash = '#/dashboard'; }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 dark:bg-gray-800 text-white hover:bg-gray-600 dark:hover:bg-gray-700 transition-colors duration-200 text-sm font-medium"
+          >
+            <span>رجوع إلى لوحة التحكم</span>
+            <span className="text-lg">←</span>
+          </button>
+        </div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">قسم المعلوماتية</h1>
 
   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Database Control Card */}
+          <div className="relative">
+            <div
+              role="button" tabIndex={0}
+              onClick={() => setActive(active === 'dbControl' ? null : 'dbControl')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(active === 'dbControl' ? null : 'dbControl'); } }}
+              className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <h3 className="text-xl font-semibold mb-1">لوحة تحكم قاعدة البيانات والاتصال</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">إدارة الاتصال بقاعدة البيانات وفحص الحالة والخدمات.</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="px-2 py-0.5 rounded bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-200">أدوات النظام</span>
+              </div>
+            </div>
+          </div>
+
           {/* Site Config Card */}
           <div className="relative">
             <div
@@ -2380,6 +2407,7 @@ const ToolsPage: React.FC = () => {
           <div className="relative mt-4 rounded-xl overflow-hidden border border-white/20 dark:border-white/10 bg-white/90 dark:bg-gray-900/90 shadow-xl">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                {active === 'dbControl' && 'لوحة تحكم قاعدة البيانات والاتصال'}
                 {active === 'siteConfig' && 'إعدادات معلومات الموقع'}
                 {active === 'idConfig' && 'إعدادات توليد معرف التذكرة'}
                 {active === 'ocr' && 'أداة التعرف الضوئي على الحروف (OCR)'}
@@ -2395,6 +2423,7 @@ const ToolsPage: React.FC = () => {
               <button onClick={() => setActive(null)} aria-label="إغلاق" className="w-8 h-8 rounded hover:bg-black/5 dark:hover:bg-white/10">✕</button>
             </div>
             <div className="p-4 max-h-[70vh] overflow-auto">
+              {active === 'dbControl' && <DatabaseControlPanel />}
               {active === 'siteConfig' && <SiteConfigEditor />}
               {active === 'ocr' && <OcrTool onStatsChanged={refreshStats} />}
               {active === 'idConfig' && (

@@ -1,17 +1,17 @@
 [
   {
     "ip": "::1",
-    "total": 3037,
+    "total": 3082,
     "byStatus": {
-      "2xx": 1183,
-      "3xx": 1847,
-      "4xx": 6,
-      "5xx": 1,
+      "2xx": 1198,
+      "3xx": 1871,
+      "4xx": 10,
+      "5xx": 3,
       "other": 0
     },
-    "lastSeen": 1769878212486,
+    "lastSeen": 1769929899055,
     "routeCounts": {
-      "/api/health": 9,
+      "/api/health": 11,
       "/api/metrics-summary": 485,
       "/favicon.ico": 2,
       "/api/errors-stats": 345,
@@ -21,14 +21,16 @@
       "/api/trace-id": 8,
       "/api/demo-trace": 2,
       "/api/demo-error": 1,
-      "/api/otel-info": 6,
+      "/api/otel-info": 7,
       "/api/ai/observability": 6,
-      "/api/departments": 730,
-      "/api/security/status": 438,
+      "/api/departments": 750,
+      "/api/security/status": 456,
       "/": 6,
       "/vite.svg": 2,
       "/csp-violations": 1,
-      "/health": 1
+      "/health": 1,
+      "/api/tickets/ALF-20260131-FAZTT6/responses": 2,
+      "/api/tickets": 2
     }
   }
 ]

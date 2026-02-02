@@ -32,6 +32,23 @@ const SecurityStatusPanel: React.FC = () => {
 
   async function fetchStatus() {
     setLoading(true); setError(null);
+    // Skip API calls in static mode (no backend)
+    const USE_BACKEND = (import.meta as any).env?.VITE_USE_BACKEND_TICKETS === 'true';
+    if (!USE_BACKEND) {
+      // Use localStorage fallback in static mode
+      try {
+        const raw = localStorage.getItem('security_status');
+        if (raw) {
+          const snap = JSON.parse(raw);
+          setData(snap as SecurityStatusPayload);
+          setLoading(false);
+          return;
+        }
+      } catch { }
+      setError('وضع السحابة - لا يوجد خادم');
+      setLoading(false);
+      return;
+    }
     const urls = ['/api/security/status','http://localhost:4000/api/security/status'];
     for (const u of urls) {
       try {

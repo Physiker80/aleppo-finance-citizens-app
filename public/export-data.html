@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>تصدير البيانات</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #1a1a2e; color: white; }
+        .btn { padding: 15px 30px; font-size: 18px; margin: 10px; cursor: pointer; border: none; border-radius: 8px; }
+        .btn-primary { background: #4CAF50; color: white; }
+        .btn-download { background: #2196F3; color: white; }
+        pre { background: #0f0f23; padding: 15px; border-radius: 8px; overflow: auto; max-height: 400px; }
+        .count { background: #333; padding: 10px 20px; border-radius: 5px; display: inline-block; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🔄 أداة تصدير البيانات</h1>
+    
+    <div id="stats">
+        <h2>📊 إحصائيات البيانات:</h2>
+        <div id="counts"></div>
+    </div>
+    
+    <br>
+    <button class="btn btn-download" onclick="downloadData()">📥 تحميل ملف البيانات</button>
+    <button class="btn btn-primary" onclick="copyData()">📋 نسخ البيانات</button>
+    
+    <h3>معاينة البيانات:</h3>
+    <pre id="preview"></pre>
+    
+    <script>
+        const data = {
+            tickets: JSON.parse(localStorage.getItem("tickets") || "[]"),
+            employees: JSON.parse(localStorage.getItem("employees") || "[]"),
+            contactMessages: JSON.parse(localStorage.getItem("contactMessages") || "[]")
+        };
+        
+        // Show counts
+        document.getElementById("counts").innerHTML = `
+            <span class="count">🎫 الطلبات: ${data.tickets.length}</span>
+            <span class="count">👥 الموظفين: ${data.employees.length}</span>
+            <span class="count">📧 الرسائل: ${data.contactMessages.length}</span>
+        `;
+        
+        // Show preview
+        document.getElementById("preview").textContent = JSON.stringify(data, null, 2);
+        
+        function downloadData() {
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "localStorage-export.json";
+            a.click();
+            URL.revokeObjectURL(url);
+            alert("✅ تم تحميل الملف! انسخه إلى مجلد المشروع");
+        }
+        
+        function copyData() {
+            navigator.clipboard.writeText(JSON.stringify(data)).then(() => {
+                alert("✅ تم نسخ البيانات!");
+            });
+        }
+    </script>
+</body>
+</html>

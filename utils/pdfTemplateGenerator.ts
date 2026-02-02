@@ -2,6 +2,7 @@
 import { Ticket } from '../types';
 import { ArabicTextProcessor, prepareTextForPdf, formatArabicDate, wrapArabicText } from './arabicTextProcessor';
 import { formatDate } from './arabicNumerals';
+import { ensureFontsRegistered, loadFontsIntoDocument } from './pdfFonts';
 
 // دالة مساعدة لتحويل SVG إلى Canvas
 async function svgToCanvas(svgDataUrl: string, width: number, height: number): Promise<string> {
@@ -56,8 +57,8 @@ function textToImageSync(text: string, fontSize: number = 16, fontFamily: string
       return canvas.toDataURL('image/png');
     }
     
-    // إعداد الخط مع خطوط عربية أفضل
-    const arabicFonts = `${fontFamily}, "Noto Sans Arabic", "Arabic UI Text", "Geeza Pro", "Baghdad", "Al Bayan", "Segoe UI", "Tahoma", sans-serif`;
+    // إعداد الخط مع أولوية لخط الأميري
+    const arabicFonts = `"Amiri", ${fontFamily}, "Noto Sans Arabic", "Arabic UI Text", "Geeza Pro", "Baghdad", "Al Bayan", "Segoe UI", "Tahoma", sans-serif`;
     ctx.font = `${fontSize}px ${arabicFonts}`;
     ctx.fillStyle = color;
     ctx.textAlign = 'right';
@@ -215,7 +216,7 @@ export function getDefaultTemplate(): PdfTemplate {
       logoWidth: 60,
       logoHeight: 60,
       logoSpacing: 15,
-      fontFamily: 'Fustat',
+      fontFamily: 'Amiri',
       titleFontSize: 18,
       subtitleFontSize: 14
     },
@@ -288,6 +289,12 @@ export async function generatePdfFromTemplate(
     }
 
     console.log('بدء إنتاج PDF باستخدام القالب:', template.name);
+
+    // تهيئة الخطوط (لـ jsPDF ولـ Canvas)
+    await Promise.all([
+      ensureFontsRegistered(),
+      loadFontsIntoDocument()
+    ]);
 
     // استيراد jsPDF بشكل ديناميكي
     const { jsPDF } = await import('jspdf');

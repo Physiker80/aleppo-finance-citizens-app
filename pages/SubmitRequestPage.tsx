@@ -196,7 +196,7 @@ const SubmitRequestPage: React.FC = () => {
       localStorage.setItem('manualTicketId', manualId);
     }
 
-    setTimeout(() => {
+    setTimeout(async () => {
       // تحديد المصدر بناءً على النتائج
       let source: 'مواطن' | 'موظف' = 'مواطن';
       let department = 'الديوان العام';
@@ -221,19 +221,16 @@ const SubmitRequestPage: React.FC = () => {
         submissionDate: new Date(),
       };
 
-      let newTicketId: string | undefined;
       try {
-        newTicketId = appContext?.addTicket(ticketPayload);
-      } catch (err) {
-        console.error("Failed to add ticket:", err);
-        setError("حدث خطأ غير متوقع أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.");
+        const newTicketId = await appContext?.addTicket(ticketPayload);
         setIsSubmitting(false);
-        return;
-      }
-
-      setIsSubmitting(false);
-      if (newTicketId) {
-        window.location.hash = '#/confirmation';
+        if (newTicketId) {
+          window.location.hash = '#/confirmation';
+        }
+      } catch (err: any) {
+        console.error("Failed to add ticket:", err);
+        setError(err.message || "حدث خطأ غير متوقع أثناء إرسال الطلب.");
+        setIsSubmitting(false);
       }
     }, 1000);
   };

@@ -699,19 +699,19 @@ const GeneralDiwanPage: React.FC<{
                       const html2canvas = await import('html2canvas');
                       try {
                         await ensureFustatRegistered();
-                        if (!document.getElementById('fustat-font-face')) {
+                        if (!document.getElementById('amiri-font-face')) {
                           const style = document.createElement('style');
-                          style.id = 'fustat-font-face';
-                          style.innerHTML = "@font-face { font-family: 'Fustat'; src: url('/fonts/Fustat-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; }";
+                          style.id = 'amiri-font-face';
+                          style.innerHTML = "@font-face { font-family: 'Amiri'; src: url('/fonts/Amiri-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; }";
                           document.head.appendChild(style);
                         }
-                        await (document as any)?.fonts?.load?.("400 14px 'Fustat'");
+                        await (document as any)?.fonts?.load?.("400 14px 'Amiri'");
                       } catch {}
                       const temp = document.createElement('div');
                       temp.dir = 'rtl';
-                      temp.style.cssText = 'position:fixed;left:-10000px;top:-10000px;background:#fff;padding:24px;width:720px;font-family: \'Arial\', sans-serif;';
+                      temp.style.cssText = 'position:fixed;left:-10000px;top:-10000px;background:#fff;padding:24px;width:720px;font-family: \'Amiri\', \'Arial\', sans-serif;';
                       temp.innerHTML = `
-                        <h3 style="margin:0 0 12px;font-size:18px;color:#0f3c35;">تقرير إحصائيات الوثائق</h3>
+                        <h3 style="margin:0 0 12px;font-size:18px;color:#0f3c35;font-family:'Amiri';">تقرير إحصائيات الوثائق</h3>
                         <div style="font-size:12px;margin-bottom:8px;">إجمالي الوثائق (مع تطبيق مرشح نوع البريد: ${mailDirectionFilter}): ${docStats.total}</div>
                         <div style="display:flex;gap:16px;font-size:12px;margin-bottom:12px;">
                           <div>المعتمدة: ${docStats.approved}</div>
@@ -730,7 +730,7 @@ const GeneralDiwanPage: React.FC<{
                       document.body.removeChild(temp);
                       const img = canvas.toDataURL('image/png');
                       const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-                      try { pdf.setFont('Fustat'); } catch {}
+                      try { pdf.setFont('Amiri'); } catch {}
                       const pageWidth = pdf.internal.pageSize.getWidth();
                       const pageHeight = pdf.internal.pageSize.getHeight();
                       const imgWidth = pageWidth - 40; // margins
@@ -968,7 +968,7 @@ const GeneralDiwanPage: React.FC<{
                                 const { jsPDF } = await import('jspdf');
                                 try { await ensureFustatRegistered(); } catch {}
                                 const pdf = new jsPDF({ orientation:'p', unit:'pt', format:'a4'});
-                                try { pdf.setFont('Fustat'); } catch {}
+                                try { pdf.setFont('Amiri'); } catch {}
                                 pdf.setFontSize(12);
                                 pdf.text(`قائمة الوثائق المحددة (${selected.length})`, 560, 40, { align:'right'});
                                 let y=70;
@@ -1158,7 +1158,7 @@ const GeneralDiwanPage: React.FC<{
                               const { jsPDF } = await import('jspdf');
                               try { await ensureFustatRegistered(); } catch {}
                               const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-                              try { doc.setFont('Fustat'); } catch {}
+                              try { doc.setFont('Amiri'); } catch {}
                               doc.setFontSize(12);
                               doc.text('قائمة وثائق (عرض اللوحة)', 560, 40, { align: 'right' });
                               let y = 70;
@@ -1625,7 +1625,7 @@ const GeneralDiwanPage: React.FC<{
                         const svgHeight = svgEl.viewBox.baseVal.height || svgEl.getBoundingClientRect().height;
                         const orientation = svgWidth > svgHeight ? 'l' : 'p';
                         const pdf = new jsPDF({ orientation, unit: 'pt', format: 'a4' });
-                        try { pdf.setFont('Fustat'); } catch { /* fallback */ }
+                        try { pdf.setFont('Amiri'); } catch { /* fallback */ }
                         const pageWidth = pdf.internal.pageSize.getWidth();
                         const pageHeight = pdf.internal.pageSize.getHeight();
                         const scale = Math.min(pageWidth / svgWidth, pageHeight / svgHeight) * 0.95;
@@ -3067,7 +3067,7 @@ ${employeeName}
             font-weight: bold;
             margin-bottom: 15px;
             color: #054239;
-            font-family: 'Fustat', serif;
+            font-family: 'Amiri', serif;
             font-size: 16px;
             padding-bottom: 8px;
             border-bottom: 2px solid #054239;
@@ -3140,7 +3140,7 @@ ${employeeName}
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" style="width: 100%; max-width: 800px; height: auto;">
                     <defs>
                         <style>
-                            @import url('https://fonts.googleapis.com/css2?family=Fustat:wght@200;300;400;500;600;700;800&amp;family=Noto+Naskh+Arabic:wght@400;500;600;700&amp;display=swap');
+                            @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&amp;family=Noto+Naskh+Arabic:wght@400;500;600;700&amp;display=swap');
                         </style>
                     </defs>
                     <!-- Background -->
@@ -3186,7 +3186,7 @@ ${employeeName}
                     </g>
                     
                     <!-- Right Side - Arabic -->
-                    <g font-family="Fustat, Traditional Arabic, Arabic Typesetting, serif" text-anchor="end" fill="#054239">
+                    <g font-family="Amiri, Traditional Arabic, Arabic Typesetting, serif" text-anchor="end" fill="#054239">
                         <text x="760" y="45" font-size="18" font-weight="bold">الجمهورية العربية السورية</text>
                         <text x="760" y="65" font-size="15">وزارة المالية</text>
                         <text x="760" y="83" font-size="15">مديرية المالية</text>
@@ -3397,15 +3397,15 @@ ${employeeName}
       // تحميل الخط وإدراج تعريف @font-face لضمان ظهوره في اللقطة
       try {
         await ensureFustatRegistered();
-        if (!document.getElementById('fustat-font-face')) {
+        if (!document.getElementById('amiri-font-face')) {
           const style = document.createElement('style');
-            style.id = 'fustat-font-face';
-            style.innerHTML = "@font-face { font-family: 'Fustat'; src: url('/fonts/Fustat-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; }";
+            style.id = 'amiri-font-face';
+            style.innerHTML = "@font-face { font-family: 'Amiri'; src: url('/fonts/Amiri-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; }";
             document.head.appendChild(style);
         }
         // إعطاء مهلة بسيطة للمتصفح لتحميل الخط قبل الالتقاط
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const _ = await (document as any)?.fonts?.load?.("400 14px 'Fustat'");
+        const _ = await (document as any)?.fonts?.load?.("400 14px 'Amiri'");
       } catch {}
 
       // Create a temporary div with the document content
@@ -3471,7 +3471,7 @@ ${employeeName}
                 </g>
                 
                 <!-- Right Side - Arabic -->
-                <g font-family="Fustat, Traditional Arabic, Arabic Typesetting, serif" text-anchor="end" fill="#054239">
+                <g font-family="Amiri, Traditional Arabic, Arabic Typesetting, serif" text-anchor="end" fill="#054239">
                     <text x="760" y="30" font-size="13" font-weight="bold">الجمهورية العربية السورية</text>
                     <text x="760" y="45" font-size="11">وزارة المالية</text>
                     <text x="760" y="58" font-size="11">مديرية المالية</text>
@@ -3484,7 +3484,7 @@ ${employeeName}
         <!-- Document Title and QR -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
           <div>
-            <h1 style="color: #054239; margin: 0; font-size: 24px; font-weight: bold; font-family: 'Fustat', 'Traditional Arabic', serif;">${docType}</h1>
+            <h1 style="color: #054239; margin: 0; font-size: 24px; font-weight: bold; font-family: 'Amiri', 'Traditional Arabic', serif;">${docType}</h1>
             <p style="color: #666; margin: 5px 0 0 0; font-size: 14px;">${title}</p>
           </div>
           <div style="text-align: center;">
@@ -3644,7 +3644,7 @@ ${content}
       // Create PDF
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-  try { pdf.setFont('Fustat'); } catch { /* fallback */ }
+  try { pdf.setFont('Amiri'); } catch { /* fallback */ }
       
       const imgWidth = 210; // A4 width in mm
       const pageHeight = 297; // A4 height in mm

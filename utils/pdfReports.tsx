@@ -3,6 +3,8 @@
  * تقارير مخصصة بتصميم رسمي
  */
 
+import { ensureFontsRegistered } from './pdfFonts';
+
 // ==================== أنواع التقارير ====================
 export interface ReportConfig {
     title: string;
@@ -23,11 +25,6 @@ export interface TableColumn {
     format?: (value: any) => string;
 }
 
-export interface ChartData {
-    type: 'pie' | 'bar' | 'line';
-    title: string;
-    data: Array<{ label: string; value: number; color?: string }>;
-}
 
 // ==================== إنشاء التقارير ====================
 
@@ -47,6 +44,9 @@ export const generateProfessionalPDF = async (
         charts?: ChartData[];
     }
 ): Promise<Blob> => {
+    // التأكد من تحميل الخطوط العربية
+    await ensureFontsRegistered();
+
     // استيراد ديناميكي لـ jsPDF
     const { jsPDF } = await import('jspdf');
 
@@ -64,8 +64,8 @@ export const generateProfessionalPDF = async (
     let yPos = margin;
 
     // ==================== إضافة الخطوط العربية ====================
-    // ملاحظة: في التطبيق الحقيقي، يجب إضافة خط عربي مثل Cairo أو Amiri
-    doc.setFont('helvetica');
+    // تعيين خط الأميري (Amiri) ليدعم اللغة العربية
+    doc.setFont('Amiri', 'normal');
 
     // ==================== الترويسة ====================
     const drawHeader = () => {

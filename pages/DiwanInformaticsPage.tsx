@@ -1,5 +1,6 @@
 import React from 'react';
 import GeneralDiwanPage from './GeneralDiwanPage';
+// import DatabaseControlPanel from '../components/informatics/DatabaseControlPanel'; // Moved to ToolsPage
 
 const DiwanInformaticsPage: React.FC = () => {
   return (
@@ -44,6 +45,8 @@ const DiwanInformaticsPage: React.FC = () => {
           title="ديوان قسم المعلوماتية"
           description="إدارة الوثائق والمحاضر الخاصة بقسم المعلوماتية"
         />
+
+        {/* تم نقل لوحة التحكم بقاعدة البيانات إلى صفحة الأدوات */}
       </div>
     </div>
   );

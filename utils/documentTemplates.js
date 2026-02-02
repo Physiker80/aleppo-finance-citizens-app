@@ -44,7 +44,7 @@ export const OFFICIAL_TEMPLATES = {
 وتفضلوا بقبول فائق الاحترام.`,
     
     styles: {
-      fontFamily: 'Fustat, Amiri, Traditional Arabic',
+      fontFamily: 'Amiri, Traditional Arabic',
       fontSize: '14px',
       lineHeight: '1.8',
       color: '#1f2937',
@@ -211,8 +211,8 @@ export const generateTemplateContent = (templateType, data) => {
 // إعدادات التصدير المحسنة
 export const EXPORT_SETTINGS = {
   fonts: {
-    primary: 'Fustat',
-    secondary: 'Amiri',
+    primary: 'Amiri',
+    secondary: 'Traditional Arabic',
     fallback: 'Traditional Arabic, Arabic Typesetting, Times New Roman'
   },
   colors: {

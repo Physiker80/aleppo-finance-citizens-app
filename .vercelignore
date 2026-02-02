@@ -41,7 +41,6 @@ db/
 observability/
 
 # Misc
-diagrams/
 scripts/
 *.log
 *.zip

@@ -109,7 +109,7 @@ const upload = multer({
   }
 });
 
-dotenv.config();
+dotenv.config({ override: true });
 
 // Initialize Prisma (singleton for this process)
 export const prisma = new PrismaClient({
@@ -479,11 +479,17 @@ if (HSTS_ENABLED) {
 
 // Restrictive CORS by default; can be relaxed via env
 const defaultOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
   'http://localhost:5175',
   'http://localhost:3000',
+  'http://localhost:4173',
   'http://localhost',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
   'http://127.0.0.1:5175',
   'http://127.0.0.1:3000',
+  'http://127.0.0.1:4173',
   'capacitor://localhost'
 ];
 const corsEnv = (process.env.CORS_ORIGINS || '').trim();
@@ -823,12 +829,24 @@ app.post('/api/citizen/tickets', async (req, res, next) => {
   try {
     const shared = process.env.CITIZEN_HMAC_SECRET || '';
     if (!verifyHmac(req, 'x-signature', shared)) return res.status(401).json({ ok: false, error: 'bad-signature' });
-    const { departmentCode, citizenName, citizenNationalId, citizenEmail, type, message, attachments } = req.body || {};
-    if (!departmentCode || !message) return res.status(400).json({ ok: false, error: 'departmentCode and message required' });
-    const dept = await prisma.department.findFirst({ where: { OR: [{ code: departmentCode }, { name: departmentCode }] } });
+    const { departmentId, departmentCode, citizenName, citizenNationalId, citizenEmail, type, message, attachments } = req.body || {};
+    
+    // 1. Validate inputs
+    if (!message) return res.status(400).json({ ok: false, error: 'details/message required' });
+    if (!departmentId && !departmentCode) return res.status(400).json({ ok: false, error: 'department identifier required' });
+
+    // 2. Resolve Department
+    let dept;
+    if (departmentId) {
+      dept = await prisma.department.findUnique({ where: { id: departmentId } });
+    } else {
+      dept = await prisma.department.findFirst({ where: { OR: [{ code: departmentCode }, { name: departmentCode }] } });
+    }
     if (!dept) return res.status(400).json({ ok: false, error: 'unknown-department' });
 
     const { sanitized, redactionFlags } = redactAndSanitize(String(message || ''));
+    
+    // 3. Create Ticket (mapped 'message' to initial Response)
     const ticket = await prisma.ticket.create({
       data: {
         departmentId: dept.id,
@@ -838,7 +856,14 @@ app.post('/api/citizen/tickets', async (req, res, next) => {
         type: type || 'complaint',
         status: 'New',
         responseText: null,
-        history: { create: { action: 'create', diffSummary: redactionFlags?.join(',') || null } }
+        history: { create: { action: 'create', diffSummary: redactionFlags?.join(',') || null } },
+        responses: {
+          create: {
+            body: sanitized,
+            isInternal: false,
+            visibility: 'PUBLIC'
+          }
+        }
       }
     });
 
@@ -2551,20 +2576,83 @@ app.get('/api/security/status', (req, res) => {
 });
 
 // ---------------- Tickets (initial endpoint) ----------------
+// Implement list tickets endpoint for employees
+app.get('/api/tickets', authOptional, authRequired, async (req, res, next) => {
+  try {
+    const user = req.authUser;
+    // Determine filter based on role
+    const isGlobalAdmin = user.roles.some(r => r.role.name === 'مدير');
+    const deptId = user.departmentId;
+
+    let where = {};
+    if (!isGlobalAdmin) {
+      if (!deptId) {
+        // Employee without department sees nothing? Or just their own created?
+        // For now, let's assume they see nothing or Public ones? 
+        // Logic: specific dept OR forwarded to dept
+        where = {
+            OR: [
+                { departmentId: 'non-existent' } // Safe fallback if no dept
+            ]
+        };
+      } else {
+        where = {
+          OR: [
+            { departmentId: deptId },
+            { forwards: { some: { toDepartmentId: deptId } } }
+          ]
+        };
+      }
+    }
+
+    const tickets = await prisma.ticket.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: { 
+        department: { select: { name: true } }
+      },
+      take: 100 // Limit for now
+    });
+    
+    // Transform to match frontend expectations if needed
+    // Frontend expects: id, citizenName, type, status, department (string), submissionDate (createAt)
+    const secureTickets = tickets.map(t => ({
+      id: t.id,
+      tracking: t.id.slice(0, 8).toUpperCase(), // Provide a tracking code derived from ID
+      citizenName: t.citizenName,
+      citizenNationalId: t.citizenNationalId, // Maybe redact?
+      type: t.type,
+      status: t.status,
+      priority: 'normal', // Default
+      submissionDate: t.createdAt,
+      department: t.department?.name,
+      senderIp: '0.0.0.0', // Not stored in main table
+      details: '...', // Body is in responses[0], maybe fetch if needed or exclude
+      description: '...', 
+      departmentId: t.departmentId
+    }));
+
+    res.json({ ok: true, tickets: secureTickets });
+  } catch (e) {
+    next(e);
+  }
+});
+
 // NOTE: This is the first DB-backed endpoint. We intentionally keep scope small.
 // Future enhancements (auth, audit logging, attachments) will build on this foundation.
 app.post('/api/tickets', authOptional, async (req, res, next) => {
   try {
-    const { departmentId, citizenName, citizenNationalId, type } = req.body || {};
+    const { departmentId, citizenName, citizenNationalId, type, details } = req.body || {};
 
     // Validate and sanitize using unified validator
     const schema = {
       departmentId: { required: true, minLength: 1, maxLength: 64 },
       citizenName: { type: 'arabic', required: false, minLength: 2, maxLength: 150 },
       citizenNationalId: { type: 'nationalId', required: false },
-      type: { type: 'arabic', required: false, minLength: 2, maxLength: 80 }
+      type: { type: 'arabic', required: false, minLength: 2, maxLength: 80 },
+      details: { required: true, minLength: 5 }
     };
-    const { valid, errors, sanitized } = inputValidator.validateObject(schema, { departmentId, citizenName, citizenNationalId, type });
+    const { valid, errors, sanitized } = inputValidator.validateObject(schema, { departmentId, citizenName, citizenNationalId, type, details });
     if (!valid) {
       return res.status(400).json({ ok: false, error: 'مدخلات غير صالحة', details: errors });
     }
@@ -2586,7 +2674,20 @@ app.post('/api/tickets', authOptional, async (req, res, next) => {
     const user = req.authUser || null;
 
     const result = await prisma.$transaction(async (tx) => {
-      const createdTicket = await tx.ticket.create({ data: { ...data, createdById: user?.id || null } });
+      const createdTicket = await tx.ticket.create({ 
+        data: { 
+          ...data, 
+          createdById: user?.id || null,
+          responses: {
+            create: {
+              body: sanitized.details,
+              isInternal: false,
+              visibility: 'PUBLIC',
+              authorId: user?.id || null
+            }
+          }
+        } 
+      });
       await tx.ticketHistory.create({
         data: {
           ticketId: createdTicket.id,
@@ -2633,25 +2734,42 @@ app.post('/api/tickets', authOptional, async (req, res, next) => {
 app.patch('/api/tickets/:id/status', authOptional, authRequired, async (req, res, next) => {
   try {
     const ticketId = req.params.id;
-    const { status } = req.body || {};
+    const { status, responseText } = req.body || {};
     const allowed = ['NEW','IN_PROGRESS','ANSWERED','CLOSED'];
     if (!allowed.includes(status)) return res.status(400).json({ ok: false, error: 'حالة غير صالحة' });
+    
+    // Sanitize optional response text
+    let sanitizedResponse = undefined;
+    if (responseText && typeof responseText === 'string') {
+        sanitizedResponse = inputValidator.sanitize(responseText.trim(), 'html');
+    }
+
     const user = req.authUser;
     const updated = await prisma.$transaction(async (tx) => {
       const ticket = await tx.ticket.findUnique({ where: { id: ticketId } });
       if (!ticket) return null;
-      if (ticket.status === status) return ticket; // no-op
+      if (ticket.status === status && !sanitizedResponse) return ticket; // no-op
+
       const oldStatus = ticket.status;
-      const newTicket = await tx.ticket.update({ where: { id: ticketId }, data: { status } });
+      const updateData = { status };
+      if (sanitizedResponse) {
+          updateData.responseText = sanitizedResponse;
+          updateData.answeredAt = new Date(); // Update answered timestamp if response provided
+      }
+      
+      const newTicket = await tx.ticket.update({ where: { id: ticketId }, data: updateData });
+      
       await tx.ticketHistory.create({
         data: {
           ticketId: ticketId,
           action: 'STATUS_CHANGE',
           oldStatus,
           newStatus: status,
+          diffSummary: sanitizedResponse ? `status=${status}, response added` : `status=${status}`,
           actorId: user?.id || null
         }
       });
+      // ... audit log logic ...
       const prev = await tx.auditLog.findFirst({ orderBy: { createdAt: 'desc' }, select: { hashChainCurr: true } });
       const after = { id: newTicket.id, status: newTicket.status };
       const hashBase = (prev?.hashChainCurr || '') + JSON.stringify({ action: 'ticket.status', entity: 'Ticket', entityId: newTicket.id, after });

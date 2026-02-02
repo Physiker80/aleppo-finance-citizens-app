@@ -1,11 +1,31 @@
 [
   {
-    "id": "1758644947923-6fk8e",
+    "id": "1769926889142-sdg6t",
     "message": "Not allowed by CORS",
     "route": "/api/auth/logout",
-    "stack": "Error: Not allowed by CORS\n    at origin (file:///E:/Syrian_Project/%D9%86%D8%B8%D8%A7%D9%85%20%D8%A7%D8%B3%D8%AA%D8%B9%D9%84%D8%A7%D9%85%D8%A7%D8%AA%20%D9%88%D8%B4%D9%83%D8%A7%D9%88%D9%8A%20%D9%86%D8%B3%D8%AE%D8%A9/server.js:498:15)\n    at E:\\Syrian_Project\\نظام استعلامات وشكاوي نسخة\\node_modules\\cors\\lib\\index.js:219:13\n    at optionsCallback (E:\\Syrian_Project\\نظام استعلامات وشكاوي نسخة\\node_modules\\cors\\lib\\index.js:199:9)\n    at corsMiddleware (E:\\Syrian_Project\\نظام استعلامات وشكاوي نسخة\\node_modules\\cors\\lib\\index.js:204:7)\n    at Layer.handle [as handle_request] (E:\\Syrian_Project\\نظام استعلامات وشكاوي نسخة\\node_modules\\express\\lib\\router\\layer.js:95:5)\n    at trim_prefix (E:\\Syrian_Project\\نظام استعلامات وشكاوي نسخة\\node_modules\\express\\lib\\router\\index.js:328:13)\n    at E:\\Syrian_Project\\نظام استعلامات وشكاوي نسخة\\node_modules\\express\\lib\\router\\index.js:286:9\n    at Function.process_params (E:\\Syrian_Project\\نظام استعلامات وشكاوي نسخة\\node_modules\\express\\lib\\router\\index.js:346:12)\n    at next (E:\\Syrian_Project\\نظام استعلامات وشكاوي نسخة\\node_modules\\express\\lib\\router\\index.js:280:10)\n    at file:///E:/Syrian_Project/%D9%86%D8%B8%D8%A7%D9%85%20%D8%A7%D8%B3%D8%AA%D8%B9%D9%84%D8%A7%D9%85%D8%A7%D8%AA%20%D9%88%D8%B4%D9%83%D8%A7%D9%88%D9%8A%20%D9%86%D8%B3%D8%AE%D8%A9/Sicherheit/backend/csp.js:141:7",
-    "firstAt": 1758644947923,
-    "lastAt": 1758644947923,
+    "stack": "Error: Not allowed by CORS\n    at origin (file:///E:/Syrian_Project/%D9%86%D8%B8%D8%A7%D9%85%20%D8%A7%D8%B3%D8%AA%D8%B9%D9%84%D8%A7%D9%85%D8%A7%D8%AA%20%D9%88%D8%B4%D9%83%D8%A7%D9%88%D9%8A%201/server.js:504:15)\n    at E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\cors\\lib\\index.js:219:13\n    at optionsCallback (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\cors\\lib\\index.js:199:9)\n    at corsMiddleware (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\cors\\lib\\index.js:204:7)\n    at Layer.handle [as handle_request] (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\express\\lib\\router\\layer.js:95:5)\n    at trim_prefix (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\express\\lib\\router\\index.js:328:13)\n    at E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\express\\lib\\router\\index.js:286:9\n    at Function.process_params (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\express\\lib\\router\\index.js:346:12)\n    at next (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\express\\lib\\router\\index.js:280:10)\n    at file:///E:/Syrian_Project/%D9%86%D8%B8%D8%A7%D9%85%20%D8%A7%D8%B3%D8%AA%D8%B9%D9%84%D8%A7%D9%85%D8%A7%D8%AA%20%D9%88%D8%B4%D9%83%D8%A7%D9%88%D9%8A%201/Sicherheit/backend/csp.js:141:7",
+    "firstAt": 1769926889142,
+    "lastAt": 1769926889142,
+    "count": 1,
+    "resolved": false
+  },
+  {
+    "id": "1769926894945-o7omj",
+    "message": "Not allowed by CORS",
+    "route": "/api/auth/login",
+    "stack": "Error: Not allowed by CORS\n    at origin (file:///E:/Syrian_Project/%D9%86%D8%B8%D8%A7%D9%85%20%D8%A7%D8%B3%D8%AA%D8%B9%D9%84%D8%A7%D9%85%D8%A7%D8%AA%20%D9%88%D8%B4%D9%83%D8%A7%D9%88%D9%8A%201/server.js:504:15)\n    at E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\cors\\lib\\index.js:219:13\n    at optionsCallback (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\cors\\lib\\index.js:199:9)\n    at corsMiddleware (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\cors\\lib\\index.js:204:7)\n    at Layer.handle [as handle_request] (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\express\\lib\\router\\layer.js:95:5)\n    at trim_prefix (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\express\\lib\\router\\index.js:328:13)\n    at E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\express\\lib\\router\\index.js:286:9\n    at Function.process_params (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\express\\lib\\router\\index.js:346:12)\n    at next (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\express\\lib\\router\\index.js:280:10)\n    at file:///E:/Syrian_Project/%D9%86%D8%B8%D8%A7%D9%85%20%D8%A7%D8%B3%D8%AA%D8%B9%D9%84%D8%A7%D9%85%D8%A7%D8%AA%20%D9%88%D8%B4%D9%83%D8%A7%D9%88%D9%8A%201/Sicherheit/backend/csp.js:141:7",
+    "firstAt": 1769926894945,
+    "lastAt": 1769926894945,
+    "count": 1,
+    "resolved": false
+  },
+  {
+    "id": "1769926911966-dogam",
+    "message": "Not allowed by CORS",
+    "route": "/api/tickets/ALF-20260201-A35THA/responses",
+    "stack": "Error: Not allowed by CORS\n    at origin (file:///E:/Syrian_Project/%D9%86%D8%B8%D8%A7%D9%85%20%D8%A7%D8%B3%D8%AA%D8%B9%D9%84%D8%A7%D9%85%D8%A7%D8%AA%20%D9%88%D8%B4%D9%83%D8%A7%D9%88%D9%8A%201/server.js:504:15)\n    at E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\cors\\lib\\index.js:219:13\n    at optionsCallback (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\cors\\lib\\index.js:199:9)\n    at corsMiddleware (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\cors\\lib\\index.js:204:7)\n    at Layer.handle [as handle_request] (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\express\\lib\\router\\layer.js:95:5)\n    at trim_prefix (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\express\\lib\\router\\index.js:328:13)\n    at E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\express\\lib\\router\\index.js:286:9\n    at Function.process_params (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\express\\lib\\router\\index.js:346:12)\n    at next (E:\\Syrian_Project\\نظام استعلامات وشكاوي 1\\node_modules\\express\\lib\\router\\index.js:280:10)\n    at file:///E:/Syrian_Project/%D9%86%D8%B8%D8%A7%D9%85%20%D8%A7%D8%B3%D8%AA%D8%B9%D9%84%D8%A7%D9%85%D8%A7%D8%AA%20%D9%88%D8%B4%D9%83%D8%A7%D9%88%D9%8A%201/Sicherheit/backend/csp.js:141:7",
+    "firstAt": 1769926911966,
+    "lastAt": 1769926911966,
     "count": 1,
     "resolved": false
   }

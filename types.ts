@@ -1074,3 +1074,143 @@ export interface SiteConfig {
   whatsapp?: string;
   workingHours?: string;
 }
+export type Theme = 'light' | 'dark';
+
+// App Store Links Configuration
+export interface AppStoreLinks {
+  android: {
+    enabled: boolean;
+    url: string;
+    qrCode?: string;
+  };
+  ios: {
+    enabled: boolean;
+    url: string;
+    qrCode?: string;
+  };
+}
+
+export interface AppContextType {
+  tickets: Ticket[];
+  notifications: DepartmentNotification[];
+  // --- Multi-response ticket system ---
+  ticketResponses?: Record<string, TicketResponseRecord[]>; // keyed by ticketId
+  fetchTicketResponses?: (ticketId: string, force?: boolean) => Promise<TicketResponseRecord[]>;
+  addTicketResponse?: (ticketId: string, input: NewTicketResponseInput) => Promise<TicketResponseRecord | null>;
+  addTicket: (ticket: Omit<Ticket, 'id' | 'status'>) => Promise<string | null>;
+  findTicket: (id: string) => Ticket | undefined;
+  contactMessages: ContactMessage[];
+  addContactMessage: (msg: Omit<ContactMessage, 'id' | 'status' | 'submissionDate'>) => string;
+  addContactMessageReply: (reply: Omit<ContactMessageReply, 'id' | 'timestamp' | 'isRead'>) => ContactMessageReply;
+  updateContactMessageDepartment: (id: string, newDepartment: Department) => void;
+  updateContactMessageForwardedTo: (id: string, departments: Department[]) => void;
+  updateContactMessageForwardedPriorities: (id: string, priorities: Record<string, number>) => void;
+  documentContactMessage: (id: string) => void;
+  documentTicket: (id: string) => void;
+  updateContactMessageSource: (id: string, source: '?????' | '????') => void;
+  updateTicketSource: (id: string, source: '?????' | '????') => void;
+  updateContactMessage?: (id: string, updates: Partial<ContactMessage>) => void;
+  searchEmployeeByName: (name: string) => Employee[];
+  searchEmployeeByNationalId: (nationalId: string) => Employee | null;
+  surveys: CitizenSurvey[];
+  addSurvey: (data: Omit<CitizenSurvey, 'id' | 'createdAt'>) => string;
+  isEmployeeLoggedIn: boolean;
+  currentEmployee: Employee | null;
+  employeeLogin: (employee: Employee) => void;
+  logout: () => void;
+  employeeLogout: () => void;
+  backendLogin?: (username: string, password: string) => Promise<boolean>;
+  refreshSession?: () => Promise<void>;
+  authLoading?: boolean;
+  authError?: string | null;
+  addToast?: (t: { message: string; type?: 'success' | 'error' | 'info'; ttlMs?: number }) => string;
+  removeToast?: (id: string) => void;
+  updateTicketStatus: (ticketId: string, newStatus: RequestStatus, responseText?: string, responseAttachments?: File[]) => void;
+  updateTicketDepartment: (ticketId: string, newDepartment: Department) => void;
+  updateTicketResponse: (ticketId: string, responseText: string, responseAttachments?: File[]) => void;
+  updateTicketOpinion: (ticketId: string, opinion: string) => void;
+  updateTicketForwardedTo: (ticketId: string, departments: Department[]) => void;
+  updateTicket: (ticketId: string, updates: Partial<Ticket>) => void;
+  forwardTicket: (ticketId: string, toDepartment: string, comment?: string) => void;
+  markNotificationsReadForDepartment: (department: Department) => void;
+  markAllNotificationsRead: () => void;
+  clearReadNotifications: () => void;
+  addNotification: (n: Omit<DepartmentNotification, 'id' | 'createdAt' | 'read'> & { message?: string }) => void;
+  updateContactMessageStatus: (id: string, newStatus: ContactMessageStatus) => void;
+  lastSubmittedId: string | null;
+  theme: Theme;
+  toggleTheme: () => void;
+  // MFA functions
+  updateEmployee: (employee: Employee) => void;
+  requiresMFA: (employee: Employee) => boolean;
+  onMfaSuccess: (factorUsed: MfaFactorType) => void;
+  // Navigation function with automatic scroll to top
+  navigateTo: (hash: string) => void;
+
+  // ===== RBAC Authorization Functions =====
+  hasPermission: (resource: ResourceType, action: ActionType, context?: any) => Promise<boolean>;
+  requirePermission: (resource: ResourceType, action: ActionType, context?: any) => Promise<void>;
+  canAccessTicket: (ticket: Ticket) => Promise<boolean>;
+  canEditTicket: (ticket: Ticket) => Promise<boolean>;
+  canDeleteTicket: (ticket: Ticket) => Promise<boolean>;
+  canCreateTicket: () => Promise<boolean>;
+  canViewReports: (departmentContext?: string) => Promise<boolean>;
+  canManageEmployees: () => Promise<boolean>;
+  canManageRoles: () => Promise<boolean>;
+  canViewAuditLogs: () => Promise<boolean>;
+  canExportData: () => Promise<boolean>;
+  getCurrentUserRoles: () => SystemRoleType[];
+  isSystemAdmin: () => boolean;
+  isDepartmentManager: () => boolean;
+  // Enhanced employee data with RBAC
+  currentRbacEmployee: RbacEmployee | null;
+  // ===== Incident Response =====
+  incidents?: Incident[];
+  listIncidents?: () => Incident[];
+  createIncident?: (input: NewIncidentInput) => Promise<Incident>;
+  updateIncident?: (incident: Incident) => void;
+  runIncidentPlan?: (input: NewIncidentInput) => Promise<Incident>;
+  // Demo/maintenance helpers
+  replaceIncidents?: (list: Incident[]) => void;
+  // ===== Business Continuity (BCP) =====
+  continuityPlans?: BCPPlan[];
+  listBCPPlans?: () => BCPPlan[];
+  createBCP?: (input: NewBCPInput) => Promise<BCPPlan>;
+  runBCP?: (input: NewBCPInput) => Promise<BCPPlan>;
+  runBCPPhase?: (planId: string, phase: 'assessment' | 'team_activation' | 'failover' | 'data_recovery' | 'service_recovery' | 'validation' | 'normalization') => Promise<BCPPlan | null>;
+  exportBCP?: (planId: string, format: 'csv' | 'pdf') => Promise<Blob | string | null>;
+  submitBCPEvidence?: (planId: string, evidence: { kind: string; ref?: string; notes?: string }) => Promise<void>;
+  requestBCPBackup?: (planId: string, target: string) => Promise<void>;
+  replaceBCPPlans?: (list: BCPPlan[]) => void;
+  // ===== Daily Operations (SOP 7.1) =====
+  dailyReports?: DailyReport[];
+  listDailyReports?: () => DailyReport[];
+  runDailyChecks?: () => Promise<DailyReport>;
+  exportDailyReport?: (id: string, format: 'csv' | 'pdf') => Promise<Blob | string | null>;
+  replaceDailyReports?: (list: DailyReport[]) => void;
+  // ===== Governance (8.x) =====
+  governanceState?: GovernanceState;
+  listViolations?: () => SecurityViolation[];
+  enforcePolicy?: (policyName: 'accessControl' | 'passwordPolicy' | 'encryptionPolicy' | 'incidentResponse', context?: any) => Promise<PolicyComplianceResult>;
+  exportGovernance?: (format: 'csv' | 'pdf') => Promise<string | Blob>;
+  // Governance lifecycle & exceptions management
+  listExceptions?: () => PolicyException[];
+  addException?: (exc: Omit<PolicyException, 'id' | 'createdAt' | 'status'> & { status?: PolicyException['status'] }) => PolicyException | undefined;
+  approveException?: (id: string, approver: string) => void;
+  revokeException?: (id: string, reason?: string) => void;
+  updatePolicyLifecycle?: (policy: 'accessControl' | 'passwordPolicy' | 'encryptionPolicy' | 'incidentResponse', updates: Partial<{ owner: string; approvers: string[]; nextReviewDate: string; lastApprovedAt: string; status: 'draft' | 'active' | 'under_review'; version: string }>) => void;
+  // Backend security status (for encryption checks)
+  securityStatus?: { tlsVersion?: string; hstsEnabled?: boolean; weakCiphers?: string[] } | null;
+  refreshSecurityStatus?: () => Promise<void>;
+  // ===== Internal Messages =====
+  internalMessages?: InternalMessage[];
+  sendInternalMessage?: (msg: Omit<InternalMessage, 'id' | 'createdAt' | 'updatedAt' | 'read' | 'replies'> & { toDepartment?: string; toDepartments?: string[] }) => string | null;
+  markInternalMessageRead?: (id: string) => void;
+  // ===== App Store Links (Admin Configurable) =====
+  appStoreLinks?: AppStoreLinks;
+  updateAppStoreLinks?: (links: AppStoreLinks) => void;
+  // ===== Site Configuration =====
+  siteConfig?: SiteConfig;
+  updateSiteConfig?: (config: SiteConfig) => void;
+}
+
