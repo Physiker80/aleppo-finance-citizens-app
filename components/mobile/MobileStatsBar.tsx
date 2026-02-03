@@ -84,12 +84,12 @@ const MobileStatsBar: React.FC = () => {
     },
     {
       id: 'footer' as const,
-      label: 'الوزارة',
+      label: '',
       icon: (
         <img 
           src="/ministry-logo.png" 
           alt="وزارة المالية" 
-          className="w-6 h-6 object-contain"
+          className="w-10 h-10 object-contain"
         />
       ),
       color: 'teal',
@@ -208,10 +208,10 @@ const MobileStatsBar: React.FC = () => {
                     key={tab.id}
                     onClick={() => openSheet(tab.id)}
                     className={`
-                      flex-1 flex flex-col items-center gap-1 py-2 px-2 rounded-xl
+                      ${isLogoTab ? 'w-14 flex-shrink-0' : 'flex-1'} flex flex-col items-center justify-center gap-1 py-2 px-2 rounded-xl
                       transition-all duration-200 active:scale-95
                       ${isLogoTab 
-                        ? 'bg-gradient-to-br from-[#0f3c35] to-[#0f2027] text-white shadow-md border border-green-700/30'
+                        ? 'bg-gradient-to-br from-[#0f3c35] to-[#0f2027] shadow-md border border-green-700/30'
                         : activeSheet === tab.id 
                           ? `${colors.activeBg} text-white shadow-lg` 
                           : `${colors.bg} ${colors.text}`
@@ -219,9 +219,11 @@ const MobileStatsBar: React.FC = () => {
                     `}
                   >
                     {tab.icon}
-                    <span className={`text-[10px] font-bold whitespace-nowrap ${isLogoTab ? 'text-green-300' : ''}`}>
-                      {tab.label}
-                    </span>
+                    {tab.label && (
+                      <span className={`text-[10px] font-bold whitespace-nowrap ${isLogoTab ? 'text-green-300' : ''}`}>
+                        {tab.label}
+                      </span>
+                    )}
                   </button>
                 );
               })}
