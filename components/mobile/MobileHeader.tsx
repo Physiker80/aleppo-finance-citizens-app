@@ -80,9 +80,9 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuClick, currentRoute }
           {isHomePage() ? (
             <div className="flex-1 flex items-center justify-center">
               <img
-                src="/syrian-eagle.png"
-                alt="مديرية مالية حلب"
-                className="h-10 w-auto"
+                src="/header-title.png"
+                alt="مديرية مالية حلب - نظام الاستعلامات والشكاوى"
+                className="h-12 w-auto"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
                 }}
