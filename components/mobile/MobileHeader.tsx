@@ -94,8 +94,8 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuClick, currentRoute }
             </h1>
           )}
 
-          {/* Connection Status & Logo */}
-          <div className="flex items-center gap-2">
+          {/* Connection Status */}
+          <div className="flex items-center">
             {/* Connection indicator */}
             <div
               className={`p-1.5 rounded-full ${online ? 'bg-green-500/20' : 'bg-red-500/20'}`}
@@ -107,16 +107,6 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuClick, currentRoute }
                 <FiWifiOff className="w-4 h-4 text-red-400" />
               )}
             </div>
-
-            {/* Mini Logo */}
-            <img
-              src="/syrian-eagle.png"
-              alt="شعار"
-              className="w-8 h-8 rounded-lg"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = '/favicon.ico';
-              }}
-            />
           </div>
         </div>
       </header>
