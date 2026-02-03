@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npx vite --port 9002 --host 0.0.0.0",
+    "start": "npx vite --port 9002 --host 0.0.0.0",
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vite build",
     "preview": "vite preview",
     "server": "node server.js",
