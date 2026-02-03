@@ -54,7 +54,7 @@ const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose, currentRou
 
   // عناصر التنقل للمواطنين فقط
   const navItems: NavItem[] = [
-    { href: '#/', label: 'البوابة', icon: <FiHome className="w-5 h-5" /> },
+    { href: '#/', label: 'الصفحة الرئيسية', icon: <FiHome className="w-5 h-5" /> },
     { href: '#/submit', label: 'تقديم طلب جديد', icon: <FiFileText className="w-5 h-5" /> },
     { href: '#/track', label: 'متابعة طلب', icon: <FiSearch className="w-5 h-5" /> },
     { href: '#/appointment-booking', label: 'حجز موعد', icon: <FiCalendar className="w-5 h-5" /> },

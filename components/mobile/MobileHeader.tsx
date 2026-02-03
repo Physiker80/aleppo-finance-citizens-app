@@ -19,9 +19,9 @@ interface MobileHeaderProps {
 
 // خريطة عناوين الصفحات
 const pageTitles: Record<string, string> = {
-  '#/': 'البوابة',
-  '#': 'البوابة',
-  '': 'البوابة',
+  '#/': '',
+  '#': '',
+  '': '',
   '#/submit': 'تقديم طلب جديد',
   '#/track': 'متابعة طلب',
   '#/appointment-booking': 'حجز موعد',
@@ -48,6 +48,12 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuClick, currentRoute }
     return pageTitles[baseRoute] || 'بوابة المواطنين';
   };
 
+  // هل نحن في الصفحة الرئيسية؟
+  const isHomePage = () => {
+    const baseRoute = currentRoute.split('?')[0];
+    return baseRoute === '#/' || baseRoute === '#' || baseRoute === '';
+  };
+
   return (
     <>
       {/* Offline Banner */}
@@ -70,10 +76,23 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuClick, currentRoute }
             <FiMenu className="w-6 h-6 text-white" />
           </button>
 
-          {/* Page Title */}
-          <h1 className="text-lg font-bold text-white flex-1 text-center">
-            {getPageTitle()}
-          </h1>
+          {/* Page Title or Logo */}
+          {isHomePage() ? (
+            <div className="flex-1 flex items-center justify-center">
+              <img
+                src="/syrian-eagle.png"
+                alt="مديرية مالية حلب"
+                className="h-10 w-auto"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            </div>
+          ) : (
+            <h1 className="text-lg font-bold text-white flex-1 text-center">
+              {getPageTitle()}
+            </h1>
+          )}
 
           {/* Connection Status & Logo */}
           <div className="flex items-center gap-2">
