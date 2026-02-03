@@ -838,7 +838,7 @@ const ConfirmationPage: React.FC = () => {
                
                {/* Central Eagle Watermark */}
                <div className="absolute inset-0 flex items-center justify-center p-12 opacity-[0.05]">
-                  <img src="/syrian-eagle.svg" alt="watermark" className="w-full h-full object-contain" />
+                  <img src="/syrian-eagle.png" alt="watermark" className="w-full h-full object-contain" />
                </div>
             </div>
 

@@ -173,7 +173,7 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({
       </head>
       <body>
         <div class="header">
-          <img class="logo" src="${window.location.origin}/syrian-eagle.svg" alt="شعار الجمهورية العربية السورية" />
+          <img class="logo" src="${window.location.origin}/syrian-eagle.png" alt="شعار الجمهورية العربية السورية" />
           <h1>الجمهورية العربية السورية</h1>
           <h2>${fullDirectorateName}</h2>
           <h3>إدارة الاستعلامات والشكاوى</h3>
