@@ -91,7 +91,7 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuClick, currentRoute }
 
             {/* Mini Logo */}
             <img
-              src="/icon-192.png"
+              src="/syrian-eagle.png"
               alt="شعار"
               className="w-8 h-8 rounded-lg"
               onError={(e) => {

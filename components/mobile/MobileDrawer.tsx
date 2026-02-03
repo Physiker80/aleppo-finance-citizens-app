@@ -92,7 +92,7 @@ const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose, currentRou
         <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <img
-              src="/icon-512.png"
+              src="/syrian-eagle.png"
               alt="شعار التطبيق"
               className="w-10 h-10 rounded-lg"
               onError={(e) => {
