@@ -4,7 +4,7 @@
  * Detects whether the app is running on:
  * - Native Android via Capacitor
  * - Native iOS via Capacitor  
- * - Web browser
+ * - Web browser (with mobile detection)
  * 
  * Used to conditionally render mobile-specific UI components
  * and access native device features.
@@ -13,10 +13,72 @@
 import { Capacitor } from '@capacitor/core';
 
 /**
+ * Force mobile view for testing (can be set via localStorage or URL param)
+ */
+const FORCE_MOBILE_KEY = 'force_mobile_view';
+
+/**
+ * Check if mobile view is forced via localStorage or URL
+ */
+const isForcedMobile = (): boolean => {
+  // Check URL param: ?mobile=true
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('mobile') === 'true') {
+    return true;
+  }
+  // Check localStorage
+  return localStorage.getItem(FORCE_MOBILE_KEY) === 'true';
+};
+
+/**
+ * Enable/disable forced mobile view for testing
+ */
+export const setForceMobileView = (enabled: boolean): void => {
+  if (enabled) {
+    localStorage.setItem(FORCE_MOBILE_KEY, 'true');
+  } else {
+    localStorage.removeItem(FORCE_MOBILE_KEY);
+  }
+  // Reload to apply changes
+  window.location.reload();
+};
+
+/**
+ * Check if running on mobile browser (not native)
+ */
+const isMobileBrowser = (): boolean => {
+  const userAgent = navigator.userAgent.toLowerCase();
+  const mobileKeywords = [
+    'android', 'webos', 'iphone', 'ipad', 'ipod', 
+    'blackberry', 'windows phone', 'opera mini', 'mobile'
+  ];
+  return mobileKeywords.some(keyword => userAgent.includes(keyword));
+};
+
+/**
+ * Check if screen is mobile-sized (less than 768px)
+ */
+const isMobileScreen = (): boolean => {
+  return window.innerWidth < 768;
+};
+
+/**
  * Check if running on a native mobile platform (Android or iOS)
  */
-export const isMobile = (): boolean => {
+export const isNativeMobile = (): boolean => {
   return Capacitor.isNativePlatform();
+};
+
+/**
+ * Check if should show mobile UI
+ * Returns true for:
+ * - Native Capacitor app
+ * - Mobile browser
+ * - Forced mobile view (for testing)
+ * - Small screen size
+ */
+export const isMobile = (): boolean => {
+  return isNativeMobile() || isForcedMobile() || isMobileBrowser() || isMobileScreen();
 };
 
 /**
