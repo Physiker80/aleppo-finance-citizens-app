@@ -2231,6 +2231,23 @@ const ToolsPage: React.FC = () => {
               </div>
             </div>
           </div>
+          {/* Notification Settings Card */}
+          <div className="relative">
+            <div
+              role="button" tabIndex={0}
+              onClick={() => window.location.hash = '#/notification-settings'}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.hash = '#/notification-settings'; } }}
+              className="rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-6 shadow-sm cursor-pointer hover:ring-2 hover:ring-emerald-300/40 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            >
+              <h3 className="text-xl font-semibold mb-1">إعدادات الإشعارات</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">إدارة إشعارات البريد الإلكتروني وSMS وWhatsApp للمواطنين.</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">البريد الإلكتروني</span>
+                <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">SMS</span>
+                <span className="px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200">WhatsApp</span>
+              </div>
+            </div>
+          </div>
           {/* Observability Card */}
           <div className="relative">
             <div

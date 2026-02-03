@@ -492,6 +492,9 @@ export const storageModeService = {
           forwardedTo: t.forwarded_to || t.forwardedTo || [],
           source: t.source || 'web',
           notes: t.notes || '',
+          // بيانات توثيق الديوان
+          diwanNumber: t.diwan_number || t.diwanNumber || null,
+          diwanDate: t.diwan_date || t.diwanDate || null,
           // بيانات المرفقات (للتزامن)
           attachments_data: t.attachments_data || null,
           response_attachments_data: t.response_attachments_data || null,
@@ -707,6 +710,9 @@ export const storageModeService = {
             started_at: t.startedAt || t.started_at || null,
             closed_at: t.closedAt || t.closed_at || null,
             forwarded_to: t.forwardedTo || t.forwarded_to || [],
+            // بيانات توثيق الديوان
+            diwan_number: t.diwanNumber || t.diwan_number || null,
+            diwan_date: t.diwanDate || t.diwan_date || null,
             // بيانات المرفقات (JSON)
             attachments_data: t.attachments_data || null,
             response_attachments_data: t.response_attachments_data || null,
@@ -801,6 +807,52 @@ export const storageModeService = {
         }
       }
       
+      // Migrate appointments - ترحيل المواعيد
+      const appointmentsRaw = localStorage.getItem('appointments');
+      if (appointmentsRaw) {
+        const appointments = JSON.parse(appointmentsRaw);
+        if (Array.isArray(appointments) && appointments.length > 0) {
+          const cleanAppointments = appointments.map((a: any) => ({
+            id: a.id || `appt_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+            citizen_id: a.citizenId || a.citizen_id || '',
+            full_name: a.fullName || a.full_name || '',
+            phone_number: a.phoneNumber || a.phone_number || '',
+            email: a.email || null,
+            date: a.date,
+            start_time: a.timeSlot?.startTime || a.start_time || '08:00',
+            end_time: a.timeSlot?.endTime || a.end_time || '08:15',
+            service_category: a.serviceCategory || a.service_category || 'other',
+            service_description: a.serviceDescription || a.service_description || null,
+            status: a.status || 'pending',
+            priority: a.priority || 'normal',
+            assigned_counter: a.assignedCounter || a.assigned_counter || null,
+            assigned_employee: a.assignedEmployee || a.assigned_employee || null,
+            is_verified: a.isVerified || a.is_verified || false,
+            verification_code: a.verificationCode || a.verification_code || null,
+            qr_code: a.qrCode || a.qr_code || null,
+            created_at: a.createdAt || a.created_at || new Date().toISOString(),
+            confirmed_at: a.confirmedAt || a.confirmed_at || null,
+            checked_in_at: a.checkedInAt || a.checked_in_at || null,
+            started_at: a.startedAt || a.started_at || null,
+            completed_at: a.completedAt || a.completed_at || null,
+            cancelled_at: a.cancelledAt || a.cancelled_at || null,
+            notes: a.notes || null,
+            cancellation_reason: a.cancellationReason || a.cancellation_reason || null,
+            sync_status: 'synced',
+            last_synced_at: new Date().toISOString(),
+          }));
+          
+          // Use 'id' as conflict column
+          const result = await upsertData('appointments', cleanAppointments, 'id');
+          
+          if (!result.success) {
+            errors.push(`appointments: ${result.error}`);
+          } else {
+            syncedCounts.appointments = cleanAppointments.length;
+          }
+        }
+      }
+      
       // Update last sync time
       updateLastSyncTime();
       
@@ -812,5 +864,584 @@ export const storageModeService = {
     } catch (err: any) {
       return { success: false, error: err.message || 'خطأ غير معروف', errors };
     }
+  },
+
+  /**
+   * Sync appointments from Supabase to localStorage
+   * مزامنة المواعيد من السحابة إلى المحلي
+   */
+  async syncAppointmentsToLocal(): Promise<{ success: boolean; error?: string; count?: number }> {
+    console.log('[syncAppointmentsToLocal] Starting sync from Supabase...');
+    
+    const SUPABASE_URL = 'https://whutmrbjvvplqugobwbq.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndodXRtcmJqdnZwbHF1Z29id2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzA0NzgsImV4cCI6MjA4NTQ0NjQ3OH0.bzynb0G41o2c1m35AodyVVgZBNXzPvGbKWJWKpBqGH8';
+    
+    try {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/appointments?select=*&order=created_at.desc`, {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        return { success: false, error: `فشل جلب المواعيد: ${response.status} - ${errorText}` };
+      }
+      
+      const data = await response.json();
+      
+      // Convert from Supabase format to localStorage format
+      const convertedAppointments = data.map((a: any) => ({
+        id: a.id,
+        citizenId: a.citizen_id,
+        fullName: a.full_name,
+        phoneNumber: a.phone_number,
+        email: a.email,
+        date: a.date,
+        timeSlot: {
+          id: `slot_${a.date}_${a.start_time}`,
+          startTime: a.start_time,
+          endTime: a.end_time,
+          maxCapacity: 5,
+          currentBookings: 0,
+          isAvailable: true
+        },
+        serviceCategory: a.service_category,
+        serviceDescription: a.service_description,
+        status: a.status,
+        priority: a.priority,
+        assignedCounter: a.assigned_counter,
+        assignedEmployee: a.assigned_employee,
+        isVerified: a.is_verified,
+        verificationCode: a.verification_code,
+        qrCode: a.qr_code,
+        createdAt: a.created_at,
+        confirmedAt: a.confirmed_at,
+        checkedInAt: a.checked_in_at,
+        startedAt: a.started_at,
+        completedAt: a.completed_at,
+        cancelledAt: a.cancelled_at,
+        notes: a.notes,
+        cancellationReason: a.cancellation_reason,
+        syncStatus: 'synced',
+        lastSyncedAt: a.last_synced_at,
+      }));
+      
+      localStorage.setItem('appointments', JSON.stringify(convertedAppointments));
+      localStorage.setItem('appointments_last_sync', new Date().toISOString());
+      
+      return { success: true, count: convertedAppointments.length };
+    } catch (error: any) {
+      console.error('Appointments sync error:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Get appointment sync status
+   * الحصول على حالة مزامنة المواعيد
+   */
+  getAppointmentSyncStatus(): { lastSync: string | null; pendingCount: number; isOnline: boolean } {
+    try {
+      const appointmentsRaw = localStorage.getItem('appointments');
+      const appointments = appointmentsRaw ? JSON.parse(appointmentsRaw) : [];
+      const pendingCount = appointments.filter((a: any) => a.syncStatus === 'pending').length;
+      const lastSync = localStorage.getItem('appointments_last_sync');
+      
+      return {
+        lastSync,
+        pendingCount,
+        isOnline: navigator.onLine
+      };
+    } catch {
+      return {
+        lastSync: null,
+        pendingCount: 0,
+        isOnline: navigator.onLine
+      };
+    }
+  },
+
+  // ============= Internal Messages Sync =============
+  
+  /**
+   * Sync internal messages from localStorage to Supabase
+   * مزامنة الرسائل الداخلية من المحلي إلى السحابة
+   */
+  async syncInternalMessagesToCloud(): Promise<{ success: boolean; error?: string; count?: number }> {
+    console.log('[syncInternalMessagesToCloud] Starting sync...');
+    
+    const SUPABASE_URL = 'https://whutmrbjvvplqugobwbq.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndodXRtcmJqdnZwbHF1Z29id2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzA0NzgsImV4cCI6MjA4NTQ0NjQ3OH0.bzynb0G41o2c1m35AodyVVgZBNXzPvGbKWJWKpBqGH8';
+    
+    try {
+      const messagesRaw = localStorage.getItem('internalMessages');
+      if (!messagesRaw) {
+        return { success: true, count: 0 };
+      }
+      
+      const messages = JSON.parse(messagesRaw);
+      if (!Array.isArray(messages) || messages.length === 0) {
+        return { success: true, count: 0 };
+      }
+      
+      // Convert to database format
+      const dbMessages = messages.map((m: any) => ({
+        id: m.id,
+        kind: m.kind || null,
+        doc_ids: m.docIds || [],
+        subject: m.subject || '',
+        title: m.title || null,
+        body: m.body || '',
+        priority: m.priority || 'عادي',
+        source: m.source || 'نظام داخلي',
+        from_employee: m.fromEmployee || null,
+        from_department: m.fromDepartment || null,
+        to_employee: m.toEmployee || null,
+        to_department: m.toDepartment || null,
+        to_departments: m.toDepartments || [],
+        template_name: m.templateName || null,
+        attachments: m.attachments || null,
+        read: m.read || false,
+        created_at: m.createdAt || new Date().toISOString(),
+        updated_at: m.updatedAt || new Date().toISOString(),
+      }));
+      
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/internal_messages?on_conflict=id`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=minimal'
+        },
+        body: JSON.stringify(dbMessages)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[syncInternalMessagesToCloud] Error:', errorText);
+        return { success: false, error: `فشل المزامنة: ${response.status} - ${errorText}` };
+      }
+      
+      localStorage.setItem('internalMessages_last_sync', new Date().toISOString());
+      console.log('[syncInternalMessagesToCloud] ✅ Synced', dbMessages.length, 'messages');
+      return { success: true, count: dbMessages.length };
+    } catch (error: any) {
+      console.error('[syncInternalMessagesToCloud] Error:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Sync internal messages from Supabase to localStorage
+   * تحميل الرسائل الداخلية من السحابة إلى المحلي
+   */
+  async syncInternalMessagesToLocal(): Promise<{ success: boolean; error?: string; count?: number }> {
+    console.log('[syncInternalMessagesToLocal] Starting sync from Supabase...');
+    
+    const SUPABASE_URL = 'https://whutmrbjvvplqugobwbq.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndodXRtcmJqdnZwbHF1Z29id2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzA0NzgsImV4cCI6MjA4NTQ0NjQ3OH0.bzynb0G41o2c1m35AodyVVgZBNXzPvGbKWJWKpBqGH8';
+    
+    try {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/internal_messages?select=*&order=created_at.desc`, {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        return { success: false, error: `فشل جلب الرسائل: ${response.status} - ${errorText}` };
+      }
+      
+      const data = await response.json();
+      
+      // Convert from database format to localStorage format
+      const localMessages = data.map((m: any) => ({
+        id: m.id,
+        kind: m.kind,
+        docIds: m.doc_ids || [],
+        subject: m.subject,
+        title: m.title,
+        body: m.body,
+        priority: m.priority,
+        source: m.source,
+        fromEmployee: m.from_employee,
+        fromDepartment: m.from_department,
+        toEmployee: m.to_employee,
+        toDepartment: m.to_department,
+        toDepartments: m.to_departments || [],
+        templateName: m.template_name,
+        attachments: m.attachments,
+        read: m.read,
+        replies: [], // Replies fetched separately if needed
+        createdAt: m.created_at,
+        updatedAt: m.updated_at,
+      }));
+      
+      localStorage.setItem('internalMessages', JSON.stringify(localMessages));
+      localStorage.setItem('internalMessages_last_sync', new Date().toISOString());
+      
+      console.log('[syncInternalMessagesToLocal] ✅ Loaded', localMessages.length, 'messages from cloud');
+      return { success: true, count: localMessages.length };
+    } catch (error: any) {
+      console.error('[syncInternalMessagesToLocal] Error:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Sync a single internal message to cloud (for real-time sync on create/update)
+   * مزامنة رسالة واحدة إلى السحابة
+   */
+  async syncSingleInternalMessage(message: any): Promise<{ success: boolean; error?: string }> {
+    const SUPABASE_URL = 'https://whutmrbjvvplqugobwbq.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndodXRtcmJqdnZwbHF1Z29id2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzA0NzgsImV4cCI6MjA4NTQ0NjQ3OH0.bzynb0G41o2c1m35AodyVVgZBNXzPvGbKWJWKpBqGH8';
+    
+    try {
+      const dbMessage = {
+        id: message.id,
+        kind: message.kind || null,
+        doc_ids: message.docIds || [],
+        subject: message.subject || '',
+        title: message.title || null,
+        body: message.body || '',
+        priority: message.priority || 'عادي',
+        source: message.source || 'نظام داخلي',
+        from_employee: message.fromEmployee || null,
+        from_department: message.fromDepartment || null,
+        to_employee: message.toEmployee || null,
+        to_department: message.toDepartment || null,
+        to_departments: message.toDepartments || [],
+        template_name: message.templateName || null,
+        attachments: message.attachments || null,
+        read: message.read || false,
+        created_at: message.createdAt || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/internal_messages?on_conflict=id`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=minimal'
+        },
+        body: JSON.stringify(dbMessage)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        return { success: false, error: errorText };
+      }
+      
+      console.log('[syncSingleInternalMessage] ✅ Synced message:', message.id);
+      return { success: true };
+    } catch (error: any) {
+      console.error('[syncSingleInternalMessage] Error:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // ============= Employee Profiles Sync =============
+  
+  /**
+   * Sync employee profiles from localStorage to Supabase
+   * مزامنة الملفات الشخصية للموظفين من المحلي إلى السحابة
+   */
+  async syncEmployeeProfilesToCloud(): Promise<{ success: boolean; error?: string; count?: number }> {
+    console.log('[syncEmployeeProfilesToCloud] Starting sync...');
+    
+    const SUPABASE_URL = 'https://whutmrbjvvplqugobwbq.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndodXRtcmJqdnZwbHF1Z29id2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzA0NzgsImV4cCI6MjA4NTQ0NjQ3OH0.bzynb0G41o2c1m35AodyVVgZBNXzPvGbKWJWKpBqGH8';
+    
+    try {
+      const employeesRaw = localStorage.getItem('employees');
+      if (!employeesRaw) {
+        return { success: true, count: 0 };
+      }
+      
+      const employees = JSON.parse(employeesRaw);
+      if (!Array.isArray(employees) || employees.length === 0) {
+        return { success: true, count: 0 };
+      }
+      
+      // Convert to database format
+      const dbProfiles = employees.map((e: any) => ({
+        id: e.id || `emp_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        username: e.username,
+        employee_number: e.employeeNumber || null,
+        national_id: e.nationalId || null,
+        full_name: e.name || e.fullName || null,
+        email: e.email || null,
+        phone: e.phone || null,
+        birth_date: e.birthDate || null,
+        hire_date: e.hireDate || null,
+        department: e.department || null,
+        role: e.role || 'موظف',
+        job_title: e.jobTitle || null,
+        address: e.address || null,
+        avatar_url: e.avatarUrl || null,
+        bio: e.bio || null,
+        skills: e.skills || [],
+        emergency_contact_name: e.emergencyContact?.name || null,
+        emergency_contact_phone: e.emergencyContact?.phone || null,
+        preferences: e.preferences || null,
+        is_active: e.isActive !== false,
+        last_login: e.lastLogin || null,
+        created_at: e.createdAt || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }));
+      
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/employee_profiles?on_conflict=username`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=minimal'
+        },
+        body: JSON.stringify(dbProfiles)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[syncEmployeeProfilesToCloud] Error:', errorText);
+        return { success: false, error: `فشل المزامنة: ${response.status} - ${errorText}` };
+      }
+      
+      localStorage.setItem('employeeProfiles_last_sync', new Date().toISOString());
+      console.log('[syncEmployeeProfilesToCloud] ✅ Synced', dbProfiles.length, 'profiles');
+      return { success: true, count: dbProfiles.length };
+    } catch (error: any) {
+      console.error('[syncEmployeeProfilesToCloud] Error:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Sync employee profiles from Supabase to localStorage
+   * تحميل الملفات الشخصية من السحابة إلى المحلي
+   */
+  async syncEmployeeProfilesToLocal(): Promise<{ success: boolean; error?: string; count?: number }> {
+    console.log('[syncEmployeeProfilesToLocal] Starting sync from Supabase...');
+    
+    const SUPABASE_URL = 'https://whutmrbjvvplqugobwbq.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndodXRtcmJqdnZwbHF1Z29id2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzA0NzgsImV4cCI6MjA4NTQ0NjQ3OH0.bzynb0G41o2c1m35AodyVVgZBNXzPvGbKWJWKpBqGH8';
+    
+    try {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/employee_profiles?select=*`, {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        return { success: false, error: `فشل جلب الملفات الشخصية: ${response.status} - ${errorText}` };
+      }
+      
+      const data = await response.json();
+      
+      // Get existing employees to preserve passwords
+      const existingEmployeesRaw = localStorage.getItem('employees');
+      const existingEmployees = existingEmployeesRaw ? JSON.parse(existingEmployeesRaw) : [];
+      const passwordMap = new Map(existingEmployees.map((e: any) => [e.username, e.password]));
+      
+      // Convert from database format to localStorage format
+      // Merge with existing employees to preserve passwords
+      const mergedEmployees = data.map((p: any) => ({
+        id: p.id,
+        username: p.username,
+        password: passwordMap.get(p.username) || '', // Preserve existing password
+        employeeNumber: p.employee_number,
+        nationalId: p.national_id,
+        name: p.full_name,
+        fullName: p.full_name,
+        email: p.email,
+        phone: p.phone,
+        birthDate: p.birth_date,
+        hireDate: p.hire_date,
+        department: p.department,
+        role: p.role,
+        jobTitle: p.job_title,
+        address: p.address,
+        avatarUrl: p.avatar_url,
+        bio: p.bio,
+        skills: p.skills || [],
+        emergencyContact: p.emergency_contact_name ? {
+          name: p.emergency_contact_name,
+          phone: p.emergency_contact_phone
+        } : null,
+        preferences: p.preferences,
+        isActive: p.is_active,
+        lastLogin: p.last_login,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+      }));
+      
+      // Add employees that exist locally but not in cloud
+      const cloudUsernames = new Set(data.map((p: any) => p.username));
+      const localOnly = existingEmployees.filter((e: any) => !cloudUsernames.has(e.username));
+      
+      const finalEmployees = [...mergedEmployees, ...localOnly];
+      localStorage.setItem('employees', JSON.stringify(finalEmployees));
+      localStorage.setItem('employeeProfiles_last_sync', new Date().toISOString());
+      
+      console.log('[syncEmployeeProfilesToLocal] ✅ Loaded', mergedEmployees.length, 'profiles from cloud');
+      return { success: true, count: mergedEmployees.length };
+    } catch (error: any) {
+      console.error('[syncEmployeeProfilesToLocal] Error:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Sync single employee profile to cloud
+   * مزامنة ملف شخصي واحد إلى السحابة
+   */
+  async syncSingleEmployeeProfile(employee: any): Promise<{ success: boolean; error?: string }> {
+    const SUPABASE_URL = 'https://whutmrbjvvplqugobwbq.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndodXRtcmJqdnZwbHF1Z29id2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzA0NzgsImV4cCI6MjA4NTQ0NjQ3OH0.bzynb0G41o2c1m35AodyVVgZBNXzPvGbKWJWKpBqGH8';
+    
+    try {
+      const dbProfile = {
+        id: employee.id || `emp_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        username: employee.username,
+        employee_number: employee.employeeNumber || null,
+        national_id: employee.nationalId || null,
+        full_name: employee.name || employee.fullName || null,
+        email: employee.email || null,
+        phone: employee.phone || null,
+        birth_date: employee.birthDate || null,
+        hire_date: employee.hireDate || null,
+        department: employee.department || null,
+        role: employee.role || 'موظف',
+        job_title: employee.jobTitle || null,
+        address: employee.address || null,
+        avatar_url: employee.avatarUrl || null,
+        bio: employee.bio || null,
+        skills: employee.skills || [],
+        emergency_contact_name: employee.emergencyContact?.name || null,
+        emergency_contact_phone: employee.emergencyContact?.phone || null,
+        preferences: employee.preferences || null,
+        is_active: employee.isActive !== false,
+        last_login: employee.lastLogin || null,
+        updated_at: new Date().toISOString(),
+      };
+      
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/employee_profiles?on_conflict=username`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=minimal'
+        },
+        body: JSON.stringify(dbProfile)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        return { success: false, error: errorText };
+      }
+      
+      console.log('[syncSingleEmployeeProfile] ✅ Synced profile:', employee.username);
+      return { success: true };
+    } catch (error: any) {
+      console.error('[syncSingleEmployeeProfile] Error:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Full bidirectional sync for all data types
+   * المزامنة الكاملة ثنائية الاتجاه
+   */
+  async fullSync(direction: 'toCloud' | 'toLocal' | 'both' = 'both'): Promise<{
+    success: boolean;
+    results: Record<string, { success: boolean; count?: number; error?: string }>;
+  }> {
+    console.log('[fullSync] Starting full sync, direction:', direction);
+    const results: Record<string, { success: boolean; count?: number; error?: string }> = {};
+    
+    try {
+      if (direction === 'toCloud' || direction === 'both') {
+        // Sync to cloud
+        results.internalMessagesToCloud = await this.syncInternalMessagesToCloud();
+        results.employeeProfilesToCloud = await this.syncEmployeeProfilesToCloud();
+      }
+      
+      if (direction === 'toLocal' || direction === 'both') {
+        // Sync from cloud
+        results.internalMessagesToLocal = await this.syncInternalMessagesToLocal();
+        results.employeeProfilesToLocal = await this.syncEmployeeProfilesToLocal();
+        results.ticketsToLocal = await this.syncToLocal();
+        results.appointmentsToLocal = await this.syncAppointmentsToLocal();
+      }
+      
+      updateLastSyncTime();
+      
+      const allSuccess = Object.values(results).every(r => r.success);
+      return { success: allSuccess, results };
+    } catch (error: any) {
+      console.error('[fullSync] Error:', error);
+      return { 
+        success: false, 
+        results: { error: { success: false, error: error.message } }
+      };
+    }
+  },
+
+  /**
+   * Get sync status for all data types
+   * الحصول على حالة المزامنة لجميع البيانات
+   */
+  getAllSyncStatus(): {
+    internalMessages: { lastSync: string | null; count: number };
+    employeeProfiles: { lastSync: string | null; count: number };
+    tickets: { lastSync: string | null; count: number };
+    appointments: { lastSync: string | null; count: number };
+    isOnline: boolean;
+  } {
+    const getCount = (key: string): number => {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return 0;
+        const data = JSON.parse(raw);
+        return Array.isArray(data) ? data.length : 0;
+      } catch { return 0; }
+    };
+    
+    return {
+      internalMessages: {
+        lastSync: localStorage.getItem('internalMessages_last_sync'),
+        count: getCount('internalMessages')
+      },
+      employeeProfiles: {
+        lastSync: localStorage.getItem('employeeProfiles_last_sync'),
+        count: getCount('employees')
+      },
+      tickets: {
+        lastSync: localStorage.getItem('lastSyncTime_tickets'),
+        count: getCount('tickets')
+      },
+      appointments: {
+        lastSync: localStorage.getItem('appointments_last_sync'),
+        count: getCount('appointments')
+      },
+      isOnline: navigator.onLine
+    };
   },
 };

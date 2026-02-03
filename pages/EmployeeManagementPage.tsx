@@ -5,6 +5,7 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { Employee } from '../types';
 import { formatDateTime } from '../utils/arabicNumerals';
+import { storageModeService } from '../utils/storageMode';
 
 // ===== فحص قوة كلمة المرور =====
 interface PasswordStrength {
@@ -65,6 +66,16 @@ const EmployeeManagementPage: React.FC = () => {
   const saveEmployees = (employeeList: Employee[]) => {
     localStorage.setItem('employees', JSON.stringify(employeeList));
     setEmployees(employeeList);
+    
+    // ===== Sync to Supabase =====
+    storageModeService.syncEmployeeProfilesToCloud().then(res => {
+      if (res.success) {
+        console.log('[EmployeeManagement] ✅ Employees synced to cloud:', res.count);
+      } else {
+        console.error('[EmployeeManagement] ❌ Cloud sync failed:', res.error);
+      }
+    }).catch(err => console.error('[EmployeeManagement] ❌ Sync error:', err));
+    // ===== End Supabase Sync =====
   };
 
   const handleCreateEmployee = () => {

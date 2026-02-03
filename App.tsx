@@ -9,6 +9,10 @@ import BackToDashboardFab from './components/BackToDashboardFab';
 import BackToTopFab from './components/BackToTopFab';
 import CookieBanner from './components/CookieBanner';
 
+// Mobile Components
+import { isMobile } from './utils/platform';
+import { MobileLayout } from './components/mobile';
+
 // =====================================================
 // 🚀 Code Splitting - Lazy Loading للصفحات
 // يتم تحميل الصفحات عند الطلب فقط لتحسين الأداء
@@ -29,6 +33,7 @@ const ConfirmationPage = React.lazy(() => import('./pages/ConfirmationPage'));
 const EmployeeManagementPage = React.lazy(() => import('./pages/EmployeeManagementPage'));
 const MFAManagementPage = React.lazy(() => import('./pages/MFAManagementPage'));
 const SessionSecurityPage = React.lazy(() => import('./pages/SessionSecurityPage'));
+const NotificationSettingsPage = React.lazy(() => import('./pages/NotificationSettingsPage'));
 const ToolsPage = React.lazy(() => import('./pages/ToolsPage'));
 
 // صفحات الديوان (تحميل كسول)
@@ -125,6 +130,9 @@ import { playSound } from './utils/notificationSounds';
 // Storage mode for Supabase sync
 import { storageModeService, getCurrentMode, filesToAttachmentMeta, attachmentMetaToFiles, AttachmentMeta } from './utils/storageMode';
 import { getDynamicSupabaseClient } from './utils/supabaseClient';
+
+// Notification service for multi-channel alerts
+import { sendTicketResponseNotification, loadNotificationSettings, logNotification } from './utils/notificationService';
 
 
 
@@ -279,6 +287,62 @@ const App: React.FC = () => {
       } else {
         console.warn('[App] Supabase sync failed:', result.error);
       }
+      
+      // ===== Sync Internal Messages =====
+      console.log('[App] Syncing internal messages...');
+      try {
+        // Upload local messages to cloud
+        const uploadMsgsResult = await storageModeService.syncInternalMessagesToCloud();
+        if (uploadMsgsResult.success && uploadMsgsResult.count && uploadMsgsResult.count > 0) {
+          console.log('[App] ✅ Internal messages uploaded:', uploadMsgsResult.count);
+        }
+        
+        // Download messages from cloud
+        const downloadMsgsResult = await storageModeService.syncInternalMessagesToLocal();
+        if (downloadMsgsResult.success) {
+          console.log('[App] ✅ Internal messages downloaded:', downloadMsgsResult.count);
+          // Reload internal messages from localStorage
+          const msgsRaw = localStorage.getItem('internalMessages');
+          if (msgsRaw) {
+            try {
+              setInternalMessages(JSON.parse(msgsRaw));
+            } catch (e) {
+              console.error('[App] Error parsing synced internal messages:', e);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[App] Internal messages sync error:', err);
+      }
+      
+      // ===== Sync Employee Profiles =====
+      console.log('[App] Syncing employee profiles...');
+      try {
+        // Upload local profiles to cloud
+        const uploadProfilesResult = await storageModeService.syncEmployeeProfilesToCloud();
+        if (uploadProfilesResult.success && uploadProfilesResult.count && uploadProfilesResult.count > 0) {
+          console.log('[App] ✅ Employee profiles uploaded:', uploadProfilesResult.count);
+        }
+        
+        // Download profiles from cloud
+        const downloadProfilesResult = await storageModeService.syncEmployeeProfilesToLocal();
+        if (downloadProfilesResult.success) {
+          console.log('[App] ✅ Employee profiles downloaded:', downloadProfilesResult.count);
+          // Reload employees from localStorage
+          const empsRaw = localStorage.getItem('employees');
+          if (empsRaw) {
+            try {
+              setEmployees(JSON.parse(empsRaw));
+            } catch (e) {
+              console.error('[App] Error parsing synced employees:', e);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[App] Employee profiles sync error:', err);
+      }
+      
+      console.log('[App] ✅ Auto-sync completed');
     };
     
     autoSync();
@@ -1010,6 +1074,48 @@ const App: React.FC = () => {
             }
             return t;
           }));
+
+          // ===== Send Notification to Citizen for public responses =====
+          const targetTicket = tickets.find(t => t.id === ticketId);
+          if (targetTicket) {
+            (async () => {
+              try {
+                const notifSettings = loadNotificationSettings();
+                const hasEnabledChannels = notifSettings.autoNotify.channels.length > 0 && 
+                  (notifSettings.email.isEnabled || notifSettings.sms.isEnabled || notifSettings.whatsapp.isEnabled);
+                
+                if (hasEnabledChannels && notifSettings.autoNotify.onTicketResponse) {
+                  console.log('[addTicketResponse] 📧 Sending notification to citizen...');
+                  
+                  const results = await sendTicketResponseNotification({
+                    ticketId: ticketId,
+                    citizenName: targetTicket.name || targetTicket.fullName || 'المواطن',
+                    citizenEmail: targetTicket.email,
+                    citizenPhone: targetTicket.phone,
+                    ticketType: targetTicket.type || targetTicket.requestType || 'طلب',
+                    responseText: body
+                  });
+                  
+                  // Log results
+                  if (results.email.success) {
+                    logNotification({ ticketId, channel: 'email', recipient: targetTicket.email || '', subject: `رد على طلبك ${ticketId}`, message: body.substring(0, 100), status: 'sent' });
+                    console.log('[addTicketResponse] ✅ Email sent');
+                  }
+                  if (results.sms.success) {
+                    logNotification({ ticketId, channel: 'sms', recipient: targetTicket.phone || '', message: body.substring(0, 100), status: 'sent' });
+                    console.log('[addTicketResponse] ✅ SMS sent');
+                  }
+                  if (results.whatsapp.success) {
+                    logNotification({ ticketId, channel: 'whatsapp', recipient: targetTicket.phone || '', message: body.substring(0, 100), status: 'sent' });
+                    console.log('[addTicketResponse] ✅ WhatsApp sent');
+                  }
+                }
+              } catch (notifErr) {
+                console.error('[addTicketResponse] Notification error:', notifErr);
+              }
+            })();
+          }
+          // ===== End Notification =====
         }
 
         console.log('[addTicketResponse] Success!');
@@ -1194,11 +1300,31 @@ const App: React.FC = () => {
     };
     setInternalMessages(prev => [record, ...prev]);
     addToast?.({ message: 'تم إرسال الرسالة الداخلية', type: 'success' });
+    
+    // ===== Sync to Supabase =====
+    storageModeService.syncSingleInternalMessage(record).then(res => {
+      if (res.success) {
+        console.log('[InternalMessage] ✅ Synced to cloud:', newId);
+      } else {
+        console.error('[InternalMessage] ❌ Cloud sync failed:', res.error);
+      }
+    }).catch(err => console.error('[InternalMessage] ❌ Sync error:', err));
+    // ===== End Supabase Sync =====
+    
     return newId;
   };
 
   const markInternalMessageRead = (id: string) => {
     setInternalMessages(prev => prev.map(m => m.id === id ? { ...m, read: true } : m));
+    
+    // ===== Sync read status to Supabase =====
+    const msg = internalMessages.find(m => m.id === id);
+    if (msg) {
+      storageModeService.syncSingleInternalMessage({ ...msg, read: true }).catch(err => 
+        console.error('[InternalMessage] ❌ Sync read status error:', err)
+      );
+    }
+    // ===== End Supabase Sync =====
   };
 
   // دالة التوجيه العامة مع الانتقال إلى أعلى الصفحة
@@ -1919,6 +2045,16 @@ const App: React.FC = () => {
         setCurrentEmployee(updatedEmployee);
         persistCurrentUser(updatedEmployee);
       }
+      
+      // ===== Sync to Supabase =====
+      storageModeService.syncSingleEmployeeProfile(updatedEmployee).then(res => {
+        if (res.success) {
+          console.log('[Employee] ✅ Profile synced to cloud:', updatedEmployee.username);
+        } else {
+          console.error('[Employee] ❌ Cloud sync failed:', res.error);
+        }
+      }).catch(err => console.error('[Employee] ❌ Sync error:', err));
+      // ===== End Supabase Sync =====
     }
   };
 
@@ -1992,11 +2128,15 @@ const App: React.FC = () => {
   const documentContactMessage = (id: string) => {
     const { number, date } = getNextDiwanNumber();
     setContactMessages(prev => prev.map(m => m.id === id ? { ...m, diwanNumber: number, diwanDate: date } as ContactMessage : m));
+    // مزامنة تلقائية للسحابة
+    storageModeService.syncToCloud().catch(console.error);
   };
 
   const documentTicket = (id: string) => {
     const { number, date } = getNextDiwanNumber();
     setTickets(prev => prev.map(t => t.id === id ? { ...t, diwanNumber: number, diwanDate: date } as Ticket : t));
+    // مزامنة تلقائية للسحابة
+    storageModeService.syncToCloud().catch(console.error);
   };
 
   const updateContactMessageSource = (id: string, source: 'مواطن' | 'موظف') => {
@@ -2270,6 +2410,66 @@ const App: React.FC = () => {
       playSound('success');
     } catch { }
 
+    // ===== Send Notification to Citizen =====
+    (async () => {
+      try {
+        // البحث عن بيانات التذكرة لإرسال الإشعار
+        const currentTickets = tickets;
+        const targetTicket = currentTickets.find(t => t.id === ticketId);
+        
+        if (targetTicket) {
+          const notifSettings = loadNotificationSettings();
+          const hasEnabledChannels = notifSettings.autoNotify.channels.length > 0 && 
+            (notifSettings.email.isEnabled || notifSettings.sms.isEnabled || notifSettings.whatsapp.isEnabled);
+          
+          if (hasEnabledChannels && notifSettings.autoNotify.onTicketResponse) {
+            console.log('[Notification] 📧 Sending response notification to citizen...');
+            
+            const results = await sendTicketResponseNotification({
+              ticketId: ticketId,
+              citizenName: targetTicket.name,
+              citizenEmail: targetTicket.email,
+              citizenPhone: targetTicket.phone,
+              ticketType: targetTicket.type,
+              responseText: responseText
+            });
+            
+            // تسجيل نتائج الإرسال
+            if (results.email.success) {
+              logNotification({ ticketId, channel: 'email', recipient: targetTicket.email || '', subject: `رد على طلبك رقم ${ticketId}`, message: responseText.substring(0, 100), status: 'sent' });
+              console.log('[Notification] ✅ Email sent successfully');
+            } else if (notifSettings.email.isEnabled && targetTicket.email) {
+              logNotification({ ticketId, channel: 'email', recipient: targetTicket.email || '', subject: `رد على طلبك رقم ${ticketId}`, message: responseText.substring(0, 100), status: 'failed', error: results.email.error });
+              console.warn('[Notification] ❌ Email failed:', results.email.error);
+            }
+            
+            if (results.sms.success) {
+              logNotification({ ticketId, channel: 'sms', recipient: targetTicket.phone || '', message: responseText.substring(0, 100), status: 'sent' });
+              console.log('[Notification] ✅ SMS sent successfully');
+            } else if (notifSettings.sms.isEnabled && targetTicket.phone) {
+              logNotification({ ticketId, channel: 'sms', recipient: targetTicket.phone || '', message: responseText.substring(0, 100), status: 'failed', error: results.sms.error });
+              console.warn('[Notification] ❌ SMS failed:', results.sms.error);
+            }
+            
+            if (results.whatsapp.success) {
+              logNotification({ ticketId, channel: 'whatsapp', recipient: targetTicket.phone || '', message: responseText.substring(0, 100), status: 'sent' });
+              console.log('[Notification] ✅ WhatsApp sent successfully');
+            } else if (notifSettings.whatsapp.isEnabled && targetTicket.phone) {
+              logNotification({ ticketId, channel: 'whatsapp', recipient: targetTicket.phone || '', message: responseText.substring(0, 100), status: 'failed', error: results.whatsapp.error });
+              console.warn('[Notification] ❌ WhatsApp failed:', results.whatsapp.error);
+            }
+          } else {
+            console.log('[Notification] ⏭️ Notification skipped (no enabled channels or auto-notify disabled)');
+          }
+        } else {
+          console.warn('[Notification] ⚠️ Could not find ticket for notification:', ticketId);
+        }
+      } catch (notifError) {
+        console.error('[Notification] ❌ Error sending notification:', notifError);
+      }
+    })();
+    // ===== End Notification =====
+
     if (USE_BACKEND_TICKETS) {
       (async () => {
         try {
@@ -2342,6 +2542,8 @@ const App: React.FC = () => {
       if (!canEditTicket(t)) return t;
       return { ...t, ...updates };
     }));
+    // مزامنة تلقائية للسحابة عند تحديث التذكرة
+    storageModeService.syncToCloud().catch(console.error);
   };
 
   // دالة إعادة الإرسال لقسم آخر
@@ -2373,6 +2575,8 @@ const App: React.FC = () => {
         return isEmployeeLoggedIn ? <MFAManagementPage /> : <LoginPage />;
       case '#/session-security':
         return isEmployeeLoggedIn ? <SessionSecurityPage /> : <LoginPage />;
+      case '#/notification-settings':
+        return isEmployeeLoggedIn && currentEmployee?.role === 'مدير' ? <NotificationSettingsPage /> : <LoginPage />;
       case '#/hrms':
         return isEmployeeLoggedIn ? <HrmsPage /> : <LoginPage />;
       case '#/hrms/core':
@@ -2488,6 +2692,118 @@ const App: React.FC = () => {
       default:
         return <HomePage />;
     }
+  };
+
+  // ===== Mobile App Configuration =====
+  // قائمة الصفحات المسموح بها للمواطنين على الموبايل
+  const CITIZEN_ROUTES = [
+    '#/', '#/submit', '#/track', '#/appointment-booking',
+    '#/confirmation', '#/faq', '#/news', '#/survey',
+    '#/contact', '#/privacy', '#/terms', '#/about-system',
+    '#/departments'
+  ];
+  
+  // التحقق مما إذا كان المسار الحالي مسموحاً على الموبايل
+  const isCitizenRoute = CITIZEN_ROUTES.includes(route.split('?')[0]);
+  
+  // إعادة توجيه صفحات الموظفين إلى الرئيسية على الموبايل
+  useEffect(() => {
+    if (isMobile() && !isCitizenRoute) {
+      window.location.hash = '#/';
+    }
+  }, [route, isCitizenRoute]);
+
+  // ===== Render for Mobile =====
+  const renderMobileApp = () => {
+    return (
+      <MobileLayout>
+        <Suspense fallback={<PageLoader />}>
+          {renderPage()}
+        </Suspense>
+      </MobileLayout>
+    );
+  };
+
+  // ===== Render for Desktop/Web =====
+  const renderDesktopApp = () => {
+    return (
+      <>
+        {/* شريط تقدم التمرير */}
+        <ScrollProgressBar />
+
+        <div
+          className="flex flex-col min-h-screen text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-900"
+          style={{
+            backgroundImage: "url('https://syrian.zone/syid/materials/pattern.svg')",
+            backgroundAttachment: 'fixed',
+          }}
+        >
+          <div className="flex flex-col min-h-screen bg-white/95 dark:bg-gray-900/95">
+            <Header />
+            <main className="flex-grow relative container mx-auto px-4 py-8">
+              {/* Suspense wrapper for lazy-loaded pages */}
+              <Suspense fallback={<PageLoader />}>
+                {renderPage()}
+              </Suspense>
+            </main>
+            {/* زر عائم للرجوع للوحة التحكم يظهر فقط في الصفحات الحساسة */}
+            <BackToDashboardFab />
+            {/* زر عائم عام للرجوع إلى أعلى الصفحة */}
+            <BackToTopFab />
+
+            {/* المساعد الذكي - Chatbot - يظهر فقط في الصفحات العامة وليس في صفحات الموظفين أو تسجيل الدخول */}
+            {(!isEmployeeLoggedIn && route !== '#/login') && <Chatbot />}
+
+            <Footer />
+          </div>
+        </div>
+
+        {/* Cookie Consent Banner */}
+        <CookieBanner
+          onAcceptAll={() => {
+            addToast({ message: 'تم قبول جميع ملفات تعريف الارتباط بنجاح', type: 'success' });
+          }}
+          onAcceptEssential={() => {
+            addToast({ message: 'تم قبول ملفات تعريف الارتباط الأساسية فقط', type: 'info' });
+          }}
+          onShowPrivacyPolicy={() => {
+            window.location.hash = '#privacy';
+          }}
+        />
+
+        {/* Spotlight Search (Ctrl+K) */}
+        <SpotlightSearch
+          isOpen={showSpotlight}
+          onClose={() => setShowSpotlight(false)}
+          items={[
+            { id: 'home', title: 'الصفحة الرئيسية', icon: '🏠', action: () => { window.location.hash = '#/'; setShowSpotlight(false); } },
+            { id: 'submit', title: 'تقديم شكوى جديدة', icon: '📝', action: () => { window.location.hash = '#/submit'; setShowSpotlight(false); } },
+            { id: 'track', title: 'تتبع الطلبات', icon: '🔍', action: () => { window.location.hash = '#/track'; setShowSpotlight(false); } },
+            { id: 'contact', title: 'تواصل معنا', icon: '📧', action: () => { window.location.hash = '#/contact'; setShowSpotlight(false); } },
+            { id: 'login', title: 'تسجيل دخول الموظفين', icon: '👤', action: () => { window.location.hash = '#/login'; setShowSpotlight(false); } },
+            ...(isEmployeeLoggedIn ? [
+              { id: 'dashboard', title: 'لوحة التحكم', icon: '📊', action: () => { window.location.hash = '#/dashboard'; setShowSpotlight(false); } },
+              { id: 'complaints', title: 'إدارة الشكاوى', icon: '📋', action: () => { window.location.hash = '#/complaints'; setShowSpotlight(false); } },
+              { id: 'employees', title: 'إدارة الموظفين', icon: '👥', action: () => { window.location.hash = '#/employees'; setShowSpotlight(false); } },
+            ] : [])
+          ]}
+          placeholder="ابحث عن صفحة أو إجراء..."
+        />
+
+        {/* Keyboard Shortcuts Help Modal */}
+        <KeyboardShortcutsHelp
+          isOpen={showShortcutsHelp}
+          onClose={() => setShowShortcutsHelp(false)}
+          shortcuts={[
+            { key: 'Ctrl+K', description: 'فتح البحث السريع' },
+            { key: 'Ctrl+N', description: 'تقديم شكوى جديدة' },
+            { key: 'Ctrl+T', description: 'تتبع الطلبات' },
+            { key: '/', description: 'عرض اختصارات لوحة المفاتيح' },
+            { key: 'Esc', description: 'إغلاق النوافذ' }
+          ]}
+        />
+      </>
+    );
   };
 
   return (
@@ -2606,92 +2922,21 @@ const App: React.FC = () => {
         appStoreLinks,
         updateAppStoreLinks
       }}>
-        {/* شريط تقدم التمرير */}
-        <ScrollProgressBar />
+        {/* Render based on platform */}
+        {isMobile() ? renderMobileApp() : renderDesktopApp()}
 
-        <div
-          className="flex flex-col min-h-screen text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-900"
-          style={{
-            backgroundImage: "url('https://syrian.zone/syid/materials/pattern.svg')",
-            backgroundAttachment: 'fixed',
-          }}
-        >
-          <div className="flex flex-col min-h-screen bg-white/95 dark:bg-gray-900/95">
-            <Header />
-            <main className="flex-grow relative container mx-auto px-4 py-8">
-              {/* Suspense wrapper for lazy-loaded pages */}
-              <Suspense fallback={<PageLoader />}>
-                {renderPage()}
-              </Suspense>
-            </main>
-            {/* زر عائم للرجوع للوحة التحكم يظهر فقط في الصفحات الحساسة */}
-            <BackToDashboardFab />
-            {/* زر عائم عام للرجوع إلى أعلى الصفحة */}
-            <BackToTopFab />
-
-            {/* المساعد الذكي - Chatbot - يظهر فقط في الصفحات العامة وليس في صفحات الموظفين أو تسجيل الدخول */}
-            {(!isEmployeeLoggedIn && route !== '#/login') && <Chatbot />}
-
-            <Footer />
-            {/* Toast container */}
-            <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-full max-w-md px-4">
-              {toasts.map(t => (
-                <div key={t.id} className={`pointer-events-auto rounded-xl shadow-lg px-4 py-3 text-sm font-medium backdrop-blur border flex items-start gap-3 animate-fade-in-down
-                ${t.type === 'success' ? 'bg-green-600/90 text-white border-green-400/40' : ''}
-                ${t.type === 'error' ? 'bg-red-600/90 text-white border-red-400/40' : ''}
-                ${t.type === 'info' ? 'bg-gray-800/90 text-white border-gray-600/40' : ''}
-              `}>
-                  <div className="flex-1 leading-relaxed">{t.message}</div>
-                  <button onClick={() => removeToast(t.id)} className="text-white/70 hover:text-white text-lg leading-none">×</button>
-                </div>
-              ))}
+        {/* Toast container - يظهر على كل المنصات */}
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-full max-w-md px-4">
+          {toasts.map(t => (
+            <div key={t.id} className={`pointer-events-auto rounded-xl shadow-lg px-4 py-3 text-sm font-medium backdrop-blur border flex items-start gap-3 animate-fade-in-down
+              ${t.type === 'success' ? 'bg-green-600/90 text-white border-green-400/40' : ''}
+              ${t.type === 'error' ? 'bg-red-600/90 text-white border-red-400/40' : ''}
+              ${t.type === 'info' ? 'bg-gray-800/90 text-white border-gray-600/40' : ''}
+            `}>
+              <div className="flex-1 leading-relaxed">{t.message}</div>
+              <button onClick={() => removeToast(t.id)} className="text-white/70 hover:text-white text-lg leading-none">×</button>
             </div>
-          </div>
-
-          {/* Cookie Consent Banner */}
-          <CookieBanner
-            onAcceptAll={() => {
-              addToast({ message: 'تم قبول جميع ملفات تعريف الارتباط بنجاح', type: 'success' });
-            }}
-            onAcceptEssential={() => {
-              addToast({ message: 'تم قبول ملفات تعريف الارتباط الأساسية فقط', type: 'info' });
-            }}
-            onShowPrivacyPolicy={() => {
-              window.location.hash = '#privacy';
-            }}
-          />
-
-          {/* Spotlight Search (Ctrl+K) */}
-          <SpotlightSearch
-            isOpen={showSpotlight}
-            onClose={() => setShowSpotlight(false)}
-            items={[
-              { id: 'home', title: 'الصفحة الرئيسية', icon: '🏠', action: () => { window.location.hash = '#/'; setShowSpotlight(false); } },
-              { id: 'submit', title: 'تقديم شكوى جديدة', icon: '📝', action: () => { window.location.hash = '#/submit'; setShowSpotlight(false); } },
-              { id: 'track', title: 'تتبع الطلبات', icon: '🔍', action: () => { window.location.hash = '#/track'; setShowSpotlight(false); } },
-              { id: 'contact', title: 'تواصل معنا', icon: '📧', action: () => { window.location.hash = '#/contact'; setShowSpotlight(false); } },
-              { id: 'login', title: 'تسجيل دخول الموظفين', icon: '👤', action: () => { window.location.hash = '#/login'; setShowSpotlight(false); } },
-              ...(isEmployeeLoggedIn ? [
-                { id: 'dashboard', title: 'لوحة التحكم', icon: '📊', action: () => { window.location.hash = '#/dashboard'; setShowSpotlight(false); } },
-                { id: 'complaints', title: 'إدارة الشكاوى', icon: '📋', action: () => { window.location.hash = '#/complaints'; setShowSpotlight(false); } },
-                { id: 'employees', title: 'إدارة الموظفين', icon: '👥', action: () => { window.location.hash = '#/employees'; setShowSpotlight(false); } },
-              ] : [])
-            ]}
-            placeholder="ابحث عن صفحة أو إجراء..."
-          />
-
-          {/* Keyboard Shortcuts Help Modal */}
-          <KeyboardShortcutsHelp
-            isOpen={showShortcutsHelp}
-            onClose={() => setShowShortcutsHelp(false)}
-            shortcuts={[
-              { key: 'Ctrl+K', description: 'فتح البحث السريع' },
-              { key: 'Ctrl+N', description: 'تقديم شكوى جديدة' },
-              { key: 'Ctrl+T', description: 'تتبع الطلبات' },
-              { key: '/', description: 'عرض اختصارات لوحة المفاتيح' },
-              { key: 'Esc', description: 'إغلاق النوافذ' }
-            ]}
-          />
+          ))}
         </div>
       </AppContext.Provider>
     </ThemeProvider>

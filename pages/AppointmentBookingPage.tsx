@@ -22,7 +22,9 @@ import {
     confirmAppointment,
     canCitizenBook,
     calculateSlotAvailability,
-    updateBookingThrottle
+    updateBookingThrottle,
+    syncAppointmentToCloud,
+    setupAutoSync
 } from '../utils/appointmentManager';
 import { QRCodeDisplay, AppointmentTicket, generateAppointmentQRData } from '../utils/appointmentQR';
 import {
@@ -860,6 +862,11 @@ export const AppointmentBookingPage: React.FC = () => {
 
     const steps = ['التحقق', 'اختيار الموعد', 'التأكيد'];
 
+    // تفعيل المزامنة التلقائية مع السحابة
+    useEffect(() => {
+        setupAutoSync();
+    }, []);
+
     const handleVerification = (data: { phone: string; nationalId: string; fullName: string; email?: string }) => {
         // التحقق من خوارزمية منع الاحتكار قبل المتابعة
         const throttleCheck = canCitizenBook(data.nationalId);
@@ -919,6 +926,17 @@ export const AppointmentBookingPage: React.FC = () => {
         // تأكيد الموعد وتوليد QR
         const qrData = generateAppointmentQRData(appointment);
         confirmAppointment(appointment.id, qrData, 'system');
+
+        // مزامنة الموعد مع السحابة (Supabase)
+        if (navigator.onLine) {
+            syncAppointmentToCloud(appointment).then(result => {
+                if (result.success) {
+                    console.log('✅ تم مزامنة الموعد مع السحابة:', appointment.id);
+                } else {
+                    console.warn('⚠️ فشل مزامنة الموعد:', result.error);
+                }
+            });
+        }
 
         // إرسال البريد الإلكتروني مع التذكرة إذا تم توفير البريد
         if (verifiedData.email) {

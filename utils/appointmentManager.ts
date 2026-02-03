@@ -1228,3 +1228,452 @@ export const runScheduledTasks = (): void => {
         }
     }
 };
+
+// ==================== مزامنة المواعيد مع Supabase ====================
+
+// بيانات الاتصال بـ Supabase
+const SUPABASE_URL = 'https://whutmrbjvvplqugobwbq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndodXRtcmJqdnZwbHF1Z29id2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NzA0NzgsImV4cCI6MjA4NTQ0NjQ3OH0.bzynb0G41o2c1m35AodyVVgZBNXzPvGbKWJWKpBqGH8';
+
+const getSupabaseHeaders = () => ({
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+});
+
+/**
+ * تحويل موعد من صيغة localStorage إلى صيغة Supabase
+ */
+const toSupabaseFormat = (appointment: Appointment) => ({
+    id: appointment.id,
+    citizen_id: appointment.citizenId,
+    full_name: appointment.fullName,
+    phone_number: appointment.phoneNumber,
+    email: appointment.email || null,
+    date: appointment.date,
+    start_time: appointment.timeSlot.startTime,
+    end_time: appointment.timeSlot.endTime,
+    service_category: appointment.serviceCategory,
+    service_description: appointment.serviceDescription || null,
+    status: appointment.status,
+    priority: appointment.priority,
+    assigned_counter: appointment.assignedCounter || null,
+    assigned_employee: appointment.assignedEmployee || null,
+    is_verified: appointment.isVerified,
+    verification_code: appointment.verificationCode || null,
+    qr_code: appointment.qrCode || null,
+    created_at: appointment.createdAt,
+    confirmed_at: appointment.confirmedAt || null,
+    checked_in_at: appointment.checkedInAt || null,
+    started_at: appointment.startedAt || null,
+    completed_at: appointment.completedAt || null,
+    cancelled_at: appointment.cancelledAt || null,
+    notes: appointment.notes || null,
+    cancellation_reason: appointment.cancellationReason || null,
+    sync_status: 'synced',
+    last_synced_at: new Date().toISOString()
+});
+
+/**
+ * تحويل موعد من صيغة Supabase إلى صيغة localStorage
+ */
+const fromSupabaseFormat = (data: any): Appointment => ({
+    id: data.id,
+    citizenId: data.citizen_id,
+    fullName: data.full_name,
+    phoneNumber: data.phone_number,
+    email: data.email,
+    date: data.date,
+    timeSlot: {
+        id: `slot_${data.date}_${data.start_time}`,
+        startTime: data.start_time,
+        endTime: data.end_time,
+        maxCapacity: 5,
+        currentBookings: 0,
+        isAvailable: true
+    },
+    serviceCategory: data.service_category,
+    serviceDescription: data.service_description,
+    status: data.status,
+    priority: data.priority,
+    assignedCounter: data.assigned_counter,
+    assignedEmployee: data.assigned_employee,
+    isVerified: data.is_verified,
+    verificationCode: data.verification_code,
+    qrCode: data.qr_code,
+    createdAt: data.created_at,
+    confirmedAt: data.confirmed_at,
+    checkedInAt: data.checked_in_at,
+    startedAt: data.started_at,
+    completedAt: data.completed_at,
+    cancelledAt: data.cancelled_at,
+    notes: data.notes,
+    cancellationReason: data.cancellation_reason,
+    syncStatus: data.sync_status || 'synced',
+    lastSyncedAt: data.last_synced_at
+});
+
+/**
+ * مزامنة موعد واحد إلى السحابة
+ */
+export const syncAppointmentToCloud = async (appointment: Appointment): Promise<{ success: boolean; error?: string }> => {
+    try {
+        const supabaseData = toSupabaseFormat(appointment);
+        
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/appointments`, {
+            method: 'POST',
+            headers: { ...getSupabaseHeaders(), 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify(supabaseData)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText);
+        }
+
+        // تحديث حالة المزامنة محلياً
+        updateAppointment(appointment.id, { 
+            syncStatus: 'synced', 
+            lastSyncedAt: new Date().toISOString() 
+        });
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error syncing appointment to cloud:', error);
+        
+        // وضع علامة pending للمزامنة لاحقاً
+        updateAppointment(appointment.id, { syncStatus: 'pending' });
+        
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * جلب جميع المواعيد من السحابة
+ */
+export const fetchAppointmentsFromCloud = async (): Promise<{ 
+    success: boolean; 
+    data?: Appointment[]; 
+    error?: string 
+}> => {
+    try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/appointments?select=*&order=created_at.desc`, {
+            method: 'GET',
+            headers: getSupabaseHeaders()
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText);
+        }
+
+        const data = await response.json();
+        const appointments = data.map(fromSupabaseFormat);
+        
+        return { success: true, data: appointments };
+    } catch (error: any) {
+        console.error('Error fetching appointments from cloud:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * جلب مواعيد يوم معين من السحابة
+ */
+export const fetchAppointmentsByDateFromCloud = async (date: string): Promise<{ 
+    success: boolean; 
+    data?: Appointment[]; 
+    error?: string 
+}> => {
+    try {
+        const response = await fetch(
+            `${SUPABASE_URL}/rest/v1/appointments?date=eq.${date}&order=start_time.asc`, 
+            {
+                method: 'GET',
+                headers: getSupabaseHeaders()
+            }
+        );
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText);
+        }
+
+        const data = await response.json();
+        const appointments = data.map(fromSupabaseFormat);
+        
+        return { success: true, data: appointments };
+    } catch (error: any) {
+        console.error('Error fetching appointments from cloud:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * مزامنة جميع المواعيد المعلقة إلى السحابة
+ */
+export const syncPendingAppointmentsToCloud = async (): Promise<{ 
+    success: boolean; 
+    synced: number; 
+    failed: number;
+    errors: string[];
+}> => {
+    const appointments = getAppointments();
+    const pending = appointments.filter(a => a.syncStatus === 'pending');
+    
+    let synced = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const appointment of pending) {
+        const result = await syncAppointmentToCloud(appointment);
+        if (result.success) {
+            synced++;
+        } else {
+            failed++;
+            errors.push(`${appointment.id}: ${result.error}`);
+        }
+    }
+
+    return { success: failed === 0, synced, failed, errors };
+};
+
+/**
+ * مزامنة كاملة: جلب من السحابة ودمج مع المحلي
+ */
+export const fullAppointmentSync = async (): Promise<{
+    success: boolean;
+    cloudCount: number;
+    localCount: number;
+    merged: number;
+    error?: string;
+}> => {
+    try {
+        // 1. جلب من السحابة
+        const cloudResult = await fetchAppointmentsFromCloud();
+        if (!cloudResult.success || !cloudResult.data) {
+            throw new Error(cloudResult.error || 'Failed to fetch from cloud');
+        }
+
+        // 2. الحصول على المحلي
+        const localAppointments = getAppointments();
+
+        // 3. دمج البيانات (الأحدث يفوز)
+        const merged = new Map<string, Appointment>();
+
+        // إضافة المواعيد المحلية أولاً
+        localAppointments.forEach(a => {
+            merged.set(a.id, a);
+        });
+
+        // دمج مع السحابة (الأحدث يفوز)
+        cloudResult.data.forEach(cloudAppt => {
+            const local = merged.get(cloudAppt.id);
+            
+            if (!local) {
+                // موعد جديد من السحابة
+                merged.set(cloudAppt.id, { ...cloudAppt, syncStatus: 'synced' as const });
+            } else {
+                // مقارنة التاريخ للتحديد الأحدث
+                const localDate = new Date(local.lastSyncedAt || local.createdAt);
+                const cloudDate = new Date(cloudAppt.lastSyncedAt || cloudAppt.createdAt);
+
+                if (cloudDate > localDate) {
+                    merged.set(cloudAppt.id, { ...cloudAppt, syncStatus: 'synced' as const });
+                }
+            }
+        });
+
+        // 4. حفظ النتيجة المدمجة
+        const mergedArray = Array.from(merged.values());
+        saveAppointments(mergedArray);
+
+        // 5. رفع المواعيد المعلقة إلى السحابة
+        await syncPendingAppointmentsToCloud();
+
+        // 6. تحديث وقت آخر مزامنة
+        localStorage.setItem('appointments_last_sync', new Date().toISOString());
+
+        return {
+            success: true,
+            cloudCount: cloudResult.data.length,
+            localCount: localAppointments.length,
+            merged: mergedArray.length
+        };
+    } catch (error: any) {
+        console.error('Full sync error:', error);
+        return {
+            success: false,
+            cloudCount: 0,
+            localCount: getAppointments().length,
+            merged: 0,
+            error: error.message
+        };
+    }
+};
+
+/**
+ * ترحيل جميع المواعيد المحلية إلى السحابة
+ */
+export const migrateAppointmentsToCloud = async (): Promise<{
+    success: boolean;
+    migrated: number;
+    failed: number;
+    errors: string[];
+}> => {
+    const appointments = getAppointments();
+    let migrated = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    // رفع بالدفعات لتجنب الضغط على الخادم
+    const batchSize = 10;
+    for (let i = 0; i < appointments.length; i += batchSize) {
+        const batch = appointments.slice(i, i + batchSize);
+        
+        const batchData = batch.map(toSupabaseFormat);
+        
+        try {
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/appointments`, {
+                method: 'POST',
+                headers: { ...getSupabaseHeaders(), 'Prefer': 'resolution=merge-duplicates' },
+                body: JSON.stringify(batchData)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText);
+            }
+
+            migrated += batch.length;
+
+            // تحديث حالة المزامنة محلياً
+            batch.forEach(appt => {
+                updateAppointment(appt.id, { 
+                    syncStatus: 'synced', 
+                    lastSyncedAt: new Date().toISOString() 
+                });
+            });
+
+        } catch (error: any) {
+            failed += batch.length;
+            errors.push(`Batch ${Math.floor(i / batchSize) + 1}: ${error.message}`);
+        }
+    }
+
+    // تحديث وقت آخر مزامنة
+    if (migrated > 0) {
+        localStorage.setItem('appointments_last_sync', new Date().toISOString());
+    }
+
+    return { success: failed === 0, migrated, failed, errors };
+};
+
+/**
+ * حذف موعد من السحابة
+ */
+export const deleteAppointmentFromCloud = async (appointmentId: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/appointments?id=eq.${appointmentId}`, {
+            method: 'DELETE',
+            headers: getSupabaseHeaders()
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText);
+        }
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error deleting appointment from cloud:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * تحديث موعد في السحابة
+ */
+export const updateAppointmentInCloud = async (
+    appointmentId: string, 
+    updates: Partial<Appointment>
+): Promise<{ success: boolean; error?: string }> => {
+    try {
+        // تحويل الحقول للصيغة المناسبة
+        const supabaseUpdates: Record<string, any> = {};
+        
+        if (updates.status) supabaseUpdates.status = updates.status;
+        if (updates.priority) supabaseUpdates.priority = updates.priority;
+        if (updates.assignedCounter !== undefined) supabaseUpdates.assigned_counter = updates.assignedCounter;
+        if (updates.assignedEmployee !== undefined) supabaseUpdates.assigned_employee = updates.assignedEmployee;
+        if (updates.isVerified !== undefined) supabaseUpdates.is_verified = updates.isVerified;
+        if (updates.qrCode !== undefined) supabaseUpdates.qr_code = updates.qrCode;
+        if (updates.confirmedAt !== undefined) supabaseUpdates.confirmed_at = updates.confirmedAt;
+        if (updates.checkedInAt !== undefined) supabaseUpdates.checked_in_at = updates.checkedInAt;
+        if (updates.startedAt !== undefined) supabaseUpdates.started_at = updates.startedAt;
+        if (updates.completedAt !== undefined) supabaseUpdates.completed_at = updates.completedAt;
+        if (updates.cancelledAt !== undefined) supabaseUpdates.cancelled_at = updates.cancelledAt;
+        if (updates.notes !== undefined) supabaseUpdates.notes = updates.notes;
+        if (updates.cancellationReason !== undefined) supabaseUpdates.cancellation_reason = updates.cancellationReason;
+        
+        supabaseUpdates.sync_status = 'synced';
+        supabaseUpdates.last_synced_at = new Date().toISOString();
+
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/appointments?id=eq.${appointmentId}`, {
+            method: 'PATCH',
+            headers: { ...getSupabaseHeaders(), 'Prefer': 'return=minimal' },
+            body: JSON.stringify(supabaseUpdates)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText);
+        }
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error updating appointment in cloud:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * الحصول على حالة المزامنة
+ */
+export const getAppointmentSyncStatus = (): {
+    lastSync: string | null;
+    pendingCount: number;
+    isOnline: boolean;
+} => {
+    const appointments = getAppointments();
+    const pendingCount = appointments.filter(a => a.syncStatus === 'pending').length;
+    const lastSync = localStorage.getItem('appointments_last_sync');
+
+    return {
+        lastSync,
+        pendingCount,
+        isOnline: navigator.onLine
+    };
+};
+
+/**
+ * مستمع الاتصال بالإنترنت للمزامنة التلقائية
+ */
+export const setupAutoSync = (): void => {
+    // مزامنة عند استعادة الاتصال
+    window.addEventListener('online', async () => {
+        console.log('🌐 Back online - syncing appointments...');
+        const status = getAppointmentSyncStatus();
+        
+        if (status.pendingCount > 0) {
+            const result = await syncPendingAppointmentsToCloud();
+            console.log(`✅ Synced ${result.synced} appointments, ${result.failed} failed`);
+        }
+    });
+
+    // تحديد حالة pending عند فقدان الاتصال
+    window.addEventListener('offline', () => {
+        console.log('📴 Offline - appointments will be synced when online');
+    });
+};

@@ -3,6 +3,7 @@ import { AppContext } from '../App';
 import { formatArabicNumber } from '../constants';
 import LoginModal from './LoginModal';
 import UiBadge from './ui/Badge';
+import { storageModeService } from '../utils/storageMode';
 
 const Header: React.FC = () => {
   const appContext = useContext(AppContext);
@@ -180,6 +181,8 @@ const Header: React.FC = () => {
       const updated = list.map(m => m.id === id ? { ...m, read: true } : m);
       localStorage.setItem('internalMessages', JSON.stringify(updated));
       setInternalMsgVersion(v => v + 1);
+      // Sync to cloud
+      storageModeService.syncInternalMessagesToCloud().catch(err => console.error('[Header] Sync error:', err));
     } catch {/* ignore */ }
   };
 
@@ -198,6 +201,8 @@ const Header: React.FC = () => {
       if (changed) {
         localStorage.setItem('internalMessages', JSON.stringify(updated));
         setInternalMsgVersion(v => v + 1);
+        // Sync to cloud
+        storageModeService.syncInternalMessagesToCloud().catch(err => console.error('[Header] Sync error:', err));
       }
     } catch {/* ignore */ }
   };

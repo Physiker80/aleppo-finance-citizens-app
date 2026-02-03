@@ -47,6 +47,9 @@ export interface Ticket {
   archived?: boolean;         // whether saved to archive explicitly
   archivedAt?: string;        // ISO date string when archived
   printSnapshotHtml?: string; // stored printable HTML snapshot
+  // بيانات المرفقات المحفوظة (من قاعدة البيانات)
+  attachments_data?: TicketAttachmentMeta[];
+  response_attachments_data?: TicketAttachmentMeta[];
 }
 
 export interface FaqItem {
@@ -196,6 +199,16 @@ export interface TicketResponseAttachmentMeta {
   mimeType: string;
   sizeBytes: number;
   storagePath?: string; // may be undefined until persisted
+}
+
+// بيانات المرفقات المحفوظة (للتخزين في قاعدة البيانات)
+export interface TicketAttachmentMeta {
+  name: string;
+  size: number;
+  type: string;
+  url?: string;        // URL من Supabase Storage
+  base64?: string;     // بيانات Base64 للملفات الصغيرة
+  uploadedAt?: string;
 }
 
 export interface TicketResponseRecord {

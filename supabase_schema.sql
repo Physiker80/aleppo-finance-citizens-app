@@ -271,3 +271,213 @@ ALTER TABLE "TicketHistory" ADD CONSTRAINT "TicketHistory_ticketId_fkey" FOREIGN
 ALTER TABLE "TicketHistory" ADD CONSTRAINT "TicketHistory_actorId_fkey" FOREIGN KEY ("actorId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_actorId_fkey" FOREIGN KEY ("actorId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+
+-- 3. --- Appointment Booking System ---
+
+-- جدول الخدمات المتاحة للحجز
+CREATE TABLE "service_category" (
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+    "code" TEXT NOT NULL,
+    "name_ar" TEXT NOT NULL,
+    "description" TEXT,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "average_duration_minutes" INTEGER DEFAULT 15,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT "service_category_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "service_category_code_key" ON "service_category"("code");
+
+-- إدخال الخدمات الافتراضية
+INSERT INTO "service_category" ("code", "name_ar", "average_duration_minutes") VALUES
+    ('tax_payment', 'دفع ضريبة', 15),
+    ('tax_objection', 'اعتراض على تكليف', 20),
+    ('tax_exemption', 'طلب إعفاء ضريبي', 25),
+    ('tax_certificate', 'شهادة براءة ذمة', 10),
+    ('property_assessment', 'تقييم عقاري', 30),
+    ('commercial_license', 'رخصة تجارية', 20),
+    ('financial_inquiry', 'استعلام مالي', 15),
+    ('document_collection', 'استلام وثائق', 10),
+    ('complaint_submission', 'تقديم شكوى', 15),
+    ('other', 'أخرى', 15);
+
+-- جدول المواعيد الرئيسي
+CREATE TABLE "appointments" (
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+    
+    -- معلومات المراجع
+    "citizen_id" TEXT NOT NULL,
+    "full_name" TEXT NOT NULL,
+    "phone_number" TEXT NOT NULL,
+    "email" TEXT,
+    
+    -- معلومات الموعد
+    "date" DATE NOT NULL,
+    "start_time" TIME NOT NULL,
+    "end_time" TIME NOT NULL,
+    "service_category" TEXT NOT NULL,
+    "service_description" TEXT,
+    
+    -- الحالة والأولوية
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "priority" TEXT NOT NULL DEFAULT 'normal',
+    
+    -- التوزيع
+    "assigned_counter" INTEGER,
+    "assigned_employee" TEXT,
+    
+    -- التحقق
+    "is_verified" BOOLEAN NOT NULL DEFAULT false,
+    "verification_code" TEXT,
+    "qr_code" TEXT,
+    
+    -- التوقيتات
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "confirmed_at" TIMESTAMP(3),
+    "checked_in_at" TIMESTAMP(3),
+    "started_at" TIMESTAMP(3),
+    "completed_at" TIMESTAMP(3),
+    "cancelled_at" TIMESTAMP(3),
+    
+    -- ملاحظات
+    "notes" TEXT,
+    "cancellation_reason" TEXT,
+    
+    -- المزامنة
+    "sync_status" TEXT NOT NULL DEFAULT 'synced',
+    "last_synced_at" TIMESTAMP(3),
+    
+    CONSTRAINT "appointments_pkey" PRIMARY KEY ("id")
+);
+
+-- الفهارس للبحث السريع
+CREATE INDEX "appointments_date_idx" ON "appointments"("date");
+CREATE INDEX "appointments_citizen_id_idx" ON "appointments"("citizen_id");
+CREATE INDEX "appointments_status_idx" ON "appointments"("status");
+CREATE INDEX "appointments_date_status_idx" ON "appointments"("date", "status");
+
+-- جدول النوافذ/الكاونترات
+CREATE TABLE "counters" (
+    "id" SERIAL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "assigned_employee" TEXT,
+    "current_appointment_id" TEXT,
+    "service_categories" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "queue_length" INTEGER NOT NULL DEFAULT 0,
+    "average_service_time" INTEGER NOT NULL DEFAULT 15,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- جدول إعدادات نظام المواعيد
+CREATE TABLE "appointment_settings" (
+    "id" TEXT NOT NULL DEFAULT 'default',
+    "work_start_time" TIME NOT NULL DEFAULT '08:00',
+    "work_end_time" TIME NOT NULL DEFAULT '14:00',
+    "slot_duration_minutes" INTEGER NOT NULL DEFAULT 15,
+    "max_appointments_per_slot" INTEGER NOT NULL DEFAULT 5,
+    "max_appointments_per_day" INTEGER NOT NULL DEFAULT 100,
+    "max_advance_booking_days" INTEGER NOT NULL DEFAULT 14,
+    "total_counters" INTEGER NOT NULL DEFAULT 5,
+    "require_phone_verification" BOOLEAN NOT NULL DEFAULT true,
+    "require_national_id" BOOLEAN NOT NULL DEFAULT true,
+    "send_sms_confirmation" BOOLEAN NOT NULL DEFAULT true,
+    "send_sms_reminder" BOOLEAN NOT NULL DEFAULT true,
+    "reminder_hours_before" INTEGER NOT NULL DEFAULT 24,
+    "allow_emergency_appointments" BOOLEAN NOT NULL DEFAULT true,
+    "priority_queue_enabled" BOOLEAN NOT NULL DEFAULT true,
+    "holidays" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "weekend_days" INTEGER[] DEFAULT ARRAY[5, 6]::INTEGER[],
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT "appointment_settings_pkey" PRIMARY KEY ("id")
+);
+
+-- إدخال الإعدادات الافتراضية
+INSERT INTO "appointment_settings" ("id") VALUES ('default');
+
+-- جدول الفترات المحظورة
+CREATE TABLE "blocked_slots" (
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+    "date" DATE NOT NULL,
+    "start_time" TIME NOT NULL,
+    "end_time" TIME NOT NULL,
+    "reason" TEXT NOT NULL,
+    "description" TEXT,
+    "department_id" TEXT,
+    "created_by" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT "blocked_slots_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX "blocked_slots_date_idx" ON "blocked_slots"("date");
+
+-- جدول سجل نشاطات المواعيد
+CREATE TABLE "appointment_logs" (
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+    "appointment_id" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "performed_by" TEXT NOT NULL,
+    "performed_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "details" JSONB,
+    
+    CONSTRAINT "appointment_logs_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX "appointment_logs_appointment_id_idx" ON "appointment_logs"("appointment_id");
+
+-- جدول تقييد الحجوزات (منع الاحتكار)
+CREATE TABLE "booking_throttle" (
+    "national_id" TEXT NOT NULL,
+    "last_booking_date" DATE NOT NULL,
+    "bookings_this_week" INTEGER NOT NULL DEFAULT 1,
+    "bookings_this_month" INTEGER NOT NULL DEFAULT 1,
+    "total_bookings" INTEGER NOT NULL DEFAULT 1,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT "booking_throttle_pkey" PRIMARY KEY ("national_id")
+);
+
+-- جدول الطابور
+CREATE TABLE "appointment_queue" (
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
+    "appointment_id" TEXT NOT NULL,
+    "position" INTEGER NOT NULL,
+    "estimated_wait_minutes" INTEGER NOT NULL DEFAULT 0,
+    "priority" TEXT NOT NULL DEFAULT 'normal',
+    "service_category" TEXT NOT NULL,
+    "checked_in_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT "appointment_queue_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX "appointment_queue_appointment_id_idx" ON "appointment_queue"("appointment_id");
+CREATE INDEX "appointment_queue_position_idx" ON "appointment_queue"("position");
+
+-- الروابط الخارجية (Foreign Keys)
+ALTER TABLE "appointments" ADD CONSTRAINT "appointments_service_category_fkey" 
+    FOREIGN KEY ("service_category") REFERENCES "service_category"("code") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "counters" ADD CONSTRAINT "counters_current_appointment_fkey" 
+    FOREIGN KEY ("current_appointment_id") REFERENCES "appointments"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE "appointment_logs" ADD CONSTRAINT "appointment_logs_appointment_id_fkey" 
+    FOREIGN KEY ("appointment_id") REFERENCES "appointments"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "appointment_queue" ADD CONSTRAINT "appointment_queue_appointment_id_fkey" 
+    FOREIGN KEY ("appointment_id") REFERENCES "appointments"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- RLS (Row Level Security) للمواعيد
+ALTER TABLE "appointments" ENABLE ROW LEVEL SECURITY;
+
+-- سياسة القراءة: يمكن للجميع قراءة المواعيد
+CREATE POLICY "appointments_select_policy" ON "appointments" FOR SELECT USING (true);
+
+-- سياسة الإدراج: يمكن للجميع إنشاء مواعيد
+CREATE POLICY "appointments_insert_policy" ON "appointments" FOR INSERT WITH CHECK (true);
+
+-- سياسة التحديث: يمكن للجميع التحديث
+CREATE POLICY "appointments_update_policy" ON "appointments" FOR UPDATE USING (true);

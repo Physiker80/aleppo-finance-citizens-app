@@ -5,6 +5,7 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { Employee, MfaFactorType } from '../types';
 import MFAVerification from '../components/MFAVerification';
+import { storageModeService } from '../utils/storageMode';
 
 // مكتبة للتعامل مع ملفات Excel
 declare const XLSX: any;
@@ -39,6 +40,16 @@ const LoginPage: React.FC = () => {
 
   const saveEmployees = (employees: Employee[]) => {
     localStorage.setItem('employees', JSON.stringify(employees));
+    
+    // ===== Sync to Supabase =====
+    storageModeService.syncEmployeeProfilesToCloud().then(res => {
+      if (res.success) {
+        console.log('[LoginPage] ✅ Employees synced to cloud:', res.count);
+      } else {
+        console.error('[LoginPage] ❌ Cloud sync failed:', res.error);
+      }
+    }).catch(err => console.error('[LoginPage] ❌ Sync error:', err));
+    // ===== End Supabase Sync =====
   };
 
   const handleLogin = async () => {

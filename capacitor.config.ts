@@ -52,13 +52,14 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 0,
+      launchShowDuration: 2000,
       backgroundColor: "#0f3c35",
-      showSpinner: false,
+      showSpinner: true,
       androidSpinnerStyle: "large",
       iosSpinnerStyle: "large",
       splashFullScreen: true,
-      splashImmersive: true
+      splashImmersive: true,
+      launchFadeOutDuration: 500
     },
     StatusBar: {
       style: "dark",
@@ -67,6 +68,19 @@ const config: CapacitorConfig = {
     Keyboard: {
       resize: 'body',
       resizeOnFullScreen: true
+    },
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"]
+    },
+    Haptics: {
+      selectionStartDuration: 25,
+      selectionChangeDuration: 25
+    },
+    Camera: {
+      saveToGallery: false,
+      promptLabelHeader: "اختر مصدر الصورة",
+      promptLabelPhoto: "من المعرض",
+      promptLabelPicture: "التقاط صورة"
     }
   }
 };

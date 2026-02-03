@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { AppContext } from '../App';
-import type { Ticket, ContactMessage, TicketResponseRecord } from '../types';
+import type { Ticket, ContactMessage, TicketResponseRecord, TicketAttachmentMeta } from '../types';
 import { RequestStatus } from '../types';
 import Input from './ui/Input';
 import TextArea from './ui/TextArea';
@@ -391,6 +391,315 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({
     setComment('');
   };
 
+  // ======= مكونات عرض المرفقات =======
+  
+  // الحصول على أيقونة نوع الملف
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.startsWith('image/')) {
+      return (
+        <svg className="w-8 h-8 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      );
+    }
+    if (mimeType === 'application/pdf') {
+      return (
+        <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+      );
+    }
+    if (mimeType.includes('word') || mimeType.includes('document')) {
+      return (
+        <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      );
+    }
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) {
+      return (
+        <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      );
+    }
+    return (
+      <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+      </svg>
+    );
+  };
+
+  // تنسيق حجم الملف
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} بايت`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} كيلوبايت`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} ميجابايت`;
+  };
+
+  // فتح المرفق المحفوظ
+  const openAttachment = (att: TicketAttachmentMeta) => {
+    if (att.base64) {
+      // فتح من Base64
+      const newWindow = window.open('', '_blank');
+      if (newWindow) {
+        if (att.type.startsWith('image/')) {
+          newWindow.document.write(`
+            <html dir="rtl">
+              <head>
+                <title>${att.name}</title>
+                <style>
+                  body { margin: 0; padding: 20px; background: #1a1a1a; display: flex; flex-direction: column; align-items: center; font-family: 'Segoe UI', Tahoma, sans-serif; }
+                  img { max-width: 100%; max-height: 90vh; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+                  h3 { color: #fff; margin-bottom: 20px; }
+                  .actions { margin-top: 20px; display: flex; gap: 10px; }
+                  button { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+                  .print-btn { background: #10b981; color: white; }
+                  .download-btn { background: #3b82f6; color: white; }
+                </style>
+              </head>
+              <body>
+                <h3>${att.name}</h3>
+                <img src="${att.base64}" alt="${att.name}" />
+                <div class="actions">
+                  <button class="print-btn" onclick="window.print()">🖨️ طباعة</button>
+                  <button class="download-btn" onclick="downloadImage()">⬇️ تحميل</button>
+                </div>
+                <script>
+                  function downloadImage() {
+                    const link = document.createElement('a');
+                    link.href = '${att.base64}';
+                    link.download = '${att.name}';
+                    link.click();
+                  }
+                </script>
+              </body>
+            </html>
+          `);
+        } else if (att.type === 'application/pdf') {
+          newWindow.document.write(`
+            <html dir="rtl">
+              <head>
+                <title>${att.name}</title>
+                <style>
+                  body { margin: 0; padding: 0; }
+                  iframe { width: 100%; height: 100vh; border: none; }
+                </style>
+              </head>
+              <body>
+                <iframe src="${att.base64}" type="application/pdf"></iframe>
+              </body>
+            </html>
+          `);
+        } else {
+          // تحميل مباشر للملفات الأخرى
+          const link = document.createElement('a');
+          link.href = att.base64;
+          link.download = att.name;
+          link.click();
+        }
+        newWindow.document.close();
+      }
+    } else if (att.url) {
+      // فتح من URL
+      window.open(att.url, '_blank');
+    } else {
+      alert('عذراً، هذا المرفق غير متوفر للعرض');
+    }
+  };
+
+  // طباعة المرفق
+  const printAttachment = (att: TicketAttachmentMeta) => {
+    if (att.base64 && (att.type.startsWith('image/') || att.type === 'application/pdf')) {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        if (att.type.startsWith('image/')) {
+          printWindow.document.write(`
+            <html dir="rtl">
+              <head>
+                <title>طباعة - ${att.name}</title>
+                <style>
+                  @media print {
+                    body { margin: 0; }
+                    img { max-width: 100%; height: auto; }
+                  }
+                </style>
+              </head>
+              <body onload="window.print(); window.close();">
+                <img src="${att.base64}" alt="${att.name}" />
+              </body>
+            </html>
+          `);
+        } else {
+          printWindow.document.write(`
+            <html dir="rtl">
+              <head>
+                <title>طباعة - ${att.name}</title>
+              </head>
+              <body>
+                <iframe src="${att.base64}" style="width:100%;height:100vh;border:none;" onload="setTimeout(()=>{window.print();window.close();},1000)"></iframe>
+              </body>
+            </html>
+          `);
+        }
+        printWindow.document.close();
+      }
+    } else {
+      alert('عذراً، لا يمكن طباعة هذا النوع من الملفات مباشرة. يرجى فتحه وطباعته من البرنامج المناسب.');
+    }
+  };
+
+  // مكون بطاقة المرفق المحفوظ
+  const AttachmentCard: React.FC<{ attachment: TicketAttachmentMeta; index: number }> = ({ attachment, index }) => (
+    <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/30 dark:bg-gray-800/30 hover:bg-white/50 dark:hover:bg-gray-700/50 transition-all group">
+      <div className="flex-shrink-0">
+        {getFileIcon(attachment.type)}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate" title={attachment.name}>
+          {attachment.name}
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {formatFileSize(attachment.size)}
+          {attachment.uploadedAt && (
+            <span className="mr-2">
+              • {new Date(attachment.uploadedAt).toLocaleDateString('ar-SY-u-nu-latn')}
+            </span>
+          )}
+        </p>
+      </div>
+      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={() => openAttachment(attachment)}
+          className="p-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
+          title="فتح وعرض"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          </svg>
+        </button>
+        <button
+          onClick={() => printAttachment(attachment)}
+          className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+          title="طباعة"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+        </button>
+        {(attachment.base64 || attachment.url) && (
+          <a
+            href={attachment.base64 || attachment.url}
+            download={attachment.name}
+            className="p-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors"
+            title="تحميل"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </a>
+        )}
+      </div>
+    </div>
+  );
+
+  // مكون بطاقة الملف المحلي (File object)
+  const LocalFileCard: React.FC<{ file: File; index: number }> = ({ file, index }) => {
+    const [previewUrl, setPreviewUrl] = useState<string>('');
+    
+    useEffect(() => {
+      // إنشاء URL مؤقت للملف
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }, [file]);
+    
+    const openLocalFile = () => {
+      if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+        window.open(previewUrl, '_blank');
+      } else {
+        // تحميل مباشر
+        const link = document.createElement('a');
+        link.href = previewUrl;
+        link.download = file.name;
+        link.click();
+      }
+    };
+    
+    const printLocalFile = () => {
+      if (file.type.startsWith('image/')) {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(`
+            <html dir="rtl">
+              <head><title>طباعة - ${file.name}</title></head>
+              <body onload="window.print(); window.close();">
+                <img src="${previewUrl}" style="max-width:100%;" />
+              </body>
+            </html>
+          `);
+          printWindow.document.close();
+        }
+      } else if (file.type === 'application/pdf') {
+        const printWindow = window.open(previewUrl, '_blank');
+        printWindow?.print();
+      } else {
+        alert('عذراً، لا يمكن طباعة هذا النوع من الملفات مباشرة.');
+      }
+    };
+    
+    return (
+      <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/30 dark:bg-gray-800/30 hover:bg-white/50 dark:hover:bg-gray-700/50 transition-all group">
+        <div className="flex-shrink-0">
+          {getFileIcon(file.type)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate" title={file.name}>
+            {file.name}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {formatFileSize(file.size)}
+            <span className="mr-2 text-amber-600 dark:text-amber-400">• ملف محلي (غير محفوظ)</span>
+          </p>
+        </div>
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={openLocalFile}
+            className="p-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
+            title="فتح وعرض"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </button>
+          <button
+            onClick={printLocalFile}
+            className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+            title="طباعة"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+          </button>
+          <a
+            href={previewUrl}
+            download={file.name}
+            className="p-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors"
+            title="تحميل"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </a>
+        </div>
+      </div>
+    );
+  };
+
+  // ======= نهاية مكونات المرفقات =======
+
   if (!isOpen) return null;
 
   return (
@@ -545,8 +854,19 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   البريد الإلكتروني
                 </label>
-                <div className="p-3 rounded-lg border border-gray-200/30 dark:border-gray-700/30 bg-white/20 dark:bg-gray-800/20 backdrop-blur">
-                  {ticket.email || 'غير متوفر'}
+                <div className="p-3 rounded-lg border border-gray-200/30 dark:border-gray-700/30 bg-white/20 dark:bg-gray-800/20 backdrop-blur flex items-center justify-between gap-2">
+                  <span className="truncate">{ticket.email || 'غير متوفر'}</span>
+                  {ticket.email && (
+                    <a 
+                      href={`mailto:${ticket.email}`}
+                      className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors flex-shrink-0"
+                      title="إرسال بريد"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </a>
+                  )}
                 </div>
               </div>
 
@@ -604,8 +924,39 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         رقم الهاتف
                       </label>
-                      <div className="p-3 rounded-lg border border-gray-200/30 dark:border-gray-700/30 bg-white/20 dark:bg-gray-800/20 backdrop-blur direction-ltr font-mono">
-                        {ticket.phone}
+                      <div className="p-3 rounded-lg border border-gray-200/30 dark:border-gray-700/30 bg-white/20 dark:bg-gray-800/20 backdrop-blur direction-ltr font-mono flex items-center justify-between gap-2">
+                        <span>{ticket.phone}</span>
+                        <div className="flex gap-1">
+                          <a 
+                            href={`tel:${ticket.phone}`}
+                            className="p-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                            title="اتصال"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                            </svg>
+                          </a>
+                          <a 
+                            href={`https://wa.me/${ticket.phone.replace(/[^0-9]/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
+                            title="واتساب"
+                          >
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                            </svg>
+                          </a>
+                          <a 
+                            href={`sms:${ticket.phone}`}
+                            className="p-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors"
+                            title="رسالة SMS"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                          </a>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -722,6 +1073,31 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({
             </div>
           </div>
 
+          {/* المرفقات */}
+          {isTicket(ticket) && ((ticket.attachments && ticket.attachments.length > 0) || (ticket.attachments_data && ticket.attachments_data.length > 0)) && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+                المرفقات ({(ticket.attachments_data?.length || 0) + (ticket.attachments?.length || 0)})
+              </h3>
+              <div className="p-4 rounded-lg border border-gray-200/30 dark:border-gray-700/30 bg-white/20 dark:bg-gray-800/20 backdrop-blur">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* عرض المرفقات المحفوظة (من قاعدة البيانات) */}
+                  {ticket.attachments_data?.map((att, idx) => (
+                    <AttachmentCard key={`data-${idx}`} attachment={att} index={idx} />
+                  ))}
+                  
+                  {/* عرض المرفقات المحلية (File objects) */}
+                  {ticket.attachments?.map((file, idx) => (
+                    <LocalFileCard key={`file-${idx}`} file={file} index={idx} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* الرد الحالي */}
           {isTicket(ticket) && ticket.response && (
             <div>
@@ -744,13 +1120,13 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">الإجراءات</h3>
             
             <div className="flex flex-wrap gap-3">
-              {isTicket(ticket) && ticket.status !== RequestStatus.Answered && (
+              {isTicket(ticket) && (
                 <Button
                   onClick={() => setShowResponseForm(!showResponseForm)}
                   variant="primary"
                   className="bg-green-600 hover:bg-green-700"
                 >
-                  {showResponseForm ? 'إخفاء نموذج الرد' : 'الرد على الطلب'}
+                  {showResponseForm ? 'إخفاء نموذج الرد' : 'إضافة رد جديد'}
                 </Button>
               )}
 
@@ -867,6 +1243,58 @@ const TicketDetailsModal: React.FC<TicketDetailsModalProps> = ({
             )}
               {/* تمت إزالة زر نسخ معلومات التتبع حسب الطلب */}
             </div>
+
+            {/* التواصل مع المواطن */}
+            {isTicket(ticket) && (ticket.email || ticket.phone) && (
+              <div className="mt-6 p-4 rounded-xl border-2 border-dashed border-emerald-300/50 dark:border-emerald-600/50 bg-emerald-50/30 dark:bg-emerald-900/10">
+                <h4 className="font-semibold text-emerald-800 dark:text-emerald-300 mb-3 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  التواصل مع المواطن
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {ticket.email && (
+                    <a
+                      href={`mailto:${ticket.email}?subject=${encodeURIComponent(`رد على طلبك رقم ${ticket.id} - ${directorateName}`)}`}
+                      className="flex items-center justify-center gap-2 p-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      بريد إلكتروني
+                    </a>
+                  )}
+                  {ticket.phone && (
+                    <a
+                      href={`sms:${ticket.phone}?body=${encodeURIComponent(`مديرية مالية حلب - رد على طلبك رقم ${ticket.id}: `)}`}
+                      className="flex items-center justify-center gap-2 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      رسالة SMS
+                    </a>
+                  )}
+                  {ticket.phone && (
+                    <a
+                      href={`https://wa.me/${ticket.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`مديرية مالية حلب - رد على طلبك رقم ${ticket.id}:\n\n`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                      </svg>
+                      واتساب
+                    </a>
+                  )}
+                </div>
+                <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-3 text-center">
+                  💡 عند إضافة رد عام، سيتم إشعار المواطن تلقائياً حسب الإعدادات
+                </p>
+              </div>
+            )}
 
             {/* ردود متعددة */}
             {isTicket(ticket) && (

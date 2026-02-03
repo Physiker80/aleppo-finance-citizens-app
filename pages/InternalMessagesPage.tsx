@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { ensureFustatRegistered } from '../utils/pdfFonts';
+import { storageModeService } from '../utils/storageMode';
 
 interface InternalMessageRecord {
   id: string;
@@ -336,6 +337,8 @@ const InternalMessagesPage: React.FC = () => {
       if (changed) {
         localStorage.setItem('internalMessages', JSON.stringify(updated));
         setAllMessages(updated);
+        // Sync to cloud
+        storageModeService.syncInternalMessagesToCloud().catch(err => console.error('[InternalMessages] Sync error:', err));
       }
     } catch {/* ignore */}
   }, [selectedId]);
@@ -534,6 +537,13 @@ const InternalMessagesPage: React.FC = () => {
       
       // حفظ في localStorage
       localStorage.setItem('internalMessages', JSON.stringify(updatedMessages));
+      
+      // Sync to cloud
+      storageModeService.syncInternalMessagesToCloud().then(res => {
+        if (res.success) {
+          console.log('[InternalMessages] ✅ Reply synced to cloud');
+        }
+      }).catch(err => console.error('[InternalMessages] Sync error:', err));
 
       // إعادة تعيين النموذج
       setReplyContent('');
@@ -634,6 +644,8 @@ const InternalMessagesPage: React.FC = () => {
                 localStorage.setItem('internalMessages', JSON.stringify(updated));
                 setAllMessages(updated);
                 setSelectedId(null);
+                // Sync to cloud
+                storageModeService.syncInternalMessagesToCloud().catch(err => console.error('[InternalMessages] Sync error:', err));
               } catch {/* ignore */}
             }}
             className="px-2 py-1 rounded bg-gray-500 text-white hover:bg-gray-600"

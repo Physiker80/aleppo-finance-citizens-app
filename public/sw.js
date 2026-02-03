@@ -1,12 +1,15 @@
 // =====================================================
-// 🔧 Service Worker للنظام
+// 🔧 Service Worker للنظام - نسخة المحمول المحسنة
 // يوفر العمل بدون اتصال وتخزين مؤقت ذكي
+// مع دعم خاص لتطبيق المواطنين
 // =====================================================
 
-const CACHE_NAME = 'aleppo-finance-v1';
-const STATIC_CACHE = 'static-v1';
-const DYNAMIC_CACHE = 'dynamic-v1';
-const API_CACHE = 'api-v1';
+const CACHE_VERSION = 'v2';
+const CACHE_NAME = `aleppo-finance-${CACHE_VERSION}`;
+const STATIC_CACHE = `static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `dynamic-${CACHE_VERSION}`;
+const API_CACHE = `api-${CACHE_VERSION}`;
+const OFFLINE_QUEUE = 'offline-queue';
 
 // الملفات الأساسية للتخزين المؤقت
 const STATIC_ASSETS = [
@@ -15,6 +18,16 @@ const STATIC_ASSETS = [
     '/manifest.json',
     '/icons/icon-192x192.png',
     '/icons/icon-512x512.png'
+];
+
+// صفحات المواطنين للتخزين المسبق
+const CITIZEN_PAGES = [
+    '/#home',
+    '/#submit',
+    '/#track',
+    '/#appointment',
+    '/#faq',
+    '/#contact'
 ];
 
 // تثبيت Service Worker
@@ -253,11 +266,147 @@ self.addEventListener('sync', (event) => {
 // مزامنة الطلبات المعلقة
 async function syncPendingTickets() {
     try {
-        // يمكن إضافة منطق المزامنة هنا
         console.log('[SW] Syncing pending tickets...');
+        
+        // جلب الطلبات المعلقة من IndexedDB
+        const pendingRequests = await getPendingRequests();
+        
+        for (const request of pendingRequests) {
+            try {
+                // محاولة إرسال الطلب
+                const response = await fetch(request.url, {
+                    method: request.method,
+                    headers: request.headers,
+                    body: request.body
+                });
+                
+                if (response.ok) {
+                    // حذف من قائمة الانتظار
+                    await removePendingRequest(request.id);
+                    console.log('[SW] Request synced:', request.id);
+                    
+                    // إشعار المستخدم
+                    self.registration.showNotification('تم المزامنة', {
+                        body: 'تم إرسال طلبك المعلق بنجاح',
+                        icon: '/icons/icon-192x192.png',
+                        dir: 'rtl',
+                        lang: 'ar'
+                    });
+                }
+            } catch (error) {
+                console.error('[SW] Failed to sync request:', request.id, error);
+            }
+        }
     } catch (error) {
         console.error('[SW] Sync failed:', error);
     }
 }
 
-console.log('[SW] Service Worker loaded');
+// =====================================================
+// 🗄️ IndexedDB للطلبات المعلقة
+// =====================================================
+
+const DB_NAME = 'OfflineQueue';
+const DB_VERSION = 1;
+const STORE_NAME = 'pendingRequests';
+
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+            }
+        };
+    });
+}
+
+async function addPendingRequest(requestData) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.add({
+            ...requestData,
+            timestamp: Date.now()
+        });
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function getPendingRequests() {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function removePendingRequest(id) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.delete(id);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// التعامل مع رسائل من التطبيق
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'QUEUE_REQUEST') {
+        addPendingRequest(event.data.payload)
+            .then(() => {
+                event.ports[0]?.postMessage({ success: true });
+                // تسجيل للمزامنة الخلفية
+                self.registration.sync.register('sync-tickets');
+            })
+            .catch((error) => {
+                event.ports[0]?.postMessage({ success: false, error: error.message });
+            });
+    }
+    
+    if (event.data && event.data.type === 'GET_PENDING_COUNT') {
+        getPendingRequests()
+            .then(requests => {
+                event.ports[0]?.postMessage({ count: requests.length });
+            })
+            .catch(() => {
+                event.ports[0]?.postMessage({ count: 0 });
+            });
+    }
+    
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
+
+// التحقق من الاتصال بشكل دوري
+self.addEventListener('periodicsync', (event) => {
+    if (event.tag === 'check-connectivity') {
+        event.waitUntil(checkAndSync());
+    }
+});
+
+async function checkAndSync() {
+    try {
+        const response = await fetch('/api/ping', { method: 'HEAD' });
+        if (response.ok) {
+            await syncPendingTickets();
+        }
+    } catch (error) {
+        console.log('[SW] Still offline');
+    }
+}
+
+console.log('[SW] Service Worker loaded - Mobile Enhanced Version');
