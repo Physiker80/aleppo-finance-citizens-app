@@ -1,6 +1,8 @@
 import React, { useState, useContext, useMemo } from 'react';
 import Card from '../components/ui/Card';
 import { AppContext } from '../App';
+import { isMobile } from '../utils/platform';
+import MobileStatsSection from '../components/mobile/MobileStatsSection';
 
 const HomePage: React.FC = () => {
   const app = useContext(AppContext);
@@ -232,6 +234,14 @@ const HomePage: React.FC = () => {
               </div>
             </div>
 
+            {/* Mobile Stats Section */}
+            {isMobile() ? (
+              <MobileStatsSection 
+                surveyStats={surveyStats}
+                onKPIClick={(id) => openModal(id)}
+              />
+            ) : (
+            <>
             {/* Collapsible Sections */}
             <div className={`grid ${showKPIs || showStats || showFeatures ? 'grid-cols-1' : 'lg:grid-cols-3'} gap-8 mb-12 transition-all duration-500 ease-in-out`}>
               {/* مؤشرات الأداء الرئيسية - Collapsible */}
@@ -637,6 +647,8 @@ const HomePage: React.FC = () => {
                 </div>
               )}
             </div>
+            </>
+            )}
           </div>
         </Card>
       </div>
