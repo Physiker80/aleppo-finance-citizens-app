@@ -1,14 +1,16 @@
 /**
  * MobileStatsBar - شريط الإحصائيات السفلي للموبايل
  * 
- * يعرض 3 أقسام رئيسية: مؤشرات الأداء | الإحصائيات | لماذا تختار خدماتنا
+ * يعرض 4 أقسام: مؤشرات الأداء | الإحصائيات | لماذا تختار | الوزارة (فوتر)
  * مع bottom sheet لكل قسم
  */
 
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { AppContext } from '../../App';
+import { FaFacebook, FaInstagram, FaTelegram, FaXTwitter } from 'react-icons/fa6';
+import { MdOutlineEmail } from 'react-icons/md';
 
-type SheetType = 'kpis' | 'stats' | 'features' | null;
+type SheetType = 'kpis' | 'stats' | 'features' | 'footer' | null;
 
 const MobileStatsBar: React.FC = () => {
   const [activeSheet, setActiveSheet] = useState<SheetType>(null);
@@ -47,13 +49,13 @@ const MobileStatsBar: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // بيانات الأزرار الثلاثة
+  // بيانات الأزرار الأربعة
   const tabs = [
     {
       id: 'kpis' as const,
       label: 'مؤشرات الأداء',
       icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
       ),
@@ -63,7 +65,7 @@ const MobileStatsBar: React.FC = () => {
       id: 'stats' as const,
       label: 'الإحصائيات',
       icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
         </svg>
@@ -74,11 +76,24 @@ const MobileStatsBar: React.FC = () => {
       id: 'features' as const,
       label: 'لماذا نحن؟',
       icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
         </svg>
       ),
       color: 'amber'
+    },
+    {
+      id: 'footer' as const,
+      label: 'الوزارة',
+      icon: (
+        <img 
+          src="/ministry-logo.png" 
+          alt="وزارة المالية" 
+          className="w-6 h-6 object-contain"
+        />
+      ),
+      color: 'teal',
+      isLogo: true
     }
   ];
 
@@ -108,6 +123,45 @@ const MobileStatsBar: React.FC = () => {
     { title: 'خدمة 24/7', icon: '🌐', desc: 'متاح طوال الوقت لخدمتك', color: 'purple' }
   ];
 
+  // بيانات الفوتر
+  const footerContent = {
+    ministry: {
+      name: "وزارة المالية",
+      description: "تسعى وزارة المالية في الجمهورية العربية السورية إلى إدارة المال العام بكفاءة وشفافية، وتحديث الأنظمة المالية والضريبية، ودعم التحول الرقمي للخدمات الحكومية بما يضمن تبسيط الإجراءات ورفع جودة الخدمة المقدّمة للمواطنين، وتحقيق الانضباط المالي والاستدامة في الإنفاق العام."
+    },
+    importantLinks: [
+      { text: "عن نظام الاستعلامات والشكاوى", href: "#/about" },
+      { text: "الأخبار", href: "#/news" },
+      { text: "الأسئلة الشائعة", href: "#/faq" },
+      { text: "الهيكل الإداري", href: "#/departments" },
+      { text: "سياسة الخصوصية", href: "#/privacy" },
+      { text: "الشروط والأحكام", href: "#/terms" }
+    ],
+    citizenServices: [
+      { text: "الخدمات", href: "#/services" },
+      { text: "تواصل معنا", href: "#/contact" }
+    ],
+    socialMedia: [
+      { icon: 'email', url: "mailto:info@syrian-finance.gov.sy", name: "البريد الإلكتروني" },
+      { icon: 'facebook', url: "https://www.facebook.com", name: "فيسبوك" },
+      { icon: 'instagram', url: "https://www.instagram.com", name: "إنستغرام" },
+      { icon: 'telegram', url: "https://t.me", name: "تلغرام" },
+      { icon: 'x', url: "https://x.com", name: "إكس" }
+    ]
+  };
+
+  // الحصول على أيقونة التواصل
+  const getSocialIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'email': return <MdOutlineEmail className="w-6 h-6" />;
+      case 'facebook': return <FaFacebook className="w-6 h-6" />;
+      case 'instagram': return <FaInstagram className="w-6 h-6" />;
+      case 'telegram': return <FaTelegram className="w-6 h-6" />;
+      case 'x': return <FaXTwitter className="w-6 h-6" />;
+      default: return <MdOutlineEmail className="w-6 h-6" />;
+    }
+  };
+
   const openSheet = (id: SheetType) => {
     setActiveSheet(id);
     document.body.style.overflow = 'hidden';
@@ -123,7 +177,8 @@ const MobileStatsBar: React.FC = () => {
     const colors: Record<string, { bg: string; text: string; activeBg: string }> = {
       emerald: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-400', activeBg: 'bg-emerald-500' },
       blue: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400', activeBg: 'bg-blue-500' },
-      amber: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400', activeBg: 'bg-amber-500' }
+      amber: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400', activeBg: 'bg-amber-500' },
+      teal: { bg: 'bg-teal-100 dark:bg-teal-900/30', text: 'text-teal-600 dark:text-teal-400', activeBg: 'bg-teal-500' }
     };
     return colors[color] || colors.emerald;
   };
@@ -144,24 +199,27 @@ const MobileStatsBar: React.FC = () => {
         {/* Bar Content */}
         <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-700/50 shadow-2xl">
           <div className="px-4 py-3 pb-safe">
-            <div className="flex items-center justify-around gap-2">
+            <div className="flex items-center justify-around gap-1">
               {tabs.map((tab) => {
                 const colors = getTabColors(tab.color, activeSheet === tab.id);
+                const isLogoTab = 'isLogo' in tab && tab.isLogo;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => openSheet(tab.id)}
                     className={`
-                      flex-1 flex flex-col items-center gap-1.5 py-2 px-3 rounded-2xl
+                      flex-1 flex flex-col items-center gap-1 py-2 px-2 rounded-xl
                       transition-all duration-200 active:scale-95
-                      ${activeSheet === tab.id 
-                        ? `${colors.activeBg} text-white shadow-lg` 
-                        : `${colors.bg} ${colors.text}`
+                      ${isLogoTab 
+                        ? 'bg-gradient-to-br from-[#0f3c35] to-[#0f2027] text-white shadow-md border border-green-700/30'
+                        : activeSheet === tab.id 
+                          ? `${colors.activeBg} text-white shadow-lg` 
+                          : `${colors.bg} ${colors.text}`
                       }
                     `}
                   >
                     {tab.icon}
-                    <span className="text-[11px] font-bold whitespace-nowrap">
+                    <span className={`text-[10px] font-bold whitespace-nowrap ${isLogoTab ? 'text-green-300' : ''}`}>
                       {tab.label}
                     </span>
                   </button>
@@ -360,6 +418,123 @@ const MobileStatsBar: React.FC = () => {
               <button
                 onClick={closeSheet}
                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold shadow-lg active:scale-[0.98] transition-transform"
+              >
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Sheet - Footer */}
+      {activeSheet === 'footer' && (
+        <div className="fixed inset-0 z-50 flex items-end" onClick={closeSheet}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fadeIn" />
+          <div 
+            className="relative w-full bg-gradient-to-b from-[#0f2027] via-[#0f3c35] to-[#0f2027] rounded-t-3xl shadow-2xl animate-slideUp max-h-[90vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Handle */}
+            <div className="sticky top-0 bg-transparent flex justify-center pt-3 pb-2 z-10">
+              <div className="w-12 h-1.5 bg-white/30 rounded-full" />
+            </div>
+            
+            {/* Ministry Logo & Name */}
+            <div className="px-5 pb-4 text-center">
+              <img 
+                src="/ministry-logo.png" 
+                alt="وزارة المالية" 
+                className="w-28 h-28 mx-auto object-contain mb-3" 
+              />
+              <h3 className="text-xl font-bold text-white">{footerContent.ministry.name}</h3>
+              <p className="text-gray-300/80 text-sm mt-3 leading-relaxed text-justify px-2">
+                {footerContent.ministry.description}
+              </p>
+            </div>
+
+            {/* Links Sections */}
+            <div className="px-4 pb-4 grid grid-cols-2 gap-4">
+              {/* روابط مهمة */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
+                <h4 className="text-green-400 font-bold text-sm mb-3 border-b border-green-500/30 pb-2">
+                  روابط مهمة
+                </h4>
+                <ul className="space-y-2.5">
+                  {footerContent.importantLinks.map((link, idx) => (
+                    <li key={idx}>
+                      <a 
+                        href={link.href} 
+                        onClick={closeSheet}
+                        className="text-gray-200 text-sm hover:text-white transition-colors flex items-center gap-2"
+                      >
+                        <span className="text-green-400/60 text-xs">◀</span>
+                        {link.text}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* خدمات المواطنين */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
+                <h4 className="text-green-400 font-bold text-sm mb-3 border-b border-green-500/30 pb-2">
+                  خدمات المواطنين
+                </h4>
+                <ul className="space-y-2.5">
+                  {footerContent.citizenServices.map((link, idx) => (
+                    <li key={idx}>
+                      <a 
+                        href={link.href} 
+                        onClick={closeSheet}
+                        className="text-gray-200 text-sm hover:text-white transition-colors flex items-center gap-2"
+                      >
+                        <span className="text-green-400/60 text-xs">◀</span>
+                        {link.text}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Social Media */}
+            <div className="px-4 pb-4">
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
+                <h4 className="text-green-400 font-bold text-sm mb-3 border-b border-green-500/30 pb-2 text-center">
+                  تابعنا على
+                </h4>
+                <div className="flex items-center justify-center gap-4 flex-wrap">
+                  {footerContent.socialMedia.map((social, idx) => (
+                    <a
+                      key={idx}
+                      href={social.url}
+                      target={social.icon === 'email' ? '_self' : '_blank'}
+                      rel={social.icon === 'email' ? '' : 'noopener noreferrer'}
+                      className="w-11 h-11 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-gray-300 hover:text-white transition-all active:scale-95"
+                      title={social.name}
+                    >
+                      {getSocialIcon(social.icon)}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Copyright */}
+            <div className="px-4 pb-3 text-center">
+              <p className="text-gray-400/70 text-xs">
+                وزارة المالية - الجمهورية العربية السورية
+              </p>
+              <p className="text-gray-500/50 text-xs mt-1">
+                جميع الحقوق محفوظة © {new Date().getFullYear()}
+              </p>
+            </div>
+            
+            {/* Close Button */}
+            <div className="px-4 pb-6 pb-safe">
+              <button
+                onClick={closeSheet}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-bold shadow-lg active:scale-[0.98] transition-transform"
               >
                 إغلاق
               </button>
