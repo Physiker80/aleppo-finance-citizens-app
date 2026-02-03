@@ -19,9 +19,9 @@ interface MobileHeaderProps {
 
 // خريطة عناوين الصفحات
 const pageTitles: Record<string, string> = {
-  '#/': 'الرئيسية',
-  '#': 'الرئيسية',
-  '': 'الرئيسية',
+  '#/': 'البوابة',
+  '#': 'البوابة',
+  '': 'البوابة',
   '#/submit': 'تقديم طلب جديد',
   '#/track': 'متابعة طلب',
   '#/appointment-booking': 'حجز موعد',

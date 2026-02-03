@@ -189,7 +189,7 @@ const MobileStatsBar: React.FC = () => {
             <div className="px-5 pb-4">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
                 <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-white">📈</span>
-                مؤشرات الأداء الرئيسية
+                مؤشرات الأداء
               </h3>
               <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">قياس أداء النظام وجودة الخدمة</p>
             </div>
