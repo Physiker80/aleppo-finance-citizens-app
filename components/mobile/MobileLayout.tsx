@@ -11,6 +11,7 @@
 import React, { useState, useEffect } from 'react';
 import MobileHeader from './MobileHeader';
 import MobileDrawer from './MobileDrawer';
+import MobileStatsBar from './MobileStatsBar';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { isMobile, isOnline } from '../../utils/platform';
 import useMobileInit from '../../hooks/useMobileInit';
@@ -120,9 +121,12 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({ children }) => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto mobile-safe-bottom">
+      <main className="flex-1 overflow-y-auto mobile-safe-bottom pb-28">
         {children}
       </main>
+
+      {/* Stats Bar */}
+      <MobileStatsBar />
     </div>
   );
 };
