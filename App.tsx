@@ -130,6 +130,7 @@ import { playSound } from './utils/notificationSounds';
 // Storage mode for Supabase sync
 import { storageModeService, getCurrentMode, filesToAttachmentMeta, attachmentMetaToFiles, AttachmentMeta } from './utils/storageMode';
 import { getDynamicSupabaseClient } from './utils/supabaseClient';
+import { startAutoSync, stopAutoSync } from './utils/offlineSync';
 
 // Notification service for multi-channel alerts
 import { sendTicketResponseNotification, loadNotificationSettings, logNotification } from './utils/notificationService';
@@ -346,6 +347,17 @@ const App: React.FC = () => {
     };
     
     autoSync();
+  }, []);
+
+  // تشغيل المزامنة التلقائية الدورية (كل 30 ثانية + عند استعادة الاتصال)
+  useEffect(() => {
+    console.log('[App] Starting periodic auto-sync...');
+    startAutoSync();
+    
+    return () => {
+      console.log('[App] Stopping periodic auto-sync...');
+      stopAutoSync();
+    };
   }, []);
 
   // Real-time subscription for live updates (no page refresh needed)
