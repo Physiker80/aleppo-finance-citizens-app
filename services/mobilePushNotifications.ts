@@ -6,7 +6,7 @@
  */
 
 import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
-import { isMobile, isAndroid } from '../utils/platform';
+import { isNativeMobile, isAndroid } from '../utils/platform';
 
 // واجهة إعدادات الإشعارات
 interface PushNotificationSettings {
@@ -41,7 +41,7 @@ const saveSettings = (settings: PushNotificationSettings): void => {
  * طلب إذن الإشعارات من المستخدم
  */
 export const requestPermission = async (): Promise<boolean> => {
-  if (!isMobile()) {
+  if (!isNativeMobile()) {
     console.log('[PushNotifications] Not on mobile platform, skipping');
     return false;
   }
@@ -65,7 +65,7 @@ export const requestPermission = async (): Promise<boolean> => {
  * تسجيل الجهاز للحصول على الإشعارات
  */
 export const registerForPushNotifications = async (): Promise<string | null> => {
-  if (!isMobile()) {
+  if (!isNativeMobile()) {
     console.log('[PushNotifications] Not on mobile platform');
     return null;
   }
@@ -120,7 +120,7 @@ export const setupNotificationListeners = (
   onNotificationReceived?: (notification: PushNotificationSchema) => void,
   onNotificationAction?: (notification: ActionPerformed) => void
 ): void => {
-  if (!isMobile()) {
+  if (!isNativeMobile()) {
     return;
   }
 
@@ -202,7 +202,7 @@ const handleNotificationAction = (action: ActionPerformed): void => {
  * إلغاء تسجيل الجهاز من الإشعارات
  */
 export const unregisterFromPushNotifications = async (): Promise<void> => {
-  if (!isMobile()) return;
+  if (!isNativeMobile()) return;
 
   try {
     await PushNotifications.removeAllListeners();
@@ -278,7 +278,7 @@ export const clearNotificationHistory = (): void => {
  * تهيئة نظام الإشعارات عند بدء التطبيق
  */
 export const initializePushNotifications = async (): Promise<void> => {
-  if (!isMobile()) {
+  if (!isNativeMobile()) {
     console.log('[PushNotifications] Web platform, skipping initialization');
     return;
   }

@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { isMobile } from '../utils/platform';
+import { isNativeMobile } from '../utils/platform';
 import { 
   registerForPushNotifications, 
   setupNotificationListeners 
@@ -36,8 +36,8 @@ export function useMobileInit() {
   const cleanupRef = useRef<(() => void) | null>(null);
   
   useEffect(() => {
-    // فقط على المحمول
-    if (!isMobile()) {
+    // فقط على المنصة الأصلية (Capacitor)
+    if (!isNativeMobile()) {
       setState(prev => ({ ...prev, isInitialized: true }));
       return;
     }
@@ -101,7 +101,7 @@ export function useMobileInit() {
    * تحديث عدد الطلبات المعلقة
    */
   const refreshPendingCount = async () => {
-    if (!isMobile()) return;
+    if (!isNativeMobile()) return;
     const pending = await getPendingCount();
     setState(prev => ({ ...prev, pendingRequests: pending }));
   };
