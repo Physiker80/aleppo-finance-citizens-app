@@ -135,6 +135,16 @@ import { startAutoSync, stopAutoSync } from './utils/offlineSync';
 // Notification service for multi-channel alerts
 import { sendTicketResponseNotification, loadNotificationSettings, logNotification } from './utils/notificationService';
 
+// Notification bridge for cross-platform (web-mobile) notifications
+import { 
+  notifyNewTicket, 
+  notifyTicketStatusUpdate, 
+  notifyTicketResponse, 
+  notifyTicketForward,
+  registerDeviceForNotifications,
+  startListeningForNotifications,
+} from './services/notificationBridge';
+
 
 
 const App: React.FC = () => {
@@ -1711,6 +1721,19 @@ const App: React.FC = () => {
     })();
     // ===== End Supabase Sync =====
 
+    // ===== Cross-Platform Notifications (Web ↔ Mobile) =====
+    try {
+      await notifyNewTicket(
+        newTicket.id,
+        CENTRAL_DEPARTMENT as string,
+        ticketData.requestType || 'طلب جديد'
+      );
+      console.log('[NotificationBridge] ✅ New ticket notification sent:', newTicket.id);
+    } catch (notifErr) {
+      console.warn('[NotificationBridge] ⚠️ Could not send notification:', notifErr);
+    }
+    // ===== End Cross-Platform Notifications =====
+
     // تسجيل النشاط وتتبع وقت الاستجابة
     try {
       addActivityLog({
@@ -2273,6 +2296,21 @@ const App: React.FC = () => {
       console.error('[Supabase] Status sync exception:', e);
     }
     // ===== End Supabase Sync =====
+
+    // ===== Cross-Platform Notifications for Status Update =====
+    try {
+      const ticket = tickets.find(t => t.id === ticketId);
+      if (ticket) {
+        notifyTicketStatusUpdate(ticketId, ticket.department, newStatus);
+        if (newStatus === RequestStatus.Answered && responseText) {
+          notifyTicketResponse(ticketId, ticket.department, responseText.substring(0, 100));
+        }
+        console.log('[NotificationBridge] ✅ Status update notification sent:', ticketId, newStatus);
+      }
+    } catch (notifErr) {
+      console.warn('[NotificationBridge] ⚠️ Could not send status notification:', notifErr);
+    }
+    // ===== End Cross-Platform Notifications =====
 
     // تسجيل النشاط وتتبع حالة التذكرة
     try {

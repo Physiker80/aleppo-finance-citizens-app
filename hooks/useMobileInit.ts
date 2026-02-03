@@ -14,6 +14,12 @@ import {
   cleanupExpiredData,
   getPendingCount 
 } from '../services/offlineStorage';
+import {
+  registerDeviceForNotifications,
+  startListeningForNotifications,
+  stopListeningForNotifications,
+  onNotificationReceived,
+} from '../services/notificationBridge';
 
 interface MobileInitState {
   isInitialized: boolean;
@@ -67,7 +73,29 @@ export function useMobileInit() {
         // 4. إعداد مستمعي الإشعارات
         setupNotificationListeners();
         
-        // 5. تسجيل المزامنة عند عودة الاتصال
+        // 5. تسجيل الجهاز في نظام الإشعارات المركزي
+        try {
+          const currentUser = localStorage.getItem('currentUser');
+          let employeeUsername: string | undefined;
+          let department: string | undefined;
+          
+          if (currentUser) {
+            const user = JSON.parse(currentUser);
+            employeeUsername = user.username;
+            department = user.department;
+          }
+          
+          await registerDeviceForNotifications(employeeUsername, department);
+          console.log('[MobileInit] Device registered for cross-platform notifications');
+          
+          // بدء الاستماع للإشعارات من Supabase
+          startListeningForNotifications(employeeUsername, department);
+          
+        } catch (bridgeError) {
+          console.warn('[MobileInit] Notification bridge setup failed:', bridgeError);
+        }
+        
+        // 6. تسجيل المزامنة عند عودة الاتصال
         cleanupRef.current = registerSyncOnReconnect(async () => {
           console.log('[MobileInit] Connection restored, syncing...');
           const newPending = await getPendingCount();
@@ -94,6 +122,8 @@ export function useMobileInit() {
       if (cleanupRef.current) {
         cleanupRef.current();
       }
+      // إيقاف الاستماع للإشعارات
+      stopListeningForNotifications();
     };
   }, []);
   
