@@ -1,12 +1,11 @@
 import React, { useState, useContext, useMemo } from 'react';
 import Card from '../components/ui/Card';
-import { AppContext, AppStoreLinks } from '../App';
+import { AppContext } from '../App';
 
 const HomePage: React.FC = () => {
   const app = useContext(AppContext);
   const config = app?.siteConfig;
   const surveys = app?.surveys || [];
-  const appStoreLinks = app?.appStoreLinks || { android: { enabled: false, url: '' }, ios: { enabled: false, url: '' } };
   const surveyStats = useMemo(() => {
     if (!surveys.length) return { count: 0, avg: 0, recommendPct: 0 };
     let sum = 0, yes = 0, totalRec = 0;
@@ -228,108 +227,6 @@ const HomePage: React.FC = () => {
                       </svg>
                       رمز QR للدخول
                     </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Download App Section */}
-            <div className="mb-12 bg-gradient-to-br from-purple-50 to-indigo-100/50 dark:from-purple-900/20 dark:to-indigo-800/10 backdrop-blur-sm p-8 rounded-3xl border border-purple-200/50 dark:border-purple-700/30 shadow-lg ring-1 ring-purple-200/40 dark:ring-purple-700/20">
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl mb-4 shadow-lg">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-2">
-                  حمّل التطبيق على هاتفك
-                </h3>
-                <p className="text-gray-600 dark:text-gray-300 max-w-xl mx-auto">
-                  احصل على تجربة أفضل وأسرع من خلال تطبيقنا المتاح على Android و iOS
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                {/* Google Play Button */}
-                <a
-                  href={appStoreLinks.android.enabled && appStoreLinks.android.url ? appStoreLinks.android.url : '#'}
-                  target={appStoreLinks.android.enabled && appStoreLinks.android.url ? '_blank' : undefined}
-                  rel={appStoreLinks.android.enabled && appStoreLinks.android.url ? 'noopener noreferrer' : undefined}
-                  className={`group flex items-center gap-3 bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-xl min-w-[200px] ${!appStoreLinks.android.enabled ? 'opacity-75' : ''}`}
-                  onClick={(e) => {
-                    if (!appStoreLinks.android.enabled || !appStoreLinks.android.url) {
-                      e.preventDefault();
-                      alert('قريباً على Google Play!\n\nالتطبيق قيد التطوير وسيكون متاحاً للتحميل قريباً.');
-                    }
-                  }}
-                >
-                  <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.198l2.807 1.626a1 1 0 010 1.73l-2.808 1.626L15.206 12l2.492-2.491zM5.864 2.658L16.8 8.99l-2.302 2.302-8.634-8.634z" />
-                  </svg>
-                  <div className="text-right">
-                    <div className="text-[10px] opacity-80">{appStoreLinks.android.enabled ? 'متوفر على' : 'قريباً على'}</div>
-                    <div className="text-lg font-bold leading-tight">Google Play</div>
-                  </div>
-                </a>
-
-                {/* App Store Button */}
-                <a
-                  href={appStoreLinks.ios.enabled && appStoreLinks.ios.url ? appStoreLinks.ios.url : '#'}
-                  target={appStoreLinks.ios.enabled && appStoreLinks.ios.url ? '_blank' : undefined}
-                  rel={appStoreLinks.ios.enabled && appStoreLinks.ios.url ? 'noopener noreferrer' : undefined}
-                  className={`group flex items-center gap-3 bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-xl min-w-[200px] ${!appStoreLinks.ios.enabled ? 'opacity-75' : ''}`}
-                  onClick={(e) => {
-                    if (!appStoreLinks.ios.enabled || !appStoreLinks.ios.url) {
-                      e.preventDefault();
-                      alert('قريباً على App Store!\n\nالتطبيق قيد التطوير وسيكون متاحاً للتحميل قريباً.');
-                    }
-                  }}
-                >
-                  <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-                  </svg>
-                  <div className="text-right">
-                    <div className="text-[10px] opacity-80">{appStoreLinks.ios.enabled ? 'حمّل من' : 'قريباً على'}</div>
-                    <div className="text-lg font-bold leading-tight">App Store</div>
-                  </div>
-                </a>
-              </div>
-
-              {/* QR Codes for easy download */}
-              <div className="mt-8 pt-6 border-t border-purple-200/50 dark:border-purple-700/30">
-                <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  أو امسح رمز QR للتحميل المباشر
-                </p>
-                <div className="flex justify-center gap-8">
-                  <div className="text-center">
-                    <div className="w-24 h-24 bg-white dark:bg-gray-800 rounded-xl p-2 shadow-md mx-auto mb-2 flex items-center justify-center">
-                      {appStoreLinks.android.enabled && appStoreLinks.android.qrCode ? (
-                        <img src={appStoreLinks.android.qrCode} alt="Android QR Code" className="w-full h-full object-contain" />
-                      ) : (
-                        <div className="text-gray-400 dark:text-gray-500 text-xs">
-                          <svg className="w-12 h-12 mx-auto mb-1 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                          </svg>
-                          قريباً
-                        </div>
-                      )}
-                    </div>
-                    <span className="text-xs text-gray-600 dark:text-gray-400">Android</span>
-                  </div>
-                  <div className="text-center">
-                    <div className="w-24 h-24 bg-white dark:bg-gray-800 rounded-xl p-2 shadow-md mx-auto mb-2 flex items-center justify-center">
-                      {appStoreLinks.ios.enabled && appStoreLinks.ios.qrCode ? (
-                        <img src={appStoreLinks.ios.qrCode} alt="iOS QR Code" className="w-full h-full object-contain" />
-                      ) : (
-                        <div className="text-gray-400 dark:text-gray-500 text-xs">
-                          <svg className="w-12 h-12 mx-auto mb-1 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                          </svg>
-                          قريباً
-                        </div>
-                      )}
-                    </div>
-                    <span className="text-xs text-gray-600 dark:text-gray-400">iOS</span>
                   </div>
                 </div>
               </div>
