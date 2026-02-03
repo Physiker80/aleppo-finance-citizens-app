@@ -89,7 +89,7 @@ const MobileStatsBar: React.FC = () => {
         <img 
           src="/ministry-logo.png" 
           alt="وزارة المالية" 
-          className="w-10 h-10 object-contain"
+          className="w-12 h-12 object-contain"
         />
       ),
       color: 'teal',
@@ -208,7 +208,7 @@ const MobileStatsBar: React.FC = () => {
                     key={tab.id}
                     onClick={() => openSheet(tab.id)}
                     className={`
-                      ${isLogoTab ? 'w-14 flex-shrink-0' : 'flex-1'} flex flex-col items-center justify-center gap-1 py-2 px-2 rounded-xl
+                      ${isLogoTab ? 'w-16 flex-shrink-0' : 'flex-1'} flex flex-col items-center justify-center gap-1 py-1.5 px-2 rounded-xl
                       transition-all duration-200 active:scale-95
                       ${isLogoTab 
                         ? 'bg-gradient-to-br from-[#0f3c35] to-[#0f2027] shadow-md border border-green-700/30'
